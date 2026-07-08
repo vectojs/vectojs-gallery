@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <g fill="none" stroke="url(#logo-grad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 22 5 L 12 15" />
+    <path d="M 9 11 L 23 11" />
+    <path d="M 16 11 L 16 19 L 7 28" />
+    <path d="M 5 19 L 27 19" />
+    <path d="M 16 19 L 25 28" />
+    <circle cx="22" cy="5" r="1.5" fill="url(#logo-grad)" stroke="none" />
+    <circle cx="12" cy="15" r="1.5" fill="url(#logo-grad)" stroke="none" />
+    <circle cx="9" cy="11" r="1.5" fill="url(#logo-grad)" stroke="none" />
+    <circle cx="23" cy="11" r="1.5" fill="url(#logo-grad)" stroke="none" />
+    <circle cx="16" cy="11" r="1.5" fill="url(#logo-grad)" stroke="none" />
+    <circle cx="16" cy="19" r="1.5" fill="url(#logo-grad)" stroke="none" />
+    <circle cx="5" cy="19" r="1.5" fill="url(#logo-grad)" stroke="none" />
+    <circle cx="27" cy="19" r="1.5" fill="url(#logo-grad)" stroke="none" />
+    <circle cx="7" cy="28" r="1.5" fill="url(#logo-grad)" stroke="none" />
+    <circle cx="25" cy="28" r="1.5" fill="url(#logo-grad)" stroke="none" />
+  </g>
+  <defs>
+    <linearGradient id="logo-grad" x1="5" y1="28" x2="27" y2="5" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366f1"></stop>
+      <stop offset="100%" stop-color="#38bdf8"></stop>
+    </linearGradient>
+  </defs>
+</svg>
