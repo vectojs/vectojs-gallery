@@ -1,0 +1,4 @@
+interface:
+  display_name: "VectoJS Three"
+  short_description: "Embed VectoJS scenes in Three.js"
+  default_prompt: "Use $vectojs-three to embed a VectoJS panel in a Three.js scene."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "VectoJS Responsive Layout"
+  short_description: "Design adaptive VectoJS canvas layouts"
+  default_prompt: "Use $vectojs-responsive-layout to design a responsive VectoJS layout."

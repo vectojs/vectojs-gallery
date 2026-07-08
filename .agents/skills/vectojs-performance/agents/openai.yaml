@@ -1,0 +1,4 @@
+interface:
+  display_name: "VectoJS Performance"
+  short_description: "Profile and optimize VectoJS workloads"
+  default_prompt: "Use $vectojs-performance to profile and optimize a VectoJS workload."

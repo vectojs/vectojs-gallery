@@ -1,0 +1,4 @@
+interface:
+  display_name: "VectoJS UI Animation"
+  short_description: "Create polished VectoJS UI motion"
+  default_prompt: "Use $vectojs-ui-animation to create a polished VectoJS interaction."

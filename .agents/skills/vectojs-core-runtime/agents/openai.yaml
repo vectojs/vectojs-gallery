@@ -1,0 +1,4 @@
+interface:
+  display_name: "VectoJS Core Runtime"
+  short_description: "Build canvas-native VectoJS scenes"
+  default_prompt: "Use $vectojs-core-runtime to build a VectoJS scene with semantic controls."

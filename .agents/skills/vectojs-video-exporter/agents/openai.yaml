@@ -1,0 +1,4 @@
+interface:
+  display_name: "VectoJS Video Exporter"
+  short_description: "Export deterministic VectoJS videos"
+  default_prompt: "Use $vectojs-video-exporter to export a VectoJS scene to MP4."
