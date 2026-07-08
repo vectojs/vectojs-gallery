@@ -1,6 +1,5 @@
 dist/
 node_modules/
-.astro/
 .DS_Store
 *.swp
 *.swo
@@ -8,4 +7,3 @@ node_modules/
 .env
 .env.*
 .wrangler/
-tmp/
