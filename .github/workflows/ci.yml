@@ -32,14 +32,9 @@ jobs:
           bun-version: latest
       - run: bun install
       - run: bun run build
-      - name: List Cloudflare Pages Projects (Debug)
-        run: bunx wrangler pages project list
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=vectojs-gallery --branch=main --commit-dirty=true
+          command: pages deploy dist --project-name=vectojs-gallery
