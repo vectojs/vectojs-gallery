@@ -27,6 +27,26 @@ const CREATIONS: Creation[] = [
   },
 ];
 
+// Deep-linking: #/creation/<id> in the URL hash. Hash-only routing means the
+// server only ever sees a request for "/" — no rewrite rules needed on the
+// static host for a path like /creation/math-art to resolve.
+const HASH_PREFIX = "#/creation/";
+
+function creationIdFromHash(): string | null {
+  const hash = window.location.hash;
+  return hash.startsWith(HASH_PREFIX) ? hash.slice(HASH_PREFIX.length) : null;
+}
+
+// Below this viewport width the sidebar shrinks instead of holding a fixed
+// 280px — a phone-width screen would otherwise be left with almost no room
+// for the creation itself.
+const MOBILE_BREAKPOINT = 700;
+
+function sidebarWidthFor(viewportWidth: number): number {
+  if (viewportWidth >= MOBILE_BREAKPOINT) return 280;
+  return Math.round(Math.max(140, Math.min(220, viewportWidth * 0.5)));
+}
+
 class SidebarBackground extends Entity {
   constructor(width: number, height: number) {
     super("SidebarBackground");
@@ -257,10 +277,32 @@ function initGallery(): void {
       });
   };
 
+  // Reflects the current selection into the URL hash (so it's shareable /
+  // bookmarkable / survives a refresh), skipping the write if we're already
+  // there (e.g. when this call originated from a hashchange event).
+  const setHash = (id: string | null): void => {
+    const next = id ? `${HASH_PREFIX}${id}` : "";
+    if (window.location.hash !== next) {
+      if (next) window.location.hash = next;
+      else
+        history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search,
+        );
+    }
+  };
+
+  // Wraps loadCreation to keep the URL hash in sync with whatever's showing.
+  const navigateTo = (creation: Creation | null): void => {
+    loadCreation(creation);
+    setHash(creation?.id ?? null);
+  };
+
   // Add a Home / Reset button
   const homeBtn = new Button("🏠 Home Dashboard", {
     font: "500 14px Inter, sans-serif",
-    onClick: () => loadCreation(null),
+    onClick: () => navigateTo(null),
   });
   listStack.add(homeBtn);
 
@@ -268,7 +310,7 @@ function initGallery(): void {
   for (const c of CREATIONS) {
     const btn = new Button(`✨ ${c.title}`, {
       font: "500 14px Inter, sans-serif",
-      onClick: () => loadCreation(c),
+      onClick: () => navigateTo(c),
     });
     listStack.add(btn);
   }
@@ -284,15 +326,16 @@ function initGallery(): void {
   const resize = (): void => {
     const W = window.innerWidth;
     const H = window.innerHeight;
+    const sbWidth = sidebarWidthFor(W);
 
     scene.resize(W, H);
 
-    sidebar.width = 280;
+    sidebar.width = sbWidth;
     sidebar.height = H;
-    sidebarBg.width = 280;
+    sidebarBg.width = sbWidth;
     sidebarBg.height = H;
 
-    workspace.width = W - 280;
+    workspace.width = W - sbWidth;
     workspace.height = H;
 
     if (currentCreation) {
@@ -312,9 +355,20 @@ function initGallery(): void {
 
   window.addEventListener("resize", resize);
 
-  // Initial size and dashboard load
+  // Back/forward navigation and manually-edited/shared URLs.
+  window.addEventListener("hashchange", () => {
+    const id = creationIdFromHash();
+    const match = id ? (CREATIONS.find((c) => c.id === id) ?? null) : null;
+    loadCreation(match);
+  });
+
+  // Initial size and load: honor a deep link if the URL already has one.
   resize();
-  loadCreation(null);
+  const initialId = creationIdFromHash();
+  const initialCreation = initialId
+    ? (CREATIONS.find((c) => c.id === initialId) ?? null)
+    : null;
+  loadCreation(initialCreation);
 
   // Start render loop
   scene.start();
