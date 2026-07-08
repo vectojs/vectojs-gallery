@@ -1,6 +1,5 @@
 import { Scene, Entity, type IRenderer } from "@vectojs/core";
 import { Button, Text, Stack } from "@vectojs/ui";
-import MathArt from "./creations/math-art";
 
 // Custom interface for creations metadata
 interface Creation {
@@ -8,7 +7,12 @@ interface Creation {
   title: string;
   author: string;
   description: string;
-  entityClass: new () => Entity;
+  // A dynamic import thunk, not a direct class reference: each creation
+  // becomes its own lazy-loaded chunk, so the initial bundle only ever pays
+  // for creations a visitor actually opens. This keeps first-load time flat
+  // as the gallery grows past a handful of community submissions, instead of
+  // shipping every creation ever merged to every visitor up front.
+  load: () => Promise<{ default: new () => Entity }>;
 }
 
 // Registry of creations
@@ -19,7 +23,7 @@ const CREATIONS: Creation[] = [
     author: "VectoJS Core",
     description:
       "Fermat's spiral drawing rotating dots with procedural hues and connectors.",
-    entityClass: MathArt,
+    load: () => import("./creations/math-art"),
   },
 ];
 
@@ -199,26 +203,58 @@ function initGallery(): void {
   // Workspace container
   const workspace = new Stack({ direction: "vertical", gap: 0 });
 
+  // Bumped on every call so a slow import resolving after a newer selection
+  // was made doesn't clobber whatever the user has since clicked into.
+  let loadSeq = 0;
+
   // Function to load a creation
-  const loadCreation = (creation: Creation | null) => {
-    // Clean up current creation if any
+  const loadCreation = (creation: Creation | null): void => {
+    const seq = ++loadSeq;
+
     if (currentCreation) {
       workspace.remove(currentCreation);
       currentCreation = null;
     }
 
-    if (creation) {
-      const ActiveEntity = creation.entityClass;
-      currentCreation = new ActiveEntity();
-      currentCreation.width = workspace.width;
-      currentCreation.height = workspace.height;
-      workspace.add(currentCreation);
-    } else {
-      // Load default dashboard
+    if (!creation) {
       currentCreation = new Dashboard(workspace.width, workspace.height);
       workspace.add(currentCreation);
+      scene.markDirty();
+      return;
     }
+
+    const placeholder = new Text("Loading…", {
+      font: "16px Inter, sans-serif",
+      color: "#6b7280",
+    });
+    placeholder.setPosition(24, 24);
+    workspace.add(placeholder);
     scene.markDirty();
+
+    creation
+      .load()
+      .then(({ default: EntityClass }) => {
+        if (seq !== loadSeq) return; // superseded by a later selection
+        workspace.remove(placeholder);
+        currentCreation = new EntityClass();
+        currentCreation.width = workspace.width;
+        currentCreation.height = workspace.height;
+        workspace.add(currentCreation);
+        scene.markDirty();
+      })
+      .catch((err: unknown) => {
+        if (seq !== loadSeq) return;
+        console.error(`Failed to load creation "${creation.id}":`, err);
+        workspace.remove(placeholder);
+        const errorText = new Text("Failed to load this creation.", {
+          font: "16px Inter, sans-serif",
+          color: "#f87171",
+        });
+        errorText.setPosition(24, 24);
+        currentCreation = errorText;
+        workspace.add(errorText);
+        scene.markDirty();
+      });
   };
 
   // Add a Home / Reset button
