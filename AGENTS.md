@@ -17,12 +17,12 @@ This website is a **VectoJS Native Canvas Application** (no Astro, React, or sta
 
 ## 🛠️ Tooling & Standards
 
-* **Package Manager**: Bun is preferred (`bun install`, `bun run dev`, `bun run build`). NPM is also supported as a fallback.
-* **Linter & Formatter**:
-  * Formatter: **Prettier** is strictly enforced (`prettier --write .`).
-  * Linter: **Oxlint** (`oxlint`) is used for extreme performance static analysis.
-* **TypeScript Settings**: `tsconfig.json` runs in strict resolution mode. Make sure all imports use clean extensions.
-* **Git Hygiene**: Do not modify files outside of `src/creations/` unless explicitly requested (e.g. adding metadata to the `CREATIONS` list in `src/main.ts`).
+- **Package Manager**: Bun is preferred (`bun install`, `bun run dev`, `bun run build`). NPM is also supported as a fallback.
+- **Linter & Formatter**:
+  - Formatter: **Prettier** is strictly enforced (`prettier --write .`).
+  - Linter: **Oxlint** (`oxlint`) is used for extreme performance static analysis.
+- **TypeScript Settings**: `tsconfig.json` runs in strict resolution mode. Make sure all imports use clean extensions.
+- **Git Hygiene**: Do not modify files outside of `src/creations/` unless explicitly requested (e.g. adding metadata to the `CREATIONS` list in `src/main.ts`).
 
 ---
 
@@ -48,6 +48,6 @@ To implement a new creation, follow these instructions:
 
 ## 🚨 Guidelines for AI Agents
 
-* **Read first**: Always inspect `src/main.ts` and `src/creations/` before starting code changes.
-* **Strict Sandbox**: Keep your files inside `src/creations/`. Never modify bundler configurations or `.github/` workflows unless instructed by the user.
-* **Verify Builds**: Before completing your task, run `bun run build` locally and ensure 0 TypeScript compilation errors or linter warnings.
+- **Read first**: Always inspect `src/main.ts` and `src/creations/` before starting code changes.
+- **Strict Sandbox**: Keep your files inside `src/creations/`. Never modify bundler configurations or `.github/` workflows unless instructed by the user.
+- **Verify Builds**: Before completing your task, run `bun run build` locally and ensure 0 TypeScript compilation errors or linter warnings.
