@@ -1,0 +1,11 @@
+dist/
+node_modules/
+.astro/
+.DS_Store
+*.swp
+*.swo
+*~
+.env
+.env.*
+.wrangler/
+tmp/
