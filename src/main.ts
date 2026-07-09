@@ -18,6 +18,14 @@ interface Creation {
 // Registry of creations
 const CREATIONS: Creation[] = [
   {
+    id: "node-editor",
+    title: "Node Graph Editor",
+    author: "VectoJS Core",
+    description:
+      "260 draggable, connected nodes with smooth pan and zoom — no DOM element per node or connector, just draw calls.",
+    load: () => import("./creations/node-editor"),
+  },
+  {
     id: "math-art",
     title: "Mathematical Spiral Art",
     author: "VectoJS Core",
@@ -164,6 +172,25 @@ class Dashboard extends Entity {
   }
 }
 
+/**
+ * A plain fixed-size container: holds one child (the active creation or a
+ * placeholder) without auto-sizing itself. `Stack` was tried here first, but
+ * `Stack.layout()` unconditionally recomputes its own width/height to fit its
+ * children on every `add()` — exactly wrong for something meant to be a fixed
+ * viewport that whatever's loaded into it should fill.
+ */
+class Workspace extends Entity {
+  constructor() {
+    super("Workspace");
+  }
+
+  override isPointInside(_globalX: number, _globalY: number): boolean {
+    return false;
+  }
+
+  override render(_r: IRenderer): void {}
+}
+
 class Divider extends Entity {
   constructor() {
     super("Divider");
@@ -221,14 +248,26 @@ function initGallery(): void {
   sidebar.add(listStack);
 
   // Workspace container
-  const workspace = new Stack({ direction: "vertical", gap: 0 });
+  const workspace = new Workspace();
 
   // Bumped on every call so a slow import resolving after a newer selection
   // was made doesn't clobber whatever the user has since clicked into.
   let loadSeq = 0;
 
+  // Tracks which creation is currently loaded/loading. navigateTo() calls
+  // loadCreation() directly AND updates the URL hash, which itself fires a
+  // hashchange event that calls loadCreation() again for the same target —
+  // without this guard, the first (now-superseded) call's placeholder is
+  // never cleaned up, since its `seq !== loadSeq` check makes it bail out
+  // before reaching the removal code.
+  let activeId: string | null = null;
+
   // Function to load a creation
   const loadCreation = (creation: Creation | null): void => {
+    const id = creation?.id ?? null;
+    if (id === activeId) return;
+    activeId = id;
+
     const seq = ++loadSeq;
 
     if (currentCreation) {
@@ -347,7 +386,6 @@ function initGallery(): void {
     root.height = H;
 
     sidebar.layout();
-    workspace.layout();
     root.layout();
 
     scene.markDirty();
