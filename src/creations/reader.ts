@@ -1,20 +1,27 @@
 import { Entity, type IRenderer } from "@vectojs/core";
 import { measureText } from "@vectojs/ui";
+import { CHAPTERS } from "./alice-content";
 
 /**
- * A reflowing text reader: paragraphs of text laid out normally, but any word
- * near the cursor is pushed away from it, and the whole paragraph reflows
- * continuously to avoid the pointer. Scroll by dragging or with the wheel.
+ * A reflowing text reader: the full text of Alice's Adventures in Wonderland
+ * (Lewis Carroll, 1865 — public domain worldwide), laid out normally, but any
+ * word near the cursor is pushed away from it, and the whole page reflows
+ * continuously to avoid the pointer. Drag with the left mouse button or use
+ * the wheel to scroll.
  *
  * This is deliberately hard to do well in the DOM: reflowing live text around
- * an arbitrary moving point at paragraph scale means re-measuring and
- * re-positioning every word, every frame, which is exactly what a browser's
- * layout engine is not built to do smoothly. Here it's a per-word position
- * lerp recomputed once per frame — cheap, because nothing about it touches
- * the DOM at all.
+ * an arbitrary moving point, at whole-book scale (twelve chapters, tens of
+ * thousands of words), means re-measuring and re-positioning every word,
+ * every frame — exactly what a browser's layout engine is not built to do
+ * smoothly. Here it's a per-word position lerp recomputed once per frame,
+ * cheap because nothing about it touches the DOM at all.
  *
- * The text itself is original writing for this demo, not excerpted from any
- * book — the point of this piece is the interaction, not the prose.
+ * Two things make this hold 60fps at book scale rather than just paragraph
+ * scale: word widths are measured once and cached (a real book repeats words
+ * — "the", "and", "Alice" — often enough that this cuts measurement work by
+ * an order of magnitude), and a full relayout only runs after the viewport
+ * width has been stable for a moment, not on every intermediate tick while
+ * a window is being dragged to a new size or the browser is mid-zoom.
  */
 
 interface Word {
@@ -24,22 +31,19 @@ interface Word {
   homeY: number;
   offsetX: number;
   offsetY: number;
+  isHeading: boolean;
 }
 
-const PARAGRAPHS: string[] = [
-  "Every piece of writing lives on a page, and every page assumes the reader's eye is the only thing moving across it. Words hold still. Lines don't flinch. That stillness is so ordinary we rarely notice it's a choice, rather than a law of nature.",
-  "This page makes a different choice. Move your cursor near any word here and it steps aside, the way a crowd on a narrow sidewalk parts around someone walking the other direction. The rest of the line closes the gap behind it, then opens again once you've moved on. Nothing about the underlying text has changed — only where each word happens to be standing at this exact moment.",
-  "That distinction, between what a thing is and where it happens to be drawn, is the entire premise of a scene graph. A word here is not a span of styled HTML sitting in a document flow; it is a small object with a home position, a current position, and a rule for how to get from one to the other over time. Ask it where it lives permanently, and it will point to its home. Ask it where it is right now, and it might be somewhere else entirely, mid-flight, avoiding you.",
-  "None of this required a layout engine to be taught a new trick. It required removing the assumption that text has to hold still in the first place, and then asking, plainly, what happens if it doesn't.",
-  "Scroll down. The words further along have been waiting the whole time, laid out and idle, spending nothing until you arrive.",
-];
-
-const LINE_HEIGHT = 28;
-const PARAGRAPH_GAP = 18;
-const FONT = "17px Georgia, serif";
-const REPEL_RADIUS = 90;
-const REPEL_STRENGTH = 46;
+const LINE_HEIGHT = 26;
+const HEADING_LINE_HEIGHT = 34;
+const PARAGRAPH_GAP = 14;
+const CHAPTER_GAP = 40;
+const BODY_FONT = "16px Georgia, serif";
+const HEADING_FONT = "600 20px Georgia, serif";
+const REPEL_RADIUS = 85;
+const REPEL_STRENGTH = 42;
 const LERP_SPEED = 10; // higher = snappier settle, per second
+const RELAYOUT_DEBOUNCE_MS = 150;
 
 export default class Reader extends Entity {
   private words: Word[] = [];
@@ -53,6 +57,9 @@ export default class Reader extends Entity {
   private dragLastY = 0;
 
   private builtForWidth = -1;
+  private pendingWidth = -1;
+  private widthStableMs = 0;
+  private widthMeasureCache = new Map<string, number>();
 
   constructor() {
     super("Reader");
@@ -114,33 +121,61 @@ export default class Reader extends Entity {
     this.scrollY = Math.max(0, Math.min(this.maxScroll, y));
   }
 
+  /** Cached width lookup — a full book repeats far too many words to measure fresh every layout. */
+  private widthOf(text: string, font: string): number {
+    const key = font + "|" + text;
+    let w = this.widthMeasureCache.get(key);
+    if (w === undefined) {
+      w = measureText(text, font);
+      this.widthMeasureCache.set(key, w);
+    }
+    return w;
+  }
+
   private buildLayout(): void {
     const padding = 32;
     const usableWidth = Math.max(200, this.width - padding * 2);
-    const spaceWidth = measureText(" ", FONT);
+    const spaceWidth = this.widthOf(" ", BODY_FONT);
 
     this.words = [];
     let y = padding;
 
-    for (const paragraph of PARAGRAPHS) {
-      let x = padding;
-      for (const raw of paragraph.split(" ")) {
-        const w = measureText(raw, FONT);
-        if (x > padding && x + w > padding + usableWidth) {
-          x = padding;
-          y += LINE_HEIGHT;
+    for (const chapter of CHAPTERS) {
+      // Heading as one non-wrapping unit, its own line.
+      const hw = this.widthOf(chapter.heading, HEADING_FONT);
+      this.words.push({
+        text: chapter.heading,
+        width: hw,
+        homeX: padding,
+        homeY: y,
+        offsetX: 0,
+        offsetY: 0,
+        isHeading: true,
+      });
+      y += HEADING_LINE_HEIGHT * 2;
+
+      for (const paragraph of chapter.paragraphs) {
+        let x = padding;
+        for (const raw of paragraph.split(" ")) {
+          const w = this.widthOf(raw, BODY_FONT);
+          if (x > padding && x + w > padding + usableWidth) {
+            x = padding;
+            y += LINE_HEIGHT;
+          }
+          this.words.push({
+            text: raw,
+            width: w,
+            homeX: x,
+            homeY: y,
+            offsetX: 0,
+            offsetY: 0,
+            isHeading: false,
+          });
+          x += w + spaceWidth;
         }
-        this.words.push({
-          text: raw,
-          width: w,
-          homeX: x,
-          homeY: y,
-          offsetX: 0,
-          offsetY: 0,
-        });
-        x += w + spaceWidth;
+        y += LINE_HEIGHT + PARAGRAPH_GAP;
       }
-      y += LINE_HEIGHT + PARAGRAPH_GAP;
+      y += CHAPTER_GAP;
     }
 
     this.contentHeight = y + padding;
@@ -152,8 +187,20 @@ export default class Reader extends Entity {
   override update(dt: number, _time: number): void {
     super.update(dt, _time);
 
-    if (this.builtForWidth !== this.width && this.width > 0) {
-      this.buildLayout();
+    // Debounced relayout: a full-book layout pass is real work (tens of
+    // thousands of words), so it only runs once the width has held steady
+    // for a moment — not on every tick while a window resize or a browser
+    // zoom is still in progress.
+    if (this.width > 0) {
+      if (this.width !== this.pendingWidth) {
+        this.pendingWidth = this.width;
+        this.widthStableMs = 0;
+      } else if (this.builtForWidth !== this.width) {
+        this.widthStableMs += dt;
+        if (this.widthStableMs >= RELAYOUT_DEBOUNCE_MS) {
+          this.buildLayout();
+        }
+      }
     }
 
     const lerpT = Math.min(1, (LERP_SPEED * dt) / 1000);
@@ -192,11 +239,16 @@ export default class Reader extends Entity {
     r.save();
     r.clip(0, 0, this.width, this.height);
 
+    const visibleTop = -HEADING_LINE_HEIGHT * 2;
+    const visibleBottom = this.height + HEADING_LINE_HEIGHT * 2;
+
     for (const word of this.words) {
       const y = word.homeY - this.scrollY + word.offsetY;
-      if (y < -LINE_HEIGHT || y > this.height + LINE_HEIGHT) continue;
+      if (y < visibleTop || y > visibleBottom) continue;
       const x = word.homeX + word.offsetX;
-      r.fillText(word.text, x, y, FONT, "#2b2620");
+      const font = word.isHeading ? HEADING_FONT : BODY_FONT;
+      const color = word.isHeading ? "#5b3a29" : "#2b2620";
+      r.fillText(word.text, x, y, font, color);
     }
 
     r.restore();
