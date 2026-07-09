@@ -14,6 +14,13 @@ export default class MathArt extends Entity {
   override update(dt: number, time: number): void {
     super.update(dt, time);
     this.time = time * 0.001; // convert to seconds
+
+    // This entity animates by mutating its own state directly in update(),
+    // not through the tracked driver/tween system, so Scene has no way to
+    // know it's continuously animating. Without this, Scene's idle-throttle
+    // (see Scene.loop's `isIdle` check) drops to 2fps after the first frame,
+    // since nothing else is marking the scene dirty every tick.
+    this.scene?.markDirty();
   }
 
   override render(r: IRenderer): void {

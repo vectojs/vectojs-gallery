@@ -18,6 +18,14 @@ interface Creation {
 // Registry of creations
 const CREATIONS: Creation[] = [
   {
+    id: "reader",
+    title: "Reflowing Reader",
+    author: "VectoJS Core",
+    description:
+      "Text that steps aside as your cursor gets near, reflowing continuously to avoid it. Drag or scroll to read.",
+    load: () => import("./creations/reader"),
+  },
+  {
     id: "node-editor",
     title: "Node Graph Editor",
     author: "VectoJS Core",
@@ -361,18 +369,39 @@ function initGallery(): void {
   root.add(sidebar);
   root.add(workspace);
 
+  // Sidebar hide/show toggle. Added directly to the scene rather than as a
+  // child of `sidebar` or `workspace`, so it stays put and clickable
+  // regardless of whether the sidebar is currently in the tree — a child of
+  // `sidebar` would disappear along with it.
+  let sidebarVisible = true;
+  const sidebarToggleBtn = new Button("☰", {
+    font: "600 16px Inter, sans-serif",
+    onClick: () => {
+      sidebarVisible = !sidebarVisible;
+      if (sidebarVisible) root.add(sidebar);
+      else root.remove(sidebar);
+      resize();
+    },
+  });
+  scene.add(sidebarToggleBtn);
+
   // Resize handler
   const resize = (): void => {
     const W = window.innerWidth;
     const H = window.innerHeight;
-    const sbWidth = sidebarWidthFor(W);
+    const sbWidth = sidebarVisible ? sidebarWidthFor(W) : 0;
 
     scene.resize(W, H);
 
-    sidebar.width = sbWidth;
-    sidebar.height = H;
-    sidebarBg.width = sbWidth;
-    sidebarBg.height = H;
+    if (sidebarVisible) {
+      sidebar.width = sbWidth;
+      sidebar.height = H;
+      sidebarBg.width = sbWidth;
+      sidebarBg.height = H;
+    }
+
+    sidebarToggleBtn.x = sbWidth + 12;
+    sidebarToggleBtn.y = 12;
 
     workspace.width = W - sbWidth;
     workspace.height = H;
