@@ -22,7 +22,7 @@ const CREATIONS: Creation[] = [
     title: "Reflowing Reader",
     author: "VectoJS Core",
     description:
-      "Text that steps aside as your cursor gets near, reflowing continuously to avoid it. Drag or scroll to read.",
+      "The full text of Alice's Adventures in Wonderland, reflowing continuously to avoid your cursor. Drag or scroll to read.",
     load: () => import("./creations/reader"),
   },
   {
@@ -378,8 +378,17 @@ function initGallery(): void {
     font: "600 16px Inter, sans-serif",
     onClick: () => {
       sidebarVisible = !sidebarVisible;
-      if (sidebarVisible) root.add(sidebar);
-      else root.remove(sidebar);
+      if (sidebarVisible) {
+        // root.add() appends — re-adding sidebar after it was removed would
+        // put it *after* workspace in child order, which is what determines
+        // left/right in a horizontal Stack. Re-insert it before workspace by
+        // removing and re-adding workspace too, restoring [sidebar, workspace].
+        root.remove(workspace);
+        root.add(sidebar);
+        root.add(workspace);
+      } else {
+        root.remove(sidebar);
+      }
       resize();
     },
   });
