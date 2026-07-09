@@ -203,6 +203,11 @@ export default class NodeEditor extends Entity {
       this.fpsAccum = 0;
       this.fpsFrames = 0;
     }
+
+    // Idle drift above mutates state directly, not through the tracked
+    // driver/tween system, so Scene can't tell this is animating and would
+    // throttle to 2fps after the first frame without this.
+    this.scene?.markDirty();
   }
 
   override render(r: IRenderer): void {
