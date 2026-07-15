@@ -43,24 +43,33 @@ export class Bed extends Entity {
     }
 
     if (creations.length === 0) {
-      this.emptyMessage = new Text("No matches — try a different search or fewer tags.", {
-        font: FONT.body(14),
-        color: COLOR.textMuted,
-      });
+      this.emptyMessage = new Text(
+        "No matches — try a different search or fewer tags.",
+        {
+          font: FONT.body(14),
+          color: COLOR.textMuted,
+        },
+      );
       this.emptyMessage.setPosition(PADDING, PADDING);
       this.add(this.emptyMessage);
       return;
     }
 
     const available = this.width - PADDING * 2;
-    const columns = Math.max(1, Math.floor((available + GAP) / (CARD_MIN_WIDTH + GAP)));
+    const columns = Math.max(
+      1,
+      Math.floor((available + GAP) / (CARD_MIN_WIDTH + GAP)),
+    );
     const cardWidth = (available - GAP * (columns - 1)) / columns;
 
     creations.forEach((creation, i) => {
       const card = new CreationCard(cardWidth, creation, i + 1, this.onOpen);
       const col = i % columns;
       const row = Math.floor(i / columns);
-      card.setPosition(PADDING + col * (cardWidth + GAP), PADDING + row * (card.height + GAP));
+      card.setPosition(
+        PADDING + col * (cardWidth + GAP),
+        PADDING + row * (card.height + GAP),
+      );
       this.add(card);
       this.cards.push(card);
     });

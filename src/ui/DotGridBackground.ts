@@ -47,6 +47,10 @@ export class DotGridBackground extends Entity {
     this.drawMark(r, MARK_INSET, MARK_INSET);
     this.drawMark(r, this.width - MARK_INSET - MARK_SIZE, MARK_INSET);
     this.drawMark(r, MARK_INSET, this.height - MARK_INSET - MARK_SIZE);
-    this.drawMark(r, this.width - MARK_INSET - MARK_SIZE, this.height - MARK_INSET - MARK_SIZE);
+    this.drawMark(
+      r,
+      this.width - MARK_INSET - MARK_SIZE,
+      this.height - MARK_INSET - MARK_SIZE,
+    );
   }
 }

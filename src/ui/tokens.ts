@@ -13,8 +13,10 @@ export const COLOR = {
 } as const;
 
 export const FONT = {
-  display: (px: number) => `800 ${px}px "Archivo Black", "Arial Black", sans-serif`,
-  body: (px: number) => `${px}px -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif`,
+  display: (px: number) =>
+    `800 ${px}px "Archivo Black", "Arial Black", sans-serif`,
+  body: (px: number) =>
+    `${px}px -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif`,
   mono: (px: number) =>
     `${px}px ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace`,
 } as const;

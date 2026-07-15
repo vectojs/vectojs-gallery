@@ -35,7 +35,10 @@ export class CaptionPlate extends Entity {
       font: FONT.mono(11),
       color: COLOR.ink,
     });
-    this.tagsText.setPosition(PADDING, PADDING + 40 + this.descText.height + 12);
+    this.tagsText.setPosition(
+      PADDING,
+      PADDING + 40 + this.descText.height + 12,
+    );
     this.add(this.tagsText);
 
     this.height = PADDING + 40 + this.descText.height + 12 + 20 + PADDING;

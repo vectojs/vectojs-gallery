@@ -67,7 +67,12 @@ export class CreationCard extends Entity {
   override isPointInside(globalX: number, globalY: number): boolean {
     const local = this.worldToLocal(globalX, globalY);
     if (!local) return false;
-    return local.x >= 0 && local.x <= this.width && local.y >= 0 && local.y <= this.height;
+    return (
+      local.x >= 0 &&
+      local.x <= this.width &&
+      local.y >= 0 &&
+      local.y <= this.height
+    );
   }
 
   override render(r: IRenderer): void {
