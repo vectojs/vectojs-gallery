@@ -7,7 +7,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "format:check": "prettier --check .",
-    "lint": "oxlint --deny-warnings src"
+    "lint": "oxlint --deny-warnings src",
+    "test": "bun test"
   },
   "dependencies": {
     "@vectojs/core": "1.8.0",
