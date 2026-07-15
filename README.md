@@ -1,6 +1,6 @@
 # VectoJS Creative Gallery 🎨
 
-The official, community-driven interactive showcase for VectoJS creations, hosted at [gallery.vectojs.org](https://gallery.vectojs.org).
+The official interactive showcase for VectoJS creations, hosted at [gallery.vectojs.org](https://gallery.vectojs.org).
 
 Unlike traditional documentation websites, **this entire gallery website is built natively on the VectoJS Canvas engine**. All layouts, sidebars, buttons, and interactions are rendered procedurally on a single `<canvas>` using `@vectojs/core` and `@vectojs/ui`.
 
@@ -40,10 +40,9 @@ First, clone this repository and make sure you have [Bun](https://bun.sh) instal
 
 ---
 
-## ✍️ How to Submit Your Work
+## About
 
-We welcome developers to showcase their creative animations, physics simulations, games, and math art! Every creation is one self-contained VectoJS `Entity`, submitted as a pull request.
-
-See **[CONTRIBUTING.md](./CONTRIBUTING.md)** for the full guide: the exact steps, the rules (VectoJS-only imports, no network access, sandbox your files, credit your GitHub profile), and how review/deployment works. The PR template covers the same checklist inline when you open a PR.
-
-Once your PR is approved and merged into `main`, GitHub Actions automatically builds and deploys the change to [gallery.vectojs.org](https://gallery.vectojs.org) — no separate release step.
+This is a maintained showcase, not an open submission queue — every entry
+is a first-party VectoJS demo, kept in sync with the framework's current
+capabilities. It's not community-submitted, so there's no contribution
+flow or PR template here.

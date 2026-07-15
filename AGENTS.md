@@ -9,9 +9,10 @@ Welcome to the **VectoJS Creative Gallery** repository! This guide provides spec
 This website is a **VectoJS Native Canvas Application** (no Astro, React, or standard HTML/CSS templates). The entire UI layout (sidebar, button lists, text, divider line) and showcase creations are rendered procedurally on a single full-screen canvas.
 
 - **`/index.html`**: Entry point containing a single `<canvas id="gallery-canvas">` and importing `/src/main.ts`.
-- **`/src/main.ts`**: Core application script. Initializes the VectoJS `Scene`, sets up the side-by-side screen layout using `@vectojs/ui` `Stack` and `Button` controls, and mounts/unmounts creations dynamically.
-- **`/src/creations/`**: The sandboxed directory where all community submissions go.
-- **`/src/creations/math-art.ts`**: Reference showcase creation demonstrating the `Entity` interface.
+- **`/src/main.ts`**: Bootstraps the VectoJS `Scene` and wires the `Rail`/`Bed`/`CaptionPlate` UI components together; mounts/unmounts the open creation.
+- **`/src/registry.ts`**: The `Creation` type and the `CREATIONS` registry array.
+- **`/src/ui/`**: The catalog UI components (`Rail`, `Bed`, `CreationCard`, `CaptionPlate`, `DotGridBackground`, `ThumbDoodle`, design tokens).
+- **`/src/creations/`**: One subfolder per showcased demo (e.g. `/src/creations/nexus/`). Maintained first-party code, not a community-submission sandbox.
 
 ---
 
@@ -22,27 +23,15 @@ This website is a **VectoJS Native Canvas Application** (no Astro, React, or sta
   - Formatter: **Prettier** is strictly enforced (`prettier --write .`).
   - Linter: **Oxlint** (`oxlint`) is used for extreme performance static analysis.
 - **TypeScript Settings**: `tsconfig.json` runs in strict resolution mode. Make sure all imports use clean extensions.
-- **Git Hygiene**: Do not modify files outside of `src/creations/` unless explicitly requested (e.g. adding metadata to the `CREATIONS` list in `src/main.ts`).
+- **Git Hygiene**: Showcase entries live under `src/creations/<id>/`; registry metadata lives in `src/registry.ts`, not `src/main.ts` (which only bootstraps the `Scene` and wires the UI components together).
 
 ---
 
-## ✍️ Creation Contribution Flow
+## ✍️ Adding a New Showcase Entry
 
-To implement a new creation, follow these instructions:
-
-1. **Add Creation File**: Create a TypeScript file under `src/creations/[developer-name]/[creation-name].ts` (or simply `src/creations/[creation-name].ts`).
-2. **Implement Entity Subclass**:
-   - Make sure your class extends `Entity` from `@vectojs/core`.
-   - Implement the abstract method `isPointInside(globalX: number, globalY: number): boolean` (return `false` if non-interactive).
-   - Implement the `render(r: IRenderer): void` method using the `IRenderer` canvas-independent drawing API.
-   - Implement the `update(dt: number, time: number): void` method for animations, calling `super.update(dt, time)`.
-3. **Registry Registration**:
-   - Open `src/main.ts`.
-   - Import your new class.
-   - Register the metadata (id, title, author, description, and entityClass) in the `CREATIONS` registry array.
-4. **Validation**:
-   - Format changed files: `prettier --write [files]`
-   - Verify build: `bun run build`
+1. Create `src/creations/<id>/index.ts`, default-exporting a class that extends `Entity` from `@vectojs/core` (`isPointInside`, `render`, and — if animated — `update`, calling `super.update(dt, time)`).
+2. Register it in `CREATIONS` in `src/registry.ts`: `id`, `title`, `description`, `tags`, and a lazy `load: () => import("./creations/<id>")` thunk.
+3. `bun run format:check && bun run lint && bun run test && bun run build` must all pass.
 
 ---
 
