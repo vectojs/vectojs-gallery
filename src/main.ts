@@ -123,10 +123,8 @@ function initGallery(): void {
         scene.add(currentEntity);
 
         currentPlate = new CaptionPlate(creation);
-        currentPlate.setPosition(
-          RAIL_WIDTH + 16,
-          window.innerHeight - currentPlate.height - 16,
-        );
+        currentPlate.x = RAIL_WIDTH + 16;
+        currentPlate.setBottomAnchor(window.innerHeight - 16);
         scene.add(currentPlate);
 
         scene.markDirty();
@@ -167,7 +165,7 @@ function initGallery(): void {
       applySize(currentEntity, W - RAIL_WIDTH, H);
     }
     if (currentPlate) {
-      currentPlate.setPosition(RAIL_WIDTH + 16, H - currentPlate.height - 16);
+      currentPlate.setBottomAnchor(H - 16);
     }
 
     scene.markDirty();
