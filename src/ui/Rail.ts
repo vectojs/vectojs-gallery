@@ -47,7 +47,9 @@ export class Rail extends Entity {
     });
     root.add(this.chipRow);
 
-    const allTags = Array.from(new Set(allCreations.flatMap((c) => c.tags))).sort();
+    const allTags = Array.from(
+      new Set(allCreations.flatMap((c) => c.tags)),
+    ).sort();
     for (const tag of allTags) {
       const btn = new Button(tag, {
         font: FONT.mono(11),
@@ -71,7 +73,8 @@ export class Rail extends Entity {
     else this.activeTags.add(tag);
 
     const btn = this.chipButtons.get(tag);
-    if (btn) btn.bg = this.activeTags.has(tag) ? CHIP_ACTIVE_BG : CHIP_INACTIVE_BG;
+    if (btn)
+      btn.bg = this.activeTags.has(tag) ? CHIP_ACTIVE_BG : CHIP_INACTIVE_BG;
 
     this.applyFilter();
   }
@@ -86,7 +89,9 @@ export class Rail extends Entity {
   }
 
   private rebuildList(creations: Creation[]): void {
-    for (const child of [...this.listStack.children]) this.listStack.remove(child);
+    while (this.listStack.children.length) {
+      this.listStack.remove(this.listStack.children[0]);
+    }
 
     for (const creation of creations) {
       const row = new Button(creation.title, {
