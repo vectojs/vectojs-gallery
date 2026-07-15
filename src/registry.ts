@@ -40,4 +40,12 @@ export const CREATIONS: Creation[] = [
     tags: ["WebGPU", "Compute", "particles"],
     load: () => import("./creations/nexus"),
   },
+  {
+    id: "dimension",
+    title: "Dimension",
+    description:
+      "A VectoJS control panel floating in real 3D space — drag to orbit, and every click is raycast through the plane into a fully interactive 2D UI underneath.",
+    tags: ["WebGL", "Three.js", "3D"],
+    load: () => import("./creations/dimension"),
+  },
 ];
