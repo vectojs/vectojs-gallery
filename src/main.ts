@@ -60,6 +60,13 @@ function initGallery(): void {
     (creation) => navigateTo(creation),
   );
   scene.add(bed);
+  // Every ported creation before Chat happened to paint an opaque full-bleed
+  // background (a game board, a particle field, a 3D scene), which visually
+  // hid the Bed's own catalog cards underneath without anyone needing to
+  // hide them explicitly. Chat's UI is a transparent Stack of bubbles, which
+  // exposed the real gap: the Bed was still mounted (and still hit-testable)
+  // the whole time. Explicitly unmount it while a creation is showing.
+  let bedMounted = true;
 
   const rail = new Rail(
     RAIL_WIDTH,
@@ -91,6 +98,10 @@ function initGallery(): void {
 
   const showCatalog = (): void => {
     teardownCurrent();
+    if (!bedMounted) {
+      scene.add(bed);
+      bedMounted = true;
+    }
     bed.setCreations(CREATIONS);
     scene.markDirty();
   };
@@ -108,6 +119,10 @@ function initGallery(): void {
     }
 
     teardownCurrent();
+    if (bedMounted) {
+      scene.remove(bed);
+      bedMounted = false;
+    }
 
     creation
       .load()

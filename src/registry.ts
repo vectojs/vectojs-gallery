@@ -48,4 +48,12 @@ export const CREATIONS: Creation[] = [
     tags: ["WebGL", "Three.js", "3D"],
     load: () => import("./creations/dimension"),
   },
+  {
+    id: "chat",
+    title: "AI Chat — streaming Markdown",
+    description:
+      "A chat reply streaming token-by-token on canvas: headings, lists, code, tables, and SVG-rendered math, all laid out incrementally with zero DOM per token.",
+    tags: ["Streaming", "Markdown"],
+    load: () => import("./creations/chat"),
+  },
 ];
