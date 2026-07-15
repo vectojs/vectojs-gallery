@@ -43,7 +43,7 @@ function initGallery(): void {
   ) as HTMLCanvasElement | null;
   if (!canvas) return;
 
-  const scene = new Scene(canvas, { maxFPS: 60 });
+  const scene = new Scene(canvas, { maxFPS: 60, pointBackend: "webgl" });
 
   let currentEntity: Entity | null = null;
   let currentPlate: CaptionPlate | null = null;
