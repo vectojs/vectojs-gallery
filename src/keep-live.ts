@@ -1,4 +1,4 @@
-import type { Scene } from '@vectojs/core';
+import type { Scene } from "@vectojs/core";
 
 /**
  * Keep a continuously-animated scene rendering at full rate despite the idle
@@ -11,7 +11,10 @@ import type { Scene } from '@vectojs/core';
  * `active()` gates the pump — return `false` (e.g. while paused) to let the scene
  * throttle and save resources. Returns a stop function.
  */
-export function keepSceneLive(scene: Scene, active: () => boolean = () => true): () => void {
+export function keepSceneLive(
+  scene: Scene,
+  active: () => boolean = () => true,
+): () => void {
   let running = true;
   const pump = (): void => {
     if (!running) return;

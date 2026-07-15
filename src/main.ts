@@ -3,6 +3,7 @@ import { CREATIONS, type Creation } from "./registry";
 import { Bed } from "./ui/Bed";
 import { Rail } from "./ui/Rail";
 import { CaptionPlate } from "./ui/CaptionPlate";
+import { keepSceneLive } from "./keep-live";
 
 const RAIL_WIDTH = 280;
 
@@ -11,6 +12,29 @@ const HASH_PREFIX = "#/creation/";
 function creationIdFromHash(): string | null {
   const hash = window.location.hash;
   return hash.startsWith(HASH_PREFIX) ? hash.slice(HASH_PREFIX.length) : null;
+}
+
+/**
+ * An Entity that needs to react to a resize with more than plain
+ * `width`/`height` assignment (e.g. a game's own `W`/`H` fields plus
+ * position clamping, or a secondary WebGL canvas) can implement this
+ * instead. The load/resize paths below check for it and fall back to
+ * plain assignment when it's absent.
+ */
+interface ResizableEntity {
+  resizeTo(width: number, height: number): void;
+}
+
+function hasResizeTo(entity: Entity): entity is Entity & ResizableEntity {
+  return typeof (entity as Partial<ResizableEntity>).resizeTo === "function";
+}
+
+function applySize(entity: Entity, width: number, height: number): void {
+  if (hasResizeTo(entity)) entity.resizeTo(width, height);
+  else {
+    entity.width = width;
+    entity.height = height;
+  }
 }
 
 function initGallery(): void {
@@ -90,8 +114,11 @@ function initGallery(): void {
       .then(({ default: EntityClass }) => {
         if (seq !== loadSeq) return; // superseded by a later selection
         currentEntity = new EntityClass();
-        currentEntity.width = window.innerWidth - RAIL_WIDTH;
-        currentEntity.height = window.innerHeight;
+        applySize(
+          currentEntity,
+          window.innerWidth - RAIL_WIDTH,
+          window.innerHeight,
+        );
         currentEntity.setPosition(RAIL_WIDTH, 0);
         scene.add(currentEntity);
 
@@ -137,8 +164,7 @@ function initGallery(): void {
     bed.resize(W - RAIL_WIDTH, H, CREATIONS);
 
     if (currentEntity) {
-      currentEntity.width = W - RAIL_WIDTH;
-      currentEntity.height = H;
+      applySize(currentEntity, W - RAIL_WIDTH, H);
     }
     if (currentPlate) {
       currentPlate.setPosition(RAIL_WIDTH + 16, H - currentPlate.height - 16);
@@ -162,6 +188,13 @@ function initGallery(): void {
     : null;
   loadCreation(initialCreation);
 
+  // Some ported entries animate purely by mutating their own state in
+  // update() without ever calling scene.markDirty() themselves, which the
+  // core idle-throttle would otherwise starve. Keeping this on
+  // unconditionally for every entry (not just the ones that need it) is
+  // simplest and costs nothing extra — it's the same effect as
+  // `renderMode: 'always'`, just centralized here instead of per-entity.
+  keepSceneLive(scene, () => true);
   scene.start();
 }
 
