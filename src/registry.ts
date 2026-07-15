@@ -32,4 +32,12 @@ export const CREATIONS: Creation[] = [
     tags: ["Graph", "Scale"],
     load: () => import("./creations/graph"),
   },
+  {
+    id: "nexus",
+    title: "Nexus — a WebGPU particle field",
+    description:
+      'Tens of thousands of particles simulated on a WebGPU compute pass — springing into the word "VectoJS" and flowing away from your cursor, with a transparent CPU fallback.',
+    tags: ["WebGPU", "Compute", "particles"],
+    load: () => import("./creations/nexus"),
+  },
 ];
