@@ -114,12 +114,12 @@ function initGallery(): void {
       .then(({ default: EntityClass }) => {
         if (seq !== loadSeq) return; // superseded by a later selection
         currentEntity = new EntityClass();
+        currentEntity.setPosition(RAIL_WIDTH, 0);
         applySize(
           currentEntity,
           window.innerWidth - RAIL_WIDTH,
           window.innerHeight,
         );
-        currentEntity.setPosition(RAIL_WIDTH, 0);
         scene.add(currentEntity);
 
         currentPlate = new CaptionPlate(creation);
