@@ -1,47 +1,6 @@
 import { Scene, Entity, type IRenderer } from "@vectojs/core";
 import { Button, Text, Stack } from "@vectojs/ui";
-
-// Custom interface for creations metadata
-interface Creation {
-  id: string;
-  title: string;
-  author: string;
-  description: string;
-  // A dynamic import thunk, not a direct class reference: each creation
-  // becomes its own lazy-loaded chunk, so the initial bundle only ever pays
-  // for creations a visitor actually opens. This keeps first-load time flat
-  // as the gallery grows past a handful of community submissions, instead of
-  // shipping every creation ever merged to every visitor up front.
-  load: () => Promise<{ default: new () => Entity }>;
-}
-
-// Registry of creations
-const CREATIONS: Creation[] = [
-  {
-    id: "reader",
-    title: "Reflowing Reader",
-    author: "VectoJS Core",
-    description:
-      "The full text of Alice's Adventures in Wonderland, reflowing continuously to avoid your cursor. Drag or scroll to read.",
-    load: () => import("./creations/reader"),
-  },
-  {
-    id: "node-editor",
-    title: "Node Graph Editor",
-    author: "VectoJS Core",
-    description:
-      "260 draggable, connected nodes with smooth pan and zoom — no DOM element per node or connector, just draw calls.",
-    load: () => import("./creations/node-editor"),
-  },
-  {
-    id: "math-art",
-    title: "Mathematical Spiral Art",
-    author: "VectoJS Core",
-    description:
-      "Fermat's spiral drawing rotating dots with procedural hues and connectors.",
-    load: () => import("./creations/math-art"),
-  },
-];
+import { CREATIONS, type Creation } from "./registry";
 
 // Deep-linking: #/creation/<id> in the URL hash. Hash-only routing means the
 // server only ever sees a request for "/" — no rewrite rules needed on the
