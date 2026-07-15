@@ -24,4 +24,12 @@ export const CREATIONS: Creation[] = [
     tags: ["Interaction", "Game"],
     load: () => import("./creations/catch"),
   },
+  {
+    id: "graph",
+    title: "Knowledge Graph",
+    description:
+      "An infinite pan/zoom map of the VectoJS ecosystem: a real labeled backbone of packages and concepts, surrounded by thousands of synthetic satellite nodes rendered through WebGL-batched particles.",
+    tags: ["Graph", "Scale"],
+    load: () => import("./creations/graph"),
+  },
 ];
