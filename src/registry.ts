@@ -12,7 +12,16 @@ export interface Creation {
   load: () => Promise<{ default: new () => Entity }>;
 }
 
-// Registry of creations. Empty for now — each ported demo is added by its
-// own dedicated implementation plan (see
+// Registry of creations. Each ported demo is added by its own dedicated
+// implementation plan (see
 // superpowers/tasks/2026-07-15-vectojs-gallery-redesign/plans/).
-export const CREATIONS: Creation[] = [];
+export const CREATIONS: Creation[] = [
+  {
+    id: "catch",
+    title: "Fruit Catch",
+    description:
+      "A falling-fruit catcher, osu!Catch-style: move the plate with your mouse or arrow keys to grab the fruit the goal asks for.",
+    tags: ["Interaction", "Game"],
+    load: () => import("./creations/catch"),
+  },
+];
