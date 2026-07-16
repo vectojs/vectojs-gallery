@@ -6,6 +6,11 @@ import { COLOR, FONT } from "./tokens";
 
 const CHIP_ACTIVE_BG = COLOR.ink;
 const CHIP_INACTIVE_BG = "transparent";
+const BRAND: { a: string; b: string } = { a: "#7c5cff", b: "#22d3ee" };
+const TILE = 40;
+const TILE_X = 20;
+const TILE_Y = 20;
+const CONTENT_TOP = 84;
 
 export class Rail extends Entity {
   private search = "";
@@ -26,7 +31,7 @@ export class Rail extends Entity {
     this.height = height;
 
     const root = new Stack({ direction: "vertical", gap: 16 });
-    root.padding = 20;
+    root.setPosition(20, CONTENT_TOP);
     this.add(root);
 
     const searchInput = new Input({
@@ -55,7 +60,8 @@ export class Rail extends Entity {
         font: FONT.mono(11),
         bg: CHIP_INACTIVE_BG,
         color: COLOR.textMuted,
-        padding: 6,
+        padding: 7,
+        radius: 12,
         onClick: () => this.toggleTag(tag),
       });
       this.chipButtons.set(tag, btn);
@@ -99,6 +105,7 @@ export class Rail extends Entity {
         bg: "transparent",
         color: COLOR.textPrimary,
         padding: 8,
+        radius: 8,
         onClick: () => this.onOpen(creation),
       });
       this.listStack.add(row);
@@ -114,5 +121,36 @@ export class Rail extends Entity {
     r.roundRect(0, 0, this.width, this.height, 0);
     r.fill(COLOR.groundRaised);
     r.stroke(COLOR.rule, 1);
+
+    const tileGrad = r.createLinearGradient(
+      TILE_X,
+      TILE_Y,
+      TILE_X + TILE,
+      TILE_Y + TILE,
+      [
+        { stop: 0, color: BRAND.a },
+        { stop: 1, color: BRAND.b },
+      ],
+    );
+    r.beginPath();
+    r.roundRect(TILE_X, TILE_Y, TILE, TILE, 11);
+    r.fill(tileGrad);
+    r.fillText("V", TILE_X + 12, TILE_Y + 29, FONT.display(22), COLOR.void);
+
+    const textX = TILE_X + TILE + 14;
+    r.fillText(
+      "Gallery",
+      textX,
+      TILE_Y + 18,
+      FONT.display(18),
+      COLOR.textPrimary,
+    );
+    r.fillText(
+      "VECTOJS · CANVAS-NATIVE",
+      textX,
+      TILE_Y + 35,
+      FONT.mono(9),
+      COLOR.textFaint,
+    );
   }
 }

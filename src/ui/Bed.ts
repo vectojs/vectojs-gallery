@@ -8,6 +8,8 @@ import { COLOR, FONT } from "./tokens";
 const CARD_MIN_WIDTH = 220;
 const GAP = 16;
 const PADDING = 24;
+// Top band the card grid leaves clear for the DotGridBackground masthead.
+const MASTHEAD_BAND = 132;
 
 export class Bed extends Entity {
   private background: DotGridBackground;
@@ -50,7 +52,7 @@ export class Bed extends Entity {
           color: COLOR.textMuted,
         },
       );
-      this.emptyMessage.setPosition(PADDING, PADDING);
+      this.emptyMessage.setPosition(PADDING, PADDING + MASTHEAD_BAND);
       this.add(this.emptyMessage);
       return;
     }
@@ -68,7 +70,7 @@ export class Bed extends Entity {
       const row = Math.floor(i / columns);
       card.setPosition(
         PADDING + col * (cardWidth + GAP),
-        PADDING + row * (card.height + GAP),
+        PADDING + MASTHEAD_BAND + row * (card.height + GAP),
       );
       this.add(card);
       this.cards.push(card);
