@@ -211,4 +211,30 @@ function initGallery(): void {
   scene.start();
 }
 
-window.addEventListener("DOMContentLoaded", initGallery);
+/**
+ * Canvas text is measured and rasterized immediately at paint time, so the
+ * chrome (Archivo Black display headings, Inter body) must be loaded before the
+ * first frame — otherwise the catalog renders in the Arial Black / system
+ * fallback and reflows once the webfont arrives. `document.fonts` doesn't fetch
+ * a face until something requests it, so we explicitly kick off the two faces we
+ * paint, then wait for `ready`. A short timeout guarantees a font-CDN stall can
+ * never leave the gallery blank.
+ */
+function whenFontsReady(): Promise<void> {
+  const fonts = document.fonts;
+  if (!fonts) return Promise.resolve();
+  try {
+    void fonts.load('400 16px "Archivo Black"');
+    void fonts.load("400 16px Inter");
+  } catch {
+    // `load()` throws on malformed descriptors only; ignore and fall through.
+  }
+  return Promise.race([
+    fonts.ready.then(() => undefined),
+    new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+  ]);
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  void whenFontsReady().then(initGallery);
+});
