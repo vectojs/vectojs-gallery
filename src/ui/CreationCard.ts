@@ -2,10 +2,11 @@ import { Entity, type IRenderer } from "@vectojs/core";
 import { Text } from "@vectojs/ui";
 import type { Creation } from "../registry";
 import { ThumbDoodle } from "./ThumbDoodle";
+import { clampTextToLines } from "./clamp";
 import { COLOR, FONT, accentFor, type Accent } from "./tokens";
 
 const PADDING = 16;
-const THUMB_HEIGHT = 92;
+const THUMB_RATIO = 0.625; // 16:10 — the thumbnail should dominate the card
 const CARD_RADIUS = 14;
 const LIFT = 8;
 const BADGE_RADIUS = 18;
@@ -50,8 +51,7 @@ export class CreationCard extends Entity {
   private hovered = false;
   private baseY = 0;
   private readonly accent: Accent;
-  private readonly titleText: Text;
-  private readonly descText: Text;
+  private readonly thumbH: number;
   private readonly tagsText: Text;
 
   constructor(
@@ -62,49 +62,50 @@ export class CreationCard extends Entity {
   ) {
     super(`CreationCard:${creation.id}`);
     this.width = width;
-    this.height = 0; // set below, once text heights are known
+    this.height = 0; // natural height set below; grid may stretch it after
     this.interactive = true;
     this.accent = accentFor(creation.id);
 
+    this.thumbH = Math.round((width - PADDING * 2) * THUMB_RATIO);
     const thumb = new ThumbDoodle(
       width - PADDING * 2,
-      THUMB_HEIGHT,
+      this.thumbH,
       seed,
       this.accent,
     );
     thumb.setPosition(PADDING, PADDING);
     this.add(thumb);
 
-    const titleY = PADDING + THUMB_HEIGHT + 20;
-    this.titleText = new Text(creation.title, {
+    const titleY = PADDING + this.thumbH + 20;
+    const titleText = new Text(creation.title, {
       font: FONT.display(15),
       color: COLOR.textPrimary,
       maxWidth: width - PADDING * 2,
     });
-    this.titleText.setPosition(PADDING, titleY);
-    this.add(this.titleText);
+    titleText.setPosition(PADDING, titleY);
+    this.add(titleText);
 
-    const descY = titleY + this.titleText.height + 10;
-    this.descText = new Text(creation.description, {
+    const descY = titleY + titleText.height + 10;
+    const descText = new Text(creation.description, {
       font: FONT.body(12),
       color: COLOR.textMuted,
       maxWidth: width - PADDING * 2,
     });
-    this.descText.setPosition(PADDING, descY);
-    this.add(this.descText);
+    clampTextToLines(descText, creation.description, 2);
+    descText.setPosition(PADDING, descY);
+    this.add(descText);
 
-    const tagsY = descY + this.descText.height + 14;
     this.tagsText = new Text(creation.tags.join("   ·   "), {
       font: FONT.mono(11),
       color: COLOR.textFaint,
     });
-    this.tagsText.setPosition(PADDING + 8, tagsY + 5);
     this.add(this.tagsText);
 
-    this.height = tagsY + 26 + PADDING;
+    // Natural height; setUniformHeight may stretch it (tags stay bottom-anchored).
+    this.setUniformHeight(descY + descText.height + 14 + 26 + PADDING);
 
     const badge = new PlayBadge(() => clamp01((this.baseY - this.y) / LIFT));
-    badge.setPosition(this.width / 2, PADDING + THUMB_HEIGHT / 2);
+    badge.setPosition(this.width / 2, PADDING + this.thumbH / 2);
     this.add(badge);
 
     this.on("hover", () => {
@@ -116,6 +117,16 @@ export class CreationCard extends Entity {
       this.springTo({ y: this.baseY });
     });
     this.on("click", () => this.onOpen(this.creation));
+  }
+
+  /**
+   * Sets the card's height (used by the grid to equalize a row) and re-anchors
+   * the tag pill to the bottom edge, so stretched cards keep their footer flush
+   * instead of leaving a hole under the description.
+   */
+  setUniformHeight(h: number): void {
+    this.height = h;
+    this.tagsText.setPosition(PADDING + 8, h - PADDING - 22 + 5);
   }
 
   // Bed positions the card after construction; capture that resting Y so the
@@ -164,7 +175,7 @@ export class CreationCard extends Entity {
     r.fill(this.hovered ? COLOR.groundSunk : COLOR.groundRaised);
     r.stroke(t > 0.01 ? COLOR.ruleBright : COLOR.rule, 1);
 
-    const barY = PADDING + THUMB_HEIGHT + 8;
+    const barY = PADDING + this.thumbH + 8;
     const barGrad = r.createLinearGradient(
       PADDING,
       barY,

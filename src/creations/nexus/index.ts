@@ -50,7 +50,13 @@ class Nexus extends Entity {
     this.width = width;
     this.height = height;
     this.reformBtn.setPosition(width - this.reformBtn.width - 16, 16);
-    this.particles.initRandomParticles(width, height);
+    // Particle coordinates are consumed in WINDOW space, not this entity's
+    // local space (the GPU layer is a stacked full-window canvas that ignores
+    // the parent transform — forge/findings.md 2026-07-17). Size the sim
+    // bounds to local size + world offset so the field reaches the window's
+    // right/bottom edges, and offset every seed by the world position below.
+    const g = this.getGlobalPosition();
+    this.particles.initRandomParticles(width + g.x, height + g.y);
     this.applyShape();
   }
 
@@ -84,14 +90,20 @@ class Nexus extends Entity {
     if (pts.length < 2) return;
     const n = pts.length / 2;
     const d = this.particles.particleData;
+    // Seeds are local-space samples; shift them into window space (see
+    // resizeTo) so the word centres in the workspace instead of straddling
+    // the rail.
+    const g = this.getGlobalPosition();
     for (let i = 0; i < this.particles.maxParticles; i++) {
       const p = (i % n) * 2;
-      d[i * FLOATS] = pts[p] + (Math.random() - 0.5) * 3;
-      d[i * FLOATS + 1] = pts[p + 1] + (Math.random() - 0.5) * 3;
+      const ox = pts[p] + g.x;
+      const oy = pts[p + 1] + g.y;
+      d[i * FLOATS] = ox + (Math.random() - 0.5) * 3;
+      d[i * FLOATS + 1] = oy + (Math.random() - 0.5) * 3;
       d[i * FLOATS + 2] = 0;
       d[i * FLOATS + 3] = 0;
-      d[i * FLOATS + 4] = pts[p];
-      d[i * FLOATS + 5] = pts[p + 1];
+      d[i * FLOATS + 4] = ox;
+      d[i * FLOATS + 5] = oy;
     }
     this.particles.needsInit = true;
   }

@@ -1,16 +1,12 @@
 import { Entity, type IRenderer } from "@vectojs/core";
-import { measureText } from "@vectojs/ui";
-import { COLOR, FONT, BRAND_GRADIENT } from "./tokens";
+import { COLOR, BRAND_GRADIENT } from "./tokens";
 
 const DOT_SPACING = 26;
-const MASTHEAD_X = 24;
-const MASTHEAD_Y = 30;
 
 /**
- * The catalog "bed" surface: solid ground fill, a very faint dot grid, two
- * corner ambient blooms, and a masthead. It sits behind the cards (which paint
- * from PADDING=24 downward), so the masthead is deliberately low-contrast far
- * background — legible in the margins, never competing with card content.
+ * The catalog "bed" surface: solid ground fill, a very faint dot grid, and two
+ * corner ambient blooms. Purely a fixed backdrop — the masthead moved into the
+ * scrollable hub content (see Masthead) so it scrolls with the sections.
  * `isPointInside` always returns false so it never steals clicks from the cards.
  */
 export class DotGridBackground extends Entity {
@@ -73,23 +69,5 @@ export class DotGridBackground extends Entity {
         r.fill(COLOR.gridDot);
       }
     }
-
-    const titleFont = FONT.display(44);
-    const prefix = "Made with ";
-    r.fillText(prefix, MASTHEAD_X, MASTHEAD_Y + 40, titleFont, COLOR.ink);
-    const wordX = MASTHEAD_X + measureText(prefix, titleFont);
-    const wordGrad = r.createLinearGradient(wordX, 0, wordX + 210, 0, [
-      { stop: 0, color: BRAND_GRADIENT.a },
-      { stop: 1, color: BRAND_GRADIENT.b },
-    ]);
-    r.fillText("VectoJS", wordX, MASTHEAD_Y + 40, titleFont, wordGrad);
-
-    r.fillText(
-      "Interactive pieces rendered entirely on one canvas — no DOM, no reflow.",
-      MASTHEAD_X,
-      MASTHEAD_Y + 68,
-      FONT.body(14),
-      COLOR.textMuted,
-    );
   }
 }

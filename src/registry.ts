@@ -6,6 +6,12 @@ export interface Creation {
   title: string;
   description: string;
   tags: string[];
+  /**
+   * Backdrop colour the workspace Stage paints behind this creation. Part of
+   * the creation theme contract (AGENTS.md): a creation authored for a light
+   * ground declares it here instead of relying on the default dark theater.
+   */
+  stage?: string;
   // A dynamic import thunk, not a direct class reference: each creation
   // becomes its own lazy-loaded chunk, so the initial bundle only ever pays
   // for creations a visitor actually opens.

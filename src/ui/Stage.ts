@@ -13,10 +13,14 @@ import { Entity, type IRenderer } from "@vectojs/core";
  * dark "theater" it was designed for. Added to the scene before the creation
  * entity so it always paints behind it.
  */
-const STAGE_FILL = "#06070a";
+export const DEFAULT_STAGE_FILL = "#06070a";
 
 export class Stage extends Entity {
-  constructor(width: number, height: number) {
+  constructor(
+    width: number,
+    height: number,
+    private readonly fill: string = DEFAULT_STAGE_FILL,
+  ) {
     super("Stage");
     this.width = width;
     this.height = height;
@@ -29,6 +33,6 @@ export class Stage extends Entity {
   override render(r: IRenderer): void {
     r.beginPath();
     r.roundRect(0, 0, this.width, this.height, 0);
-    r.fill(STAGE_FILL);
+    r.fill(this.fill);
   }
 }

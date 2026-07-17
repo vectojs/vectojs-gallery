@@ -1,6 +1,7 @@
 import { Entity, type IRenderer } from "@vectojs/core";
-import { Button, Input, Stack } from "@vectojs/ui";
+import { Button, Input, Stack, Text } from "@vectojs/ui";
 import type { Creation } from "../registry";
+import type { ForgeApp } from "../apps";
 import { filterCreations } from "../filter";
 import { COLOR, FONT, BRAND_GRADIENT } from "./tokens";
 
@@ -11,9 +12,18 @@ const TILE_X = 20;
 const TILE_Y = 20;
 const CONTENT_TOP = 84;
 
+/** Small uppercase group label used between the rail's nav sections. */
+function groupLabel(text: string): Text {
+  return new Text(text.toUpperCase(), {
+    font: FONT.mono(10),
+    color: COLOR.textFaint,
+  });
+}
+
 export class Rail extends Entity {
   private search = "";
   private activeTags = new Set<string>();
+  private readonly root: Stack;
   private readonly listStack: Stack;
   private readonly chipRow: Stack;
   private chipButtons = new Map<string, Button>();
@@ -22,6 +32,7 @@ export class Rail extends Entity {
     width: number,
     height: number,
     private readonly allCreations: Creation[],
+    apps: ForgeApp[],
     private readonly onOpen: (creation: Creation) => void,
     private readonly onFilterChange: (filtered: Creation[]) => void,
   ) {
@@ -32,6 +43,7 @@ export class Rail extends Entity {
     const root = new Stack({ direction: "vertical", gap: 16 });
     root.setPosition(20, CONTENT_TOP);
     this.add(root);
+    this.root = root;
 
     // @vectojs/ui Input defaults to a dark palette; pass the warm-white chrome
     // tokens explicitly so the search field matches the light theme (the
@@ -76,8 +88,25 @@ export class Rail extends Entity {
       this.chipRow.add(btn);
     }
 
+    root.add(groupLabel("Creations"));
     this.listStack = new Stack({ direction: "vertical", gap: 4 });
     root.add(this.listStack);
+
+    root.add(groupLabel("Built on VectoJS"));
+    const appsStack = new Stack({ direction: "vertical", gap: 4 });
+    for (const app of apps) {
+      appsStack.add(
+        new Button(`${app.name} ↗`, {
+          font: FONT.body(13),
+          bg: "transparent",
+          color: COLOR.textPrimary,
+          padding: 8,
+          radius: 8,
+          onClick: () => window.open(app.url, "_blank", "noopener,noreferrer"),
+        }),
+      );
+    }
+    root.add(appsStack);
 
     this.rebuildList(allCreations);
   }
@@ -118,6 +147,10 @@ export class Rail extends Entity {
       });
       this.listStack.add(row);
     }
+    // A nested Stack growing does not reflow its parent: without this, the
+    // group label and app rows keep the positions they got while listStack
+    // was empty and the two nav groups interleave.
+    this.root.layout();
   }
 
   override isPointInside(_globalX: number, _globalY: number): boolean {

@@ -1,9 +1,11 @@
 import { Scene, Entity } from "@vectojs/core";
 import { CREATIONS, type Creation } from "./registry";
+import { APPS } from "./apps";
 import { Bed } from "./ui/Bed";
 import { Rail } from "./ui/Rail";
 import { CaptionPlate } from "./ui/CaptionPlate";
 import { Stage } from "./ui/Stage";
+import { BackChip } from "./ui/BackChip";
 import { keepSceneLive } from "./keep-live";
 
 const RAIL_WIDTH = 280;
@@ -53,6 +55,7 @@ function initGallery(): void {
   let currentEntity: Entity | null = null;
   let currentPlate: CaptionPlate | null = null;
   let currentStage: Stage | null = null;
+  let currentBackChip: BackChip | null = null;
   let loadSeq = 0;
   // `undefined` (not `null`) so the very first call to loadCreation(null) —
   // the fresh-page-load, no-hash case — never short-circuits against this
@@ -78,6 +81,7 @@ function initGallery(): void {
     RAIL_WIDTH,
     window.innerHeight,
     CREATIONS,
+    APPS,
     (creation) => navigateTo(creation),
     (filtered) => bed.setCreations(filtered),
   );
@@ -95,6 +99,10 @@ function initGallery(): void {
       scene.remove(currentPlate);
       currentPlate = null;
     }
+    if (currentBackChip) {
+      scene.remove(currentBackChip);
+      currentBackChip = null;
+    }
     if (currentEntity) {
       currentEntity.destroy();
       scene.remove(currentEntity);
@@ -103,6 +111,27 @@ function initGallery(): void {
     if (currentStage) {
       scene.remove(currentStage);
       currentStage = null;
+    }
+  };
+
+  /**
+   * The engine's GPU point/particle layer is a separate full-window canvas
+   * stacked above the 2D canvas, and it does not clip to any entity's box —
+   * without this, particles drawn left of the workspace paint over the Rail
+   * (see forge/findings.md 2026-07-17). Clip every stacked sibling canvas to
+   * the workspace band. Runs on a delay after each creation mount because the
+   * GPU canvas is created lazily on first use.
+   */
+  const clipStackedCanvases = (): void => {
+    const host = canvas.parentElement ?? document.body;
+    for (const c of host.querySelectorAll("canvas")) {
+      if (c === canvas) continue;
+      const el = c as HTMLCanvasElement;
+      // Clip only the portion that actually overlaps the rail: a creation-
+      // owned canvas already positioned at the workspace offset (e.g.
+      // Dimension's Three.js canvas) must NOT lose its left edge.
+      const overlap = RAIL_WIDTH - el.getBoundingClientRect().left;
+      el.style.clipPath = overlap > 0 ? `inset(0 0 0 ${overlap}px)` : "";
     }
   };
 
@@ -140,6 +169,7 @@ function initGallery(): void {
     currentStage = new Stage(
       window.innerWidth - RAIL_WIDTH,
       window.innerHeight,
+      creation.stage,
     );
     currentStage.setPosition(RAIL_WIDTH, 0);
     scene.add(currentStage);
@@ -161,6 +191,15 @@ function initGallery(): void {
         currentPlate.x = RAIL_WIDTH + 16;
         currentPlate.setBottomAnchor(window.innerHeight - 16);
         scene.add(currentPlate);
+
+        currentBackChip = new BackChip(() => navigateTo(null));
+        currentBackChip.setPosition(RAIL_WIDTH + 16, 16);
+        scene.add(currentBackChip);
+
+        // Lazily-created GPU canvases appear after the entity's first frame.
+        clipStackedCanvases();
+        setTimeout(clipStackedCanvases, 100);
+        setTimeout(clipStackedCanvases, 600);
 
         scene.markDirty();
       })
@@ -206,6 +245,7 @@ function initGallery(): void {
     if (currentPlate) {
       currentPlate.setBottomAnchor(H - 16);
     }
+    clipStackedCanvases();
 
     scene.markDirty();
   };

@@ -11,7 +11,8 @@ This website is a **VectoJS Native Canvas Application** (no Astro, React, or sta
 - **`/index.html`**: Entry point containing a single `<canvas id="gallery-canvas">` and importing `/src/main.ts`.
 - **`/src/main.ts`**: Bootstraps the VectoJS `Scene` and wires the `Rail`/`Bed`/`CaptionPlate` UI components together; mounts/unmounts the open creation.
 - **`/src/registry.ts`**: The `Creation` type and the `CREATIONS` registry array.
-- **`/src/ui/`**: The catalog UI components (`Rail`, `Bed`, `CreationCard`, `CaptionPlate`, `DotGridBackground`, `ThumbDoodle`, design tokens).
+- **`/src/apps.ts`**: The `ForgeApp` manifest behind the "Built on VectoJS" section — name, tagline, canonical URL, accent, and a committed screenshot under `public/apps/`.
+- **`/src/ui/`**: The catalog UI components (`Rail`, `Bed`, `Masthead`, `SectionHeader`, `CreationCard`, `AppCard`, `SubmitCard`, `CaptionPlate`, `BackChip`, `DotGridBackground`, `ThumbDoodle`, design tokens).
 - **`/src/creations/`**: One subfolder per showcased demo (e.g. `/src/creations/nexus/`). Maintained first-party code, not a community-submission sandbox.
 
 ---
@@ -32,6 +33,29 @@ This website is a **VectoJS Native Canvas Application** (no Astro, React, or sta
 1. Create `src/creations/<id>/index.ts`, default-exporting a class that extends `Entity` from `@vectojs/core` (`isPointInside`, `render`, and — if animated — `update`, calling `super.update(dt, time)`).
 2. Register it in `CREATIONS` in `src/registry.ts`: `id`, `title`, `description`, `tags`, and a lazy `load: () => import("./creations/<id>")` thunk.
 3. `bun run format:check && bun run lint && bun run test && bun run build` must all pass.
+
+### 🎨 Creation theme contract (required for every new demo)
+
+The catalog chrome is warm-white; an open creation runs on a **Stage** backdrop
+that defaults to dark (`#06070a`). To keep new demos looking intentional:
+
+1. **Declare your backdrop.** If the creation is authored for anything other
+   than the default dark theater, set `stage: "<css color>"` in its registry
+   entry — never paint your own full-bleed background and let a mismatched
+   Stage leak around it.
+2. **Own an accent.** Add the creation's two-stop gradient to `ACCENT` in
+   `src/ui/tokens.ts`; the card thumbnail, rail dot, and hover glow all key off
+   it. Pick stops that read on the warm-cream card ground.
+3. **Respect your bounds.** The workspace starts at `x = RAIL_WIDTH`; everything
+   you draw must stay inside your entity's box. If you use the GPU point /
+   particle layer, know that it is a stacked full-window canvas that ignores
+   your entity's transform: offset seed coordinates by `getGlobalPosition()`
+   (see `creations/nexus`) — the shell clips stacked canvases to the workspace,
+   but correct placement is your job.
+4. **Verify against the frame.** Open the demo via the catalog (not standalone):
+   the Rail, the `← Gallery` back chip (top-left), and the caption plate
+   (bottom-left) must all stay visible, uncovered, and clickable. Bottom-left
+   content should account for the collapsed caption tab.
 
 ---
 
