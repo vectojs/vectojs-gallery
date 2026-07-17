@@ -3,6 +3,7 @@ import { CREATIONS, type Creation } from "./registry";
 import { Bed } from "./ui/Bed";
 import { Rail } from "./ui/Rail";
 import { CaptionPlate } from "./ui/CaptionPlate";
+import { Stage } from "./ui/Stage";
 import { keepSceneLive } from "./keep-live";
 
 const RAIL_WIDTH = 280;
@@ -51,6 +52,7 @@ function initGallery(): void {
 
   let currentEntity: Entity | null = null;
   let currentPlate: CaptionPlate | null = null;
+  let currentStage: Stage | null = null;
   let loadSeq = 0;
   // `undefined` (not `null`) so the very first call to loadCreation(null) —
   // the fresh-page-load, no-hash case — never short-circuits against this
@@ -98,6 +100,10 @@ function initGallery(): void {
       scene.remove(currentEntity);
       currentEntity = null;
     }
+    if (currentStage) {
+      scene.remove(currentStage);
+      currentStage = null;
+    }
   };
 
   const showCatalog = (): void => {
@@ -127,6 +133,16 @@ function initGallery(): void {
       scene.remove(bed);
       bedMounted = false;
     }
+
+    // Dark backdrop behind the creation (see Stage). Added before the creation
+    // entity so it always paints behind it; sized to the workspace area right
+    // of the rail.
+    currentStage = new Stage(
+      window.innerWidth - RAIL_WIDTH,
+      window.innerHeight,
+    );
+    currentStage.setPosition(RAIL_WIDTH, 0);
+    scene.add(currentStage);
 
     creation
       .load()
@@ -180,6 +196,10 @@ function initGallery(): void {
     rail.height = H;
     bed.resize(W - RAIL_WIDTH, H, CREATIONS);
 
+    if (currentStage) {
+      currentStage.width = W - RAIL_WIDTH;
+      currentStage.height = H;
+    }
     if (currentEntity) {
       applySize(currentEntity, W - RAIL_WIDTH, H);
     }
