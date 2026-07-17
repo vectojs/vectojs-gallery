@@ -1,22 +1,22 @@
 /**
- * Design tokens for the bold, canvas-native gallery chrome. The base palette
- * is a deep near-black with a single warm ink accent for shared chrome; each
- * creation additionally owns a signature gradient (see ACCENT) that drives its
- * card thumbnail, accent rule, rail dot, and hover glow.
+ * Design tokens for the warm-white, canvas-native gallery chrome. The base
+ * palette is a warm cream ground with a single coral ink accent for shared
+ * chrome; each creation additionally owns a signature gradient (see ACCENT)
+ * that drives its card thumbnail, accent rule, rail dot, and hover glow.
  */
 export const COLOR = {
-  void: "#06070a",
-  ground: "#0b0d12",
-  groundRaised: "#14171f",
-  groundSunk: "#1b1f29",
-  ink: "#e0a458",
-  inkDim: "#8a6a3f",
-  textPrimary: "#f4f6f8",
-  textMuted: "#9aa3b0",
-  textFaint: "#5a6472",
-  rule: "rgba(255, 255, 255, 0.08)",
-  ruleBright: "rgba(255, 255, 255, 0.16)",
-  gridDot: "rgba(255, 255, 255, 0.045)",
+  void: "#f7f4ee",
+  ground: "#faf7f1",
+  groundRaised: "#fdfcfa",
+  groundSunk: "#f5f1e9",
+  ink: "#d97757",
+  inkDim: "#b87b52",
+  textPrimary: "#3d3529",
+  textMuted: "#6b6254",
+  textFaint: "#a89e8c",
+  rule: "#ece7de",
+  ruleBright: "#d8d0c2",
+  gridDot: "rgba(61, 53, 41, 0.05)",
 } as const;
 
 /**
@@ -30,6 +30,17 @@ export interface Accent {
   readonly b: string;
   readonly glow: string;
 }
+
+/**
+ * Shared chrome accent gradient (logo tile, masthead brand-word) — distinct
+ * from any individual creation's own Accent. Matches the Motif site's
+ * brand-a/brand-b (2026-07-17-motif-light-theme.md decision 1).
+ */
+export const BRAND_GRADIENT: Accent = {
+  a: "#d97757",
+  b: "#f2b880",
+  glow: "#d97757",
+};
 
 /** Per-creation accent, keyed by `Creation.id`. */
 export const ACCENT: Record<string, Accent> = {
@@ -50,7 +61,7 @@ export const FONT = {
   display: (px: number) =>
     `400 ${px}px "Archivo Black", "Arial Black", sans-serif`,
   body: (px: number) =>
-    `${px}px -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif`,
+    `${px}px Inter, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif`,
   mono: (px: number) =>
     `${px}px ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace`,
 } as const;
