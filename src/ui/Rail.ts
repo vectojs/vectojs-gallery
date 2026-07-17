@@ -2,11 +2,10 @@ import { Entity, type IRenderer } from "@vectojs/core";
 import { Button, Input, Stack } from "@vectojs/ui";
 import type { Creation } from "../registry";
 import { filterCreations } from "../filter";
-import { COLOR, FONT } from "./tokens";
+import { COLOR, FONT, BRAND_GRADIENT } from "./tokens";
 
 const CHIP_ACTIVE_BG = COLOR.ink;
 const CHIP_INACTIVE_BG = "transparent";
-const BRAND: { a: string; b: string } = { a: "#7c5cff", b: "#22d3ee" };
 const TILE = 40;
 const TILE_X = 20;
 const TILE_Y = 20;
@@ -128,8 +127,8 @@ export class Rail extends Entity {
       TILE_X + TILE,
       TILE_Y + TILE,
       [
-        { stop: 0, color: BRAND.a },
-        { stop: 1, color: BRAND.b },
+        { stop: 0, color: BRAND_GRADIENT.a },
+        { stop: 1, color: BRAND_GRADIENT.b },
       ],
     );
     r.beginPath();

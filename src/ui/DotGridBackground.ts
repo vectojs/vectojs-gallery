@@ -1,11 +1,10 @@
 import { Entity, type IRenderer } from "@vectojs/core";
 import { measureText } from "@vectojs/ui";
-import { COLOR, FONT, type Accent } from "./tokens";
+import { COLOR, FONT, BRAND_GRADIENT } from "./tokens";
 
 const DOT_SPACING = 26;
 const MASTHEAD_X = 24;
 const MASTHEAD_Y = 30;
-const BRAND: Accent = { a: "#7c5cff", b: "#22d3ee", glow: "#7c5cff" };
 
 /**
  * The catalog "bed" surface: solid ground fill, a very faint dot grid, two
@@ -52,8 +51,20 @@ export class DotGridBackground extends Entity {
     r.roundRect(0, 0, this.width, this.height, 0);
     r.fill(COLOR.void);
 
-    this.drawBloom(r, this.width * 0.82, this.height * 0.12, 260, BRAND.b);
-    this.drawBloom(r, this.width * 0.1, this.height * 0.9, 220, BRAND.a);
+    this.drawBloom(
+      r,
+      this.width * 0.82,
+      this.height * 0.12,
+      260,
+      BRAND_GRADIENT.b,
+    );
+    this.drawBloom(
+      r,
+      this.width * 0.1,
+      this.height * 0.9,
+      220,
+      BRAND_GRADIENT.a,
+    );
 
     for (let x = DOT_SPACING; x < this.width; x += DOT_SPACING) {
       for (let y = DOT_SPACING; y < this.height; y += DOT_SPACING) {
@@ -68,8 +79,8 @@ export class DotGridBackground extends Entity {
     r.fillText(prefix, MASTHEAD_X, MASTHEAD_Y + 40, titleFont, COLOR.ink);
     const wordX = MASTHEAD_X + measureText(prefix, titleFont);
     const wordGrad = r.createLinearGradient(wordX, 0, wordX + 210, 0, [
-      { stop: 0, color: BRAND.a },
-      { stop: 1, color: BRAND.b },
+      { stop: 0, color: BRAND_GRADIENT.a },
+      { stop: 1, color: BRAND_GRADIENT.b },
     ]);
     r.fillText("VectoJS", wordX, MASTHEAD_Y + 40, titleFont, wordGrad);
 
