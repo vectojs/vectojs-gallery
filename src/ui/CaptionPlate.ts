@@ -136,7 +136,7 @@ export class CaptionPlate extends Entity {
       this.height,
       this.collapsed ? this.width / 2 : 0,
     );
-    r.fill("rgba(18, 21, 27, 0.82)");
+    r.fill("rgba(253, 252, 250, 0.92)");
     r.stroke(COLOR.inkDim, 1);
 
     if (this.collapsed) {
