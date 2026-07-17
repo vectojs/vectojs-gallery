@@ -13,7 +13,7 @@
   "dependencies": {
     "@vectojs/core": "1.9.2",
     "@vectojs/three": "0.1.6",
-    "@vectojs/ui": "1.9.3",
+    "@vectojs/ui": "1.11.0",
     "three": "^0.160.0"
   },
   "devDependencies": {
