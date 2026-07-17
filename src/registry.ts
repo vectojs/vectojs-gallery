@@ -18,7 +18,7 @@ export interface Creation {
   load: () => Promise<{ default: new () => Entity }>;
 }
 
-// Registry of creations. Each ported demo is added by its own dedicated
+// Registry of creations. Each ported creation is added by its own dedicated
 // implementation plan (see
 // superpowers/tasks/2026-07-15-vectojs-gallery-redesign/plans/).
 export const CREATIONS: Creation[] = [
