@@ -33,9 +33,18 @@ export class Rail extends Entity {
     root.setPosition(20, CONTENT_TOP);
     this.add(root);
 
+    // @vectojs/ui Input defaults to a dark palette; pass the warm-white chrome
+    // tokens explicitly so the search field matches the light theme (the
+    // component's colors aren't token-driven, so a bare Input would stay dark).
     const searchInput = new Input({
       width: width - 40,
       placeholder: "Filter creations…",
+      font: FONT.body(13),
+      bg: COLOR.groundRaised,
+      color: COLOR.textPrimary,
+      placeholderColor: COLOR.textFaint,
+      border: COLOR.rule,
+      radius: 8,
       onChange: (value) => {
         this.search = value;
         this.applyFilter();
