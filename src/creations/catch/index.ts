@@ -346,31 +346,37 @@ class CatchGame extends Entity {
     r.fill("#ffffff");
   }
 
+  // Below the shared BackChip ("← Gallery", local x:16..~120, y:16..50) so the
+  // goal indicator never renders underneath it — see forge/findings.md
+  // 2026-07-18 (gallery shell chip vs. creation-owned HUD overlap).
+  private static readonly HUD_Y = 58;
+
   private drawHUD(r: IRenderer): void {
     const W = this.W;
+    const hy = CatchGame.HUD_Y;
     r.beginPath();
-    r.roundRect(8, 10, W - 16, 46, 12);
+    r.roundRect(8, hy, W - 16, 46, 12);
     r.fill("rgba(8,12,22,0.55)"); // translucent dark bar (no gradients needed)
     r.stroke("rgba(255,255,255,0.08)", 1);
 
     // Goal (left): mini target fruit + "Catch N" / name
     const def = defOf(this.goalKey);
-    drawFruit(r, 34, 34, 12, this.goalKey);
+    drawFruit(r, 34, hy + 24, 12, this.goalKey);
     r.fillText(
       `Catch ${this.goalNeed}`,
       54,
-      30,
+      hy + 20,
       "700 15px Inter, system-ui",
       "#f1f5f9",
     );
-    r.fillText(def.name, 54, 47, "500 12px Inter, system-ui", "#94a3b8");
+    r.fillText(def.name, 54, hy + 37, "500 12px Inter, system-ui", "#94a3b8");
 
     // Progress (centre): one dot per required target, filled as caught
     const startX = W / 2 - (this.goalNeed - 1) * 13;
     for (let i = 0; i < this.goalNeed; i++) {
       const px = startX + i * 26;
-      if (i < this.goalGot) drawFruit(r, px, 33, 9, this.goalKey);
-      else r.fillCircle(px, 33, 9, "#ffffff", 0.12);
+      if (i < this.goalGot) drawFruit(r, px, hy + 23, 9, this.goalKey);
+      else r.fillCircle(px, hy + 23, 9, "#ffffff", 0.12);
     }
 
     // Catches left (right): five pips depleting
@@ -378,11 +384,11 @@ class CatchGame extends Entity {
     const pipGap = 6;
     const total = CATCH_BUDGET * pipW + (CATCH_BUDGET - 1) * pipGap;
     const px0 = W - 18 - total;
-    r.fillText("catches", px0, 26, "500 10px Inter, system-ui", "#94a3b8");
+    r.fillText("catches", px0, hy + 16, "500 10px Inter, system-ui", "#94a3b8");
     for (let i = 0; i < CATCH_BUDGET; i++) {
       const px = px0 + i * (pipW + pipGap);
       r.beginPath();
-      r.roundRect(px, 34, pipW, pipW, 3);
+      r.roundRect(px, hy + 24, pipW, pipW, 3);
       r.fill(i < this.catchesLeft ? "#38bdf8" : "rgba(255,255,255,0.1)");
     }
   }
