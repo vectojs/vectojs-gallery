@@ -75,6 +75,7 @@ class Chat extends Entity {
   private transcript: Stack;
   private replayBtn: Button;
   private abort: AbortController | null = null;
+  private lastContentWidth = -1;
 
   constructor() {
     super("Chat");
@@ -93,7 +94,10 @@ class Chat extends Entity {
     });
     this.add(this.replayBtn);
 
-    this.replay();
+    // No replay() here: `this.width` is still 0 until the shell's first
+    // resizeTo() call, so an early replay would wrap the transcript to
+    // contentWidth()'s 260px floor. resizeTo() triggers the first replay
+    // once real dimensions are known.
   }
 
   resizeTo(width: number, height: number): void {
@@ -101,6 +105,15 @@ class Chat extends Entity {
     this.height = height;
     this.replayBtn.setPosition(width - this.replayBtn.width - 16, 16);
     this.transcript.layout();
+
+    // Markdown nodes bake `maxWidth` in at creation time, so a resize that
+    // actually changes the target column width needs a fresh replay to
+    // re-wrap — repositioning the Stack alone can't re-wrap existing text.
+    const cw = this.contentWidth();
+    if (cw !== this.lastContentWidth) {
+      this.lastContentWidth = cw;
+      this.replay();
+    }
   }
 
   override destroy(): void {
