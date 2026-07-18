@@ -210,17 +210,78 @@ export class MathMarkdown extends Markdown {
   }
 
   /**
-   * Split a paragraph's inline tokens on `inlineMath` runs, rendering each as
-   * its own small MathJax image (via {@link buildMathImage}) inside a
-   * vertical Stack alongside the surrounding text. `@vectojs/ui`'s own
-   * `inlineMath` extension (registered inside its Markdown.ts) only ever
-   * renders the raw `$...$` source tinted amber — it never reaches MathJax —
-   * so without this override formulas silently fail to render (the "many
-   * mathematical formulas failed to render" report). This mirrors the same
-   * pattern the base library already uses to splice `image` tokens into a
-   * paragraph (RichText spans can't embed images inline, only flow text), so
-   * each formula lands on its own line rather than truly inline — a known,
-   * shared limitation, not something introduced here.
+   * Build a content image (standard `![alt](src)` markdown, not a math
+   * formula) with an `onLoad` that both resizes to the real aspect ratio
+   * AND reflows every ancestor Stack — `@vectojs/ui`'s own image-in-
+   * paragraph case does the resize but never the reflow, so any content
+   * added while the image was still loading stays positioned for the
+   * initial guessed height (`initialWidth * 0.6`) and visually overlaps the
+   * image once it settles to its real size. See forge/findings.md
+   * 2026-07-18 ("rendered image overlapping with text").
+   *
+   * A single `this.content.layout()` is not enough: `Stack.layout()` also
+   * resizes the Stack itself to fit its children, and that resize only
+   * happens when `.layout()` runs on that SPECIFIC stack. The image's
+   * immediate containing stack (this paragraph's mixed-content Stack, or —
+   * inside a list item — that item's own Stack) never gets told to recompute
+   * its own now-taller height, so `this.content` positions the NEXT sibling
+   * using its stale one. Walk every ancestor Stack from the image up to (and
+   * including) `this.content`, re-running layout at each level.
+   */
+  private buildContentImage(imgToken: { href: string; text: string }): Image {
+    const maxWidth = this.maxWidth;
+    const initialWidth = Math.min(800, maxWidth);
+    const initialHeight = Math.round(initialWidth * 0.6);
+    const img = new Image(imgToken.href, {
+      width: initialWidth,
+      height: initialHeight,
+      alt: imgToken.text,
+      radius: 8,
+      onLoad: () => {
+        const rawImg = img as unknown as { bitmap?: HTMLImageElement };
+        const bmp = rawImg.bitmap;
+        if (bmp && bmp.naturalWidth && bmp.naturalHeight) {
+          const aspect = bmp.naturalHeight / bmp.naturalWidth;
+          img.width = Math.min(bmp.naturalWidth, maxWidth);
+          img.height = Math.round(img.width * aspect);
+
+          let node: Entity | null = img.parent;
+          while (node) {
+            const maybeStack = node as unknown as { layout?: () => void };
+            if (typeof maybeStack.layout === "function") maybeStack.layout();
+            if (node === (this.content as unknown as Entity)) break;
+            node = node.parent;
+          }
+          // `renderMarkdown`/`updateTokens` only ever set these from
+          // `this.content`'s size at (re)build time — they don't track
+          // `this.content`'s size afterward, so the gallery's own
+          // scroll-range math (`markdownMaxScroll`, keyed off this height)
+          // stays clamped to the pre-resize height and can't scroll far
+          // enough to reach content the image pushed down.
+          this.width = this.content.width;
+          this.height = this.content.height;
+          this.scene?.markDirty();
+        }
+      },
+    });
+    return img;
+  }
+
+  /**
+   * Split a paragraph's inline tokens on `inlineMath` and `image` runs,
+   * rendering each as its own entity (a MathJax image via
+   * {@link buildMathImage}, or a content image via
+   * {@link buildContentImage}) inside a vertical Stack alongside the
+   * surrounding text. `@vectojs/ui`'s own `inlineMath` extension (registered
+   * inside its Markdown.ts) only ever renders the raw `$...$` source tinted
+   * amber — it never reaches MathJax — so without this override formulas
+   * silently fail to render (the "many mathematical formulas failed to
+   * render" report). Images are handled here too (not left to
+   * `super.renderToken`) so {@link buildContentImage}'s reflow-on-load runs
+   * regardless of whether an image shares its paragraph with math. Each
+   * formula/image lands on its own line rather than truly inline — RichText
+   * spans can't embed images inline, only flow text — a known, shared
+   * limitation, not something introduced here.
    */
   private renderMixedParagraph(pToken: {
     tokens?: Token[];
@@ -249,6 +310,10 @@ export class MathMarkdown extends Markdown {
         const raw = (child as unknown as { raw: string }).raw;
         const built = this.buildMathImage(mathText, raw);
         if (built) stack.add(built.wrapper);
+      } else if (child.type === "image") {
+        flushText();
+        const imgToken = child as unknown as { href: string; text: string };
+        stack.add(this.buildContentImage(imgToken));
       } else {
         currentTokens.push(child);
       }
@@ -266,7 +331,11 @@ export class MathMarkdown extends Markdown {
 
     if (token.type === "paragraph") {
       const pToken = token as unknown as { tokens?: Token[]; text: string };
-      if (pToken.tokens?.some((t) => t.type === "inlineMath")) {
+      if (
+        pToken.tokens?.some(
+          (t) => t.type === "inlineMath" || t.type === "image",
+        )
+      ) {
         return this.renderMixedParagraph(pToken);
       }
     }
@@ -274,7 +343,12 @@ export class MathMarkdown extends Markdown {
     if (token.type === "list") {
       const listToken = token as unknown as {
         items: {
-          tokens?: { type: string; text: string; raw: string }[];
+          tokens?: {
+            type: string;
+            text: string;
+            raw: string;
+            tokens?: Token[];
+          }[];
           text: string;
         }[];
         ordered: boolean;
@@ -309,8 +383,8 @@ export class MathMarkdown extends Markdown {
               raw: "",
               tokens: currentInlineTokens,
             };
-            // Through `this`, not `super` — so inline math nested in a list
-            // item also gets split into a MathJax image via renderMixedParagraph.
+            // Through `this`, not `super` — so inline math/images nested in
+            // a list item also get split via renderMixedParagraph.
             const pEl = this.renderToken(pToken as unknown as Token);
             if (pEl) {
               pEl.x = 12;
@@ -334,6 +408,22 @@ export class MathMarkdown extends Markdown {
                 blockEl.x = 12; // Indent block elements inside the list item
                 itemStack.add(blockEl);
               }
+            } else if (inner.type === "text" && inner.tokens?.length) {
+              // marked wraps a simple (non-loose) list item's single line in
+              // one "text" token whose OWN nested `.tokens` holds the real
+              // inline runs (inlineMath, image, ...). Pushing the wrapper
+              // itself hid those from the `.some(inlineMath|image)` check
+              // in the "paragraph" case above — unwrap it so detection sees
+              // the same flat shape a real paragraph's `.tokens` has. See
+              // forge/findings.md 2026-07-18 (list-nested formulas not
+              // rendering).
+              currentInlineTokens.push(
+                ...(inner.tokens as unknown as {
+                  type: string;
+                  raw: string;
+                  text: string;
+                }[]),
+              );
             } else {
               currentInlineTokens.push(inner);
             }
