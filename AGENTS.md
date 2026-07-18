@@ -37,7 +37,9 @@ This website is a **VectoJS Native Canvas Application** (no Astro, React, or sta
 ### 🎨 Creation theme contract (required for every new demo)
 
 The catalog chrome is warm-white; an open creation runs on a **Stage** backdrop
-that defaults to dark (`#06070a`). To keep new demos looking intentional:
+that defaults to a warm near-black (`#170f09`, with soft coral/peach corner
+blooms echoing the catalog background — see `src/ui/Stage.ts`). To keep new
+demos looking intentional:
 
 1. **Declare your backdrop.** If the creation is authored for anything other
    than the default dark theater, set `stage: "<css color>"` in its registry

@@ -1,197 +1,478 @@
-import { Entity, type IRenderer } from "@vectojs/core";
-import { Markdown, Stack, Button, type MarkdownTheme } from "@vectojs/ui";
-import { MessageView } from "./message-view";
-import { renderSpecial } from "./render-special";
-import { pacedTokens } from "./stream";
-import { SAMPLES } from "./corpus";
+/**
+ * StreamReader — a Markdown & EPUB streaming reader, ported from the
+ * vectojs-playground `stream-page` prototype into the Gallery's one-Entity-
+ * per-creation contract. Drop or pick a .txt/.md/.epub file and it streams
+ * character-by-character at an adjustable rate, exercising VectoJS's
+ * incremental text layout (plain text) and @vectojs/ui's incremental
+ * Markdown rendering (with math via MathMarkdown).
+ *
+ * Unlike the prototype (its own page, its own Scene, `window`-sized), this
+ * is a guest inside the Gallery's one shared full-window canvas/Scene: no
+ * private canvas, no own render loop — `resizeTo()`/`update()`/`destroy()`
+ * plug into the same lifecycle every other creation uses, and every
+ * `window`/`document`-level listener registered here is explicitly removed
+ * in `destroy()` so switching creations doesn't leak them.
+ */
+import { Entity } from "@vectojs/core";
+import type { MarkdownTheme } from "@vectojs/ui";
+import {
+  createStreamState,
+  tickStream,
+  tokenize,
+  type StreamState,
+} from "./state";
+import { parseFile } from "./parser";
+import { PerfMonitor } from "./perf";
+import { StreamTextEntity } from "./StreamTextEntity";
+import { ControlPanel } from "./ControlPanel";
+import { PerfPanel } from "./PerfPanel";
+import { DropZone } from "./DropZone";
+import { MathMarkdown } from "./MathMarkdown";
 
-const THEME: MarkdownTheme = {
-  textColor: "#d7e0f0",
-  headingColor: "#ffffff",
-  codeColor: "#a5d6ff",
-  codeBgColor: "rgba(124, 179, 255, 0.08)",
-  quoteBorderColor: "#3b82f6",
-  quoteTextColor: "#9fb0cc",
-  hrColor: "rgba(255,255,255,0.12)",
-  bodyFont: "Inter, system-ui, sans-serif",
-  // A broad, concrete monospace stack. `ui-monospace` resolves inconsistently on
-  // Linux, so we name widely-installed fixed-width fonts before the generic
-  // fallback for more predictable glyph metrics across platforms.
-  codeFont:
-    'ui-monospace, "JetBrains Mono", "Fira Code", "Cascadia Code", "DejaVu Sans Mono", "Liberation Mono", Menlo, Consolas, monospace',
+const MD_THEME: MarkdownTheme = {
+  textColor: "#2d2015",
+  headingColor: "#1d130a",
+  codeColor: "#0f172a",
+  codeBgColor: "rgba(0,0,0,0.04)",
+  quoteBorderColor: "#b4823c",
+  quoteTextColor: "#8c7a65",
+  tableBgColor: "rgba(0, 0, 0, 0.02)",
+  tableHeaderBgColor: "rgba(0, 0, 0, 0.06)",
+  bodyFont: "system-ui, sans-serif",
+  codeFont: "monospace",
   fontSize: 15,
 };
 
-class UserBubble extends Entity {
-  private markdown: Markdown;
-  private padding = 16;
+const PERF_W = 190;
+const PERF_H = 98;
+const PERF_PAD = 12;
 
-  constructor(text: string, width: number, theme: MarkdownTheme) {
-    super("UserBubble");
-    this.markdown = new Markdown(text, {
-      maxWidth: width - this.padding * 2,
-      theme: {
-        ...theme,
-        textColor: "#e8eaed",
-        headingColor: "#ffffff",
-        codeColor: "#a5d6ff",
-      },
-    });
-    this.add(this.markdown);
-    this.layout();
-  }
-
-  public isPointInside(_globalX: number, _globalY: number): boolean {
-    return false;
-  }
-
-  layout(): void {
-    this.markdown.content.layout();
-    this.markdown.width = this.markdown.content.width;
-    this.markdown.height = this.markdown.content.height;
-    this.markdown.setPosition(this.padding, this.padding);
-    this.width = this.markdown.width + this.padding * 2;
-    this.height = this.markdown.height + this.padding * 2;
-  }
-
-  render(r: IRenderer): void {
-    r.beginPath();
-    r.roundRect(0, 0, this.width, this.height, 18);
-    r.fill("rgba(255, 255, 255, 0.08)");
-    r.stroke("rgba(255, 255, 255, 0.12)", 1);
-  }
+// A plain function parameter always gets its declared type, not whatever
+// narrowing the caller's control flow had applied — needed below because
+// `tickStream()` can flip `state.status` to "done" from inside a block
+// where TS had already narrowed it to the literal "streaming".
+function isDone(status: StreamState["status"]): boolean {
+  return status === "done";
 }
 
-const TPS = 24; // fixed — the playback-speed slider was dropped, matching pacedTokens' own default
+class StreamReader extends Entity {
+  private state: StreamState;
+  private perf = new PerfMonitor();
+  private streamText: StreamTextEntity;
+  private markdownView: MathMarkdown;
+  private controlPanel: ControlPanel;
+  private perfPanel: PerfPanel;
+  private dropZone: DropZone;
+  private canvasEl: HTMLCanvasElement | null;
 
-/**
- * Streams SAMPLES[0]'s question/answer once on mount, and again on each
- * "Replay" click — the same minimal pattern already used by
- * vectojs-website/public/sandbox/text-streaming.html. No prompt input, no
- * multi-turn history, no live model: those all depended on real DOM this
- * port drops (see this plan's header).
- */
-class Chat extends Entity {
-  private transcript: Stack;
-  private replayBtn: Button;
-  private abort: AbortController | null = null;
-  private lastContentWidth = -1;
+  private mdScrollY = 0;
+  private mdAutoScroll = true;
+  private mdPushedText = "";
+  // Set once the post-stream calibration `setContent` rebuild has run for the
+  // current document — distinct from `mdPushedText`, which already equals
+  // `state.visible` by the time `finished` goes true on the same tick (see
+  // update()), so comparing against it can never detect "not yet calibrated".
+  private mdCalibrated = false;
+  private lastPerfUpdate = 0;
+  private mdDragging = false;
+  private mdDragY = 0;
 
   constructor() {
-    super("Chat");
+    super("StreamReader");
+    this.state = createStreamState();
+    this.canvasEl = document.getElementById(
+      "gallery-canvas",
+    ) as HTMLCanvasElement | null;
 
-    this.transcript = new Stack({
-      direction: "vertical",
-      gap: 28,
-      align: "start",
+    this.streamText = new StreamTextEntity({
+      font: '15px/1.7 "JetBrains Mono", "Fira Mono", "Consolas", monospace',
+      color: "#2d2015",
+      lineHeight: 26,
+      padding: 40,
     });
-    this.transcript.setPosition(28, 64);
-    this.add(this.transcript);
 
-    this.replayBtn = new Button("↻ Replay", {
-      font: "600 13px Inter, system-ui",
-      onClick: () => this.replay(),
+    this.controlPanel = new ControlPanel({
+      onFileOpen: () => this.openFilePicker(),
+      onPlay: () => {
+        if (this.state.content && this.state.status !== "streaming") {
+          this.state.status = "streaming";
+          this.layout();
+          this.scene?.markDirty();
+        }
+      },
+      onPause: () => {
+        if (this.state.status === "streaming") {
+          this.state.status = "paused";
+          this.scene?.markDirty();
+        }
+      },
+      onStop: () => this.stopAndClear(),
+      onToggleLoop: () => {
+        this.state.loop = !this.state.loop;
+        this.scene?.markDirty();
+      },
+      onRateChange: (r: number) => {
+        this.state.tokenRate = r;
+        this.controlPanel.syncRate(r);
+        this.scene?.markDirty();
+      },
     });
-    this.add(this.replayBtn);
 
-    // No replay() here: `this.width` is still 0 until the shell's first
-    // resizeTo() call, so an early replay would wrap the transcript to
-    // contentWidth()'s 260px floor. resizeTo() triggers the first replay
-    // once real dimensions are known.
+    this.perfPanel = new PerfPanel();
+    this.dropZone = new DropZone(() => this.openFilePicker());
+
+    // maxWidth is a placeholder — the entity's real width is 0 until the
+    // shell's first resizeTo() call; layout() sets the real value (and only
+    // then populates content) once it's known, same fix as the portfolio
+    // hub's chat-column bug (2026-07-18-gallery-hub-polish).
+    this.markdownView = new MathMarkdown("", {
+      maxWidth: 800,
+      theme: MD_THEME,
+      onLinkClick: (url) => window.open(url, "_blank"),
+    });
+    this.setMarkdownShown(false);
+
+    // VectoJS paints children in add() order (later = on top). DropZone's
+    // own doc comment says it's "hidden once a file is loaded" — i.e. it
+    // needs to be the TOPMOST layer while idle, covering streamText's own
+    // always-opaque background. Added last (but before the chrome panels,
+    // which must stay usable even while the drop zone shows).
+    this.add(this.streamText);
+    this.add(this.markdownView);
+    this.add(this.dropZone);
+    this.add(this.controlPanel);
+    this.add(this.perfPanel);
+
+    document.addEventListener("dragover", this.onDragOver);
+    document.addEventListener("drop", this.onDrop);
+    window.addEventListener("wheel", this.onWheel, { passive: true });
+    window.addEventListener("pointerdown", this.onWindowPointerDown);
+    window.addEventListener("pointermove", this.onWindowPointerMove);
+    window.addEventListener("pointerup", this.onWindowPointerUp);
+    window.addEventListener("keydown", this.onKeyDown);
   }
 
   resizeTo(width: number, height: number): void {
     this.width = width;
     this.height = height;
-    this.replayBtn.setPosition(width - this.replayBtn.width - 16, 16);
-    this.transcript.layout();
+    this.layout();
+  }
 
-    // Markdown nodes bake `maxWidth` in at creation time, so a resize that
-    // actually changes the target column width needs a fresh replay to
-    // re-wrap — repositioning the Stack alone can't re-wrap existing text.
-    const cw = this.contentWidth();
-    if (cw !== this.lastContentWidth) {
-      this.lastContentWidth = cw;
-      this.replay();
+  private markdownMaxScroll(viewportH: number): number {
+    return Math.max(0, this.markdownView.height + 64 - viewportH);
+  }
+
+  /**
+   * Hide via opacity + park off-screen so AABB hit-testing cannot steal
+   * events — Markdown is a @vectojs/ui component without a `visible` flag.
+   */
+  private setMarkdownShown(shown: boolean): void {
+    this.markdownView.opacity = shown ? 1 : 0;
+    this.markdownView.interactive = shown;
+    if (!shown) {
+      this.markdownView.x = -1e6;
+      this.markdownView.y = -1e6;
     }
   }
 
-  override destroy(): void {
-    this.abort?.abort();
-    super.destroy();
+  private layout(): void {
+    const w = this.width;
+    const h = this.height;
+    if (w === 0 || h === 0) return;
+    const ctrlH = this.controlPanel.panelHeight;
+
+    this.dropZone.x = 0;
+    this.dropZone.y = 0;
+    this.dropZone.width = w;
+    this.dropZone.height = h;
+
+    this.streamText.x = 0;
+    this.streamText.y = 0;
+    this.streamText.width = w;
+    this.streamText.height = h - ctrlH;
+
+    // Idle always uses StreamText for the hint; markdown only while playing/paused/done.
+    const useMarkdown =
+      this.state.kind === "markdown" && this.state.status !== "idle";
+    if (useMarkdown) {
+      this.streamText.visible = false;
+      this.setMarkdownShown(true);
+      this.markdownView.x = 32;
+      this.markdownView.y = 32 - this.mdScrollY;
+
+      const targetW = w - 64;
+      if (this.markdownView.maxWidth !== targetW) {
+        this.markdownView.maxWidth = targetW;
+        this.markdownView.setContent(this.state.visible);
+        this.mdPushedText = this.state.visible;
+        // Not `mdCalibrated = true`: this rebuild can happen mid-stream
+        // (e.g. a window resize before the document finishes), and
+        // `state.visible` may still grow afterward — only the completion-time
+        // rebuild in update() should retire the calibration flag.
+      }
+    } else {
+      this.streamText.visible = true;
+      this.setMarkdownShown(false);
+    }
+
+    this.controlPanel.x = 0;
+    this.controlPanel.y = h - ctrlH;
+    this.controlPanel.width = w;
+    this.controlPanel.height = ctrlH;
+    this.controlPanel.state = this.state;
+
+    this.perfPanel.x = w - PERF_W - PERF_PAD;
+    this.perfPanel.y = PERF_PAD;
+    this.perfPanel.width = PERF_W;
+    this.perfPanel.height = PERF_H;
+
+    this.positionRateInput();
+  }
+
+  /** Places the ControlPanel's DOM `<input>` in real CSS pixels — see ControlPanel.getInputLocalAnchor. */
+  private positionRateInput(): void {
+    if (!this.canvasEl) return;
+    const rect = this.canvasEl.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const scale = rect.width / window.innerWidth;
+    const g = this.getGlobalPosition();
+    const anchor = this.controlPanel.getInputLocalAnchor();
+    const cssLeft = rect.left + (g.x + this.controlPanel.x + anchor.x) * scale;
+    const cssTop = rect.top + (g.y + this.controlPanel.y + anchor.y) * scale;
+    this.controlPanel.positionInput(cssLeft, cssTop);
+  }
+
+  private openFilePicker(): void {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".txt,.md,.markdown,.epub,.html,.htm,.csv,.json,.log";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) void this.loadFile(file);
+    };
+    input.click();
+  }
+
+  private async loadFile(file: File): Promise<void> {
+    this.streamText.visible = true;
+    this.streamText.idleHint = `⏳ Parsing ${file.name} …`;
+    this.streamText.visibleText = "";
+    this.streamText.resetScroll();
+    this.setMarkdownShown(false);
+    this.scene?.markDirty();
+
+    const parsed = await parseFile(file);
+
+    this.state.content = parsed.plainText;
+    this.state.kind = parsed.kind;
+    this.state.tokens = tokenize(parsed.plainText);
+    this.state.fileName = file.name;
+    this.state.cursor = 0;
+    this.state.visible = "";
+    this.state.accumulator = 0;
+
+    this.mdScrollY = 0;
+    this.mdAutoScroll = true;
+    this.mdPushedText = "";
+    this.mdCalibrated = false;
+    this.markdownView.setContent("");
+
+    this.state.status = "streaming"; // auto-start
+
+    this.streamText.visibleText = "";
+    this.streamText.idleHint = "";
+    this.streamText.resetScroll();
+    this.dropZone.visible = false;
+
+    this.layout();
+    this.scene?.markDirty();
+  }
+
+  private stopAndClear(): void {
+    this.state.status = "idle";
+    this.state.cursor = 0;
+    this.state.visible = "";
+    this.state.accumulator = 0;
+    this.streamText.visibleText = "";
+    this.streamText.resetScroll();
+    this.streamText.idleHint = this.state.fileName
+      ? `${this.state.fileName} — Press ▶ Play to start`
+      : "";
+
+    this.mdScrollY = 0;
+    this.mdAutoScroll = true;
+    this.mdPushedText = "";
+    this.mdCalibrated = false;
+    this.markdownView.setContent("");
+
+    this.layout();
+    this.scene?.markDirty();
   }
 
   override isPointInside(): boolean {
     return false;
   }
 
-  override update(): void {
-    /* nothing per-frame — content only changes via replay()'s async token stream */
+  override render(): void {
+    /* everything here is a child entity (streamText/markdownView/panels) — nothing to draw directly */
   }
 
-  override render(_r: IRenderer): void {
-    /* everything here is @vectojs/ui children (transcript, Replay button) — nothing to draw directly */
-  }
-
-  private contentWidth(): number {
-    const colWidth = Math.min(800, this.width - 56);
-    return Math.min(650, Math.max(260, colWidth * 0.85));
-  }
-
-  private replay(): void {
-    this.abort?.abort();
-    this.abort = new AbortController();
-    const signal = this.abort.signal;
-
-    while (this.transcript.children.length)
-      this.transcript.remove(this.transcript.children[0]);
-
-    const { q: question, a: answer } = SAMPLES[0];
-    const width = this.contentWidth();
-
-    const userBlock = new Stack({
-      direction: "vertical",
-      gap: 8,
-      align: "end",
-    });
-    userBlock.add(new UserBubble(question, width, THEME));
-    this.transcript.add(userBlock);
-
-    const assistantBlock = new Stack({
-      direction: "vertical",
-      gap: 8,
-      align: "start",
-    });
-    assistantBlock.add(
-      new Markdown("**VectoJS**", {
-        maxWidth: width,
-        theme: { ...THEME, headingColor: "#86efac" },
-      }),
-    );
-    const mv = new MessageView(width, THEME, renderSpecial, () =>
-      this.transcript.layout(),
-    );
-    assistantBlock.add(mv.stack);
-    this.transcript.add(assistantBlock);
-
-    this.transcript.layout();
-
-    void this.streamAnswer(answer, mv, signal);
-  }
-
-  private async streamAnswer(
-    answer: string,
-    mv: MessageView,
-    signal: AbortSignal,
-  ): Promise<void> {
-    let raw = "";
-    for await (const tok of pacedTokens(answer, TPS, signal)) {
-      if (signal.aborted) break;
-      raw += tok;
-      mv.update(raw);
-      this.transcript.layout();
+  override update(_dt: number): void {
+    const now = performance.now();
+    const sample = this.perf.tick(now);
+    if (now - this.lastPerfUpdate > 1000) {
+      this.perfPanel.sample = sample;
+      this.lastPerfUpdate = now;
+      this.scene?.markDirty();
     }
+
+    if (this.state.status !== "streaming") {
+      this.controlPanel.state = this.state;
+      this.controlPanel.syncRate(this.state.tokenRate);
+      return;
+    }
+
+    const addedCount = tickStream(this.state, _dt);
+
+    if (this.state.kind === "markdown") {
+      this.streamText.visibleText = ""; // clear raw text to avoid overlap
+
+      const newlyAdded = this.state.visible.slice(this.mdPushedText.length);
+      const finished =
+        isDone(this.state.status) ||
+        this.state.cursor >= this.state.tokens.length;
+
+      // No time-merge throttle — appends whenever a frame has new
+      // characters, so the text "types out" smoothly at any frame rate.
+      if (newlyAdded) {
+        this.markdownView.appendMarkdown(newlyAdded);
+        this.mdPushedText = this.state.visible;
+
+        if (this.mdAutoScroll) {
+          const h = this.height - this.controlPanel.panelHeight;
+          this.mdScrollY = this.markdownMaxScroll(h);
+          this.markdownView.y = 32 - this.mdScrollY;
+        }
+      }
+
+      if (finished && !this.mdCalibrated) {
+        // One full calibration rebuild right as streaming ends. Needed for
+        // more than drift: @vectojs/ui's incremental `updateTokens` diff can
+        // leave a stale entity in place when a paragraph's token
+        // composition changes structurally mid-stream (e.g. plain text that
+        // later completes into an `image` token) — a full `setContent`
+        // rebuild re-renders from scratch and always shows the correct
+        // final entity. See forge/findings.md 2026-07-18.
+        this.markdownView.setContent(this.state.visible);
+        this.mdPushedText = this.state.visible;
+        this.mdCalibrated = true;
+      }
+    } else if (addedCount > 0) {
+      this.streamText.visibleText = this.state.visible;
+    }
+
+    if (addedCount > 0 || this.state.cursor >= this.state.tokens.length) {
+      this.scene?.markDirty();
+    }
+
+    this.controlPanel.state = this.state;
+    this.controlPanel.syncRate(this.state.tokenRate);
   }
+
+  override destroy(): void {
+    document.removeEventListener("dragover", this.onDragOver);
+    document.removeEventListener("drop", this.onDrop);
+    window.removeEventListener("wheel", this.onWheel);
+    window.removeEventListener("pointerdown", this.onWindowPointerDown);
+    window.removeEventListener("pointermove", this.onWindowPointerMove);
+    window.removeEventListener("pointerup", this.onWindowPointerUp);
+    window.removeEventListener("keydown", this.onKeyDown);
+    // ControlPanel owns a real DOM <input> — its own destroy() removes it.
+    // Entity.destroy() doesn't cascade to children (see Nexus/Dimension for
+    // the same reasoning), so this has to happen explicitly.
+    this.controlPanel.destroy();
+    super.destroy();
+  }
+
+  // ── Drag & drop ───────────────────────────────────────────────────────────
+
+  private readonly onDragOver = (e: DragEvent): void => {
+    e.preventDefault();
+  };
+
+  private readonly onDrop = (e: DragEvent): void => {
+    e.preventDefault();
+    const file = e.dataTransfer?.files[0];
+    if (file) void this.loadFile(file);
+  };
+
+  // ── Markdown scroll (wheel + touch drag) ────────────────────────────────────
+
+  private readonly onWheel = (e: WheelEvent): void => {
+    if (this.state.kind !== "markdown") return;
+    const dy = e.deltaY;
+    const oldY = this.mdScrollY;
+    this.mdScrollY += dy;
+    const h = this.height - this.controlPanel.panelHeight;
+    const maxScroll = this.markdownMaxScroll(h);
+    this.mdScrollY = Math.max(0, Math.min(maxScroll, this.mdScrollY));
+    if (this.mdScrollY < maxScroll - 8) this.mdAutoScroll = false;
+    if (this.mdScrollY !== oldY) {
+      this.markdownView.y = 32 - this.mdScrollY;
+      this.scene?.markDirty();
+    }
+  };
+
+  private readonly onWindowPointerDown = (e: PointerEvent): void => {
+    if (this.state.kind !== "markdown") return;
+    if (e.pointerType === "touch") {
+      this.mdDragging = true;
+      this.mdDragY = e.clientY;
+    }
+  };
+
+  private readonly onWindowPointerMove = (e: PointerEvent): void => {
+    if (!this.mdDragging || this.state.kind !== "markdown") return;
+    const dy = this.mdDragY - e.clientY;
+    this.mdDragY = e.clientY;
+    const oldY = this.mdScrollY;
+    this.mdScrollY += dy;
+    const h = this.height - this.controlPanel.panelHeight;
+    const maxScroll = this.markdownMaxScroll(h);
+    this.mdScrollY = Math.max(0, Math.min(maxScroll, this.mdScrollY));
+    if (this.mdScrollY < maxScroll - 8) this.mdAutoScroll = false;
+    if (this.mdScrollY !== oldY) {
+      this.markdownView.y = 32 - this.mdScrollY;
+      this.scene?.markDirty();
+    }
+  };
+
+  private readonly onWindowPointerUp = (): void => {
+    this.mdDragging = false;
+  };
+
+  // ── Keyboard shortcuts: Space = play/pause, Esc = stop, L = toggle loop ────
+
+  private readonly onKeyDown = (e: KeyboardEvent): void => {
+    if ((e.target as HTMLElement).tagName === "INPUT") return;
+    if (e.code === "Space") {
+      e.preventDefault();
+      if (this.state.status === "streaming") {
+        this.state.status = "paused";
+      } else if (this.state.content) {
+        this.state.status = "streaming";
+        this.layout();
+      }
+      this.scene?.markDirty();
+    }
+    if (e.code === "Escape") {
+      this.stopAndClear();
+    }
+    if (e.code === "KeyL") {
+      this.state.loop = !this.state.loop;
+      this.scene?.markDirty();
+    }
+  };
 }
 
-export default Chat;
+export default StreamReader;

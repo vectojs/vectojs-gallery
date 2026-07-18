@@ -48,10 +48,11 @@ export const CREATIONS: Creation[] = [
   },
   {
     id: "chat",
-    title: "AI Chat — streaming Markdown",
+    title: "Stream Reader — Markdown & EPUB",
     description:
-      "A chat reply streaming token-by-token on canvas: headings, lists, code, tables, and SVG-rendered math, all laid out incrementally with zero DOM per token.",
-    tags: ["Streaming", "Markdown"],
+      "Drop a .txt/.md/.epub file and it streams character-by-character at an adjustable rate: incremental plain-text layout, or @vectojs/ui Markdown with math, tables, and code, all off the main thread.",
+    tags: ["Streaming", "Markdown", "EPUB"],
+    stage: "#f7f2e8",
     load: () => import("./creations/chat"),
   },
 ];
