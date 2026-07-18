@@ -12,6 +12,15 @@ export interface Creation {
    * ground declares it here instead of relying on the default dark theater.
    */
   stage?: string;
+  /**
+   * Extra pixels the shared bottom-left CaptionPlate reserves above its
+   * default anchor, for creations that draw their own interactive chrome
+   * along the bottom edge (e.g. Stream Reader's File/Play/Pause/rate bar) —
+   * without this the plate's expanded card, and even its collapsed "i" tab,
+   * sit directly on top of that chrome and block its buttons. Part of the
+   * creation theme contract (AGENTS.md), same idea as `stage`.
+   */
+  bottomInset?: number;
   // A dynamic import thunk, not a direct class reference: each creation
   // becomes its own lazy-loaded chunk, so the initial bundle only ever pays
   // for creations a visitor actually opens.
@@ -53,6 +62,9 @@ export const CREATIONS: Creation[] = [
       "Drop a .txt/.md/.epub file and it streams character-by-character at an adjustable rate: incremental plain-text layout, or @vectojs/ui Markdown with math, tables, and code, all off the main thread.",
     tags: ["Streaming", "Markdown", "EPUB"],
     stage: "#f7f2e8",
+    // Reserve space above the control bar (56px desktop / 90px mobile, see
+    // ControlPanel.panelHeight) plus a clear gap.
+    bottomInset: 106,
     load: () => import("./creations/chat"),
   },
 ];

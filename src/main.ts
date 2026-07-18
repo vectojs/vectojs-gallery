@@ -56,6 +56,7 @@ function initGallery(): void {
   let currentPlate: CaptionPlate | null = null;
   let currentStage: Stage | null = null;
   let currentBackChip: BackChip | null = null;
+  let currentCreation: Creation | null = null;
   let loadSeq = 0;
   // `undefined` (not `null`) so the very first call to loadCreation(null) —
   // the fresh-page-load, no-hash case — never short-circuits against this
@@ -112,6 +113,7 @@ function initGallery(): void {
       scene.remove(currentStage);
       currentStage = null;
     }
+    currentCreation = null;
   };
 
   /**
@@ -187,9 +189,12 @@ function initGallery(): void {
         );
         scene.add(currentEntity);
 
+        currentCreation = creation;
         currentPlate = new CaptionPlate(creation);
         currentPlate.x = RAIL_WIDTH + 16;
-        currentPlate.setBottomAnchor(window.innerHeight - 16);
+        currentPlate.setBottomAnchor(
+          window.innerHeight - 16 - (creation.bottomInset ?? 0),
+        );
         scene.add(currentPlate);
 
         currentBackChip = new BackChip(() => navigateTo(null));
@@ -243,7 +248,9 @@ function initGallery(): void {
       applySize(currentEntity, W - RAIL_WIDTH, H);
     }
     if (currentPlate) {
-      currentPlate.setBottomAnchor(H - 16);
+      currentPlate.setBottomAnchor(
+        H - 16 - (currentCreation?.bottomInset ?? 0),
+      );
     }
     clipStackedCanvases();
 

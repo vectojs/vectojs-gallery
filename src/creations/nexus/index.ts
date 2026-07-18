@@ -30,6 +30,8 @@ class Nexus extends Entity {
   private readonly countMax: number;
   private readonly countStep: number;
   private particleCount: number;
+  private pendingParticleCount: number | null = null;
+  private particleRebuildTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     super("Nexus");
@@ -120,6 +122,16 @@ class Nexus extends Entity {
    * constructor's `maxParticles`. Changing the count destroys the old
    * entity and swaps in a freshly built one, then reseeds it exactly like
    * `resizeTo`/`applyShape` already do for a plain reform.
+   *
+   * The label updates immediately, but the actual GPU rebuild is debounced:
+   * a burst of +/- clicks would otherwise destroy and recreate the WebGPU
+   * buffers back-to-back while the previous frame's compute/render pass may
+   * still be in flight on the GPU — a plausible trigger for a real-GPU
+   * Firefox WebGPU crash observed during this work (MozCrashReason
+   * "Queue[Id] does not exist"; see forge/findings.md 2026-07-18). Collapsing
+   * a click burst into one rebuild after the user pauses removes the
+   * back-to-back teardown/recreate pattern without needing engine-level
+   * access to the shared GPUDevice/queue (not exposed to entities).
    */
   private setParticleCount(next: number): void {
     const count = Math.max(this.countMin, Math.min(this.countMax, next));
@@ -127,6 +139,20 @@ class Nexus extends Entity {
     this.particleCount = count;
     this.countLabel.setText(`Particles — ${count}`);
 
+    this.pendingParticleCount = count;
+    if (this.particleRebuildTimer) clearTimeout(this.particleRebuildTimer);
+    this.particleRebuildTimer = setTimeout(() => {
+      this.particleRebuildTimer = null;
+      const finalCount = this.pendingParticleCount;
+      this.pendingParticleCount = null;
+      if (finalCount === null || finalCount === this.particles.maxParticles) {
+        return;
+      }
+      this.rebuildParticles(finalCount);
+    }, 200);
+  }
+
+  private rebuildParticles(count: number): void {
     this.remove(this.particles);
     this.particles.destroy();
     this.particles = this.buildParticles(count);
@@ -156,6 +182,10 @@ class Nexus extends Entity {
   }
 
   override destroy(): void {
+    if (this.particleRebuildTimer) {
+      clearTimeout(this.particleRebuildTimer);
+      this.particleRebuildTimer = null;
+    }
     // ComputeParticleEntity owns real GPU resources — see the same
     // reasoning in the Knowledge Graph port.
     this.particles.destroy();
