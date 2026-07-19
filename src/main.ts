@@ -47,10 +47,16 @@ function initGallery(): void {
   if (!canvas) return;
 
   // Must stay 2D-only. A `pointBackend: 'webgl'` scene composites its GL canvas
-  // into the 2D canvas every frame; with keepSceneLive() forcing 60fps that
-  // round-trip leaks Firefox shmem to an OOM crash in ~30s (Bugzilla 1980552).
-  // Nothing here renders through the scene point batch, so keep it off.
-  const scene = new Scene(canvas, { maxFPS: 60, maxDPR: 2 });
+  // into the 2D canvas every frame; with keepSceneLive() forcing continuous
+  // renders that round-trip leaks Firefox shmem to an OOM crash in ~30s
+  // (Bugzilla 1980552). Nothing here renders through the scene point batch,
+  // so keep it off.
+  //
+  // `maxFPS: 0` = uncapped (native refresh rate) — Stream Reader's debug FPS
+  // panel is meant to reflect the user's actual screen refresh rate, which an
+  // explicit cap (the engine default is 60) would hide (forge/findings.md
+  // 2026-07-19).
+  const scene = new Scene(canvas, { maxFPS: 0, maxDPR: 2 });
 
   let currentEntity: Entity | null = null;
   let currentPlate: CaptionPlate | null = null;

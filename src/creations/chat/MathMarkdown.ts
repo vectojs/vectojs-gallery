@@ -20,7 +20,7 @@
  *    selection and preventing accidental clicks into SVG source.
  */
 
-import { Markdown, Image, Stack } from "@vectojs/ui";
+import { Markdown, Image, Stack, Flow } from "@vectojs/ui";
 import { marked, type Token } from "marked";
 import { Entity } from "@vectojs/core";
 import { registerMathExtensions } from "./marked-extensions";
@@ -270,56 +270,62 @@ export class MathMarkdown extends Markdown {
   /**
    * Split a paragraph's inline tokens on `inlineMath` and `image` runs,
    * rendering each as its own entity (a MathJax image via
-   * {@link buildMathImage}, or a content image via
-   * {@link buildContentImage}) inside a vertical Stack alongside the
-   * surrounding text. `@vectojs/ui`'s own `inlineMath` extension (registered
-   * inside its Markdown.ts) only ever renders the raw `$...$` source tinted
-   * amber — it never reaches MathJax — so without this override formulas
-   * silently fail to render (the "many mathematical formulas failed to
-   * render" report). Images are handled here too (not left to
-   * `super.renderToken`) so {@link buildContentImage}'s reflow-on-load runs
-   * regardless of whether an image shares its paragraph with math. Each
-   * formula/image lands on its own line rather than truly inline — RichText
-   * spans can't embed images inline, only flow text — a known, shared
-   * limitation, not something introduced here.
+   * {@link buildMathImage}, or a content image via {@link buildContentImage})
+   * alongside the surrounding text, then laying everything out in a single
+   * horizontally-wrapping `Flow` so a formula/image sits inline within its
+   * sentence instead of starting a new line (see forge/findings.md
+   * 2026-07-19 — an earlier version used a vertical Stack here, which put
+   * every formula, and the text before/after it, on its own line).
+   *
+   * `@vectojs/ui`'s RichText/LayoutEngine has no span type for an embedded
+   * non-text entity, so a single formula-in-a-sentence can't be one RichText
+   * — the closest in-scope approximation is: split plain `text` tokens on
+   * whitespace into one-word entities, and add every word/formula/image as
+   * its own `Flow` child, so wrapping happens at word granularity instead of
+   * one block per run. Other inline token types (strong/em/codespan/link)
+   * are kept as a single atomic `Flow` child rather than split further —
+   * they're typically short phrases, not the long runs that caused the
+   * one-per-line bug.
    */
   private renderMixedParagraph(pToken: {
     tokens?: Token[];
     text: string;
   }): Entity {
-    const stack = new Stack({ direction: "vertical", gap: 4 });
-    let currentTokens: Token[] = [];
+    const flow = new Flow({ gap: 5, align: "center", maxWidth: this.maxWidth });
 
-    const flushText = () => {
-      if (currentTokens.length > 0) {
-        const el = super.renderToken({
-          type: "paragraph",
-          text: "",
-          raw: "",
-          tokens: currentTokens,
-        } as unknown as Token);
-        if (el) stack.add(el);
-        currentTokens = [];
-      }
+    const addAtomicToken = (t: { type: string; raw: string; text: string }) => {
+      const el = super.renderToken({
+        type: "paragraph",
+        text: "",
+        raw: "",
+        tokens: [t],
+      } as unknown as Token);
+      if (el) flow.add(el);
     };
 
     for (const child of pToken.tokens ?? []) {
       if (child.type === "inlineMath") {
-        flushText();
         const mathText = (child as unknown as { text: string }).text;
         const raw = (child as unknown as { raw: string }).raw;
         const built = this.buildMathImage(mathText, raw);
-        if (built) stack.add(built.wrapper);
+        if (built) flow.add(built.wrapper);
       } else if (child.type === "image") {
-        flushText();
         const imgToken = child as unknown as { href: string; text: string };
-        stack.add(this.buildContentImage(imgToken));
+        flow.add(this.buildContentImage(imgToken));
+      } else if (child.type === "text") {
+        const text = (child as unknown as { text: string }).text;
+        for (const word of text.split(/\s+/)) {
+          if (word.length > 0) {
+            addAtomicToken({ type: "text", raw: word, text: word });
+          }
+        }
       } else {
-        currentTokens.push(child);
+        addAtomicToken(
+          child as unknown as { type: string; raw: string; text: string },
+        );
       }
     }
-    flushText();
-    return stack;
+    return flow;
   }
 
   protected override renderToken(token: Token): Entity | null {
