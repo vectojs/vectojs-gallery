@@ -21,6 +21,25 @@ const IMAGE_MIME: Record<string, string> = {
   webp: "image/webp",
 };
 
+/**
+ * Escape Markdown-significant characters in EPUB-derived text. The dropped
+ * file's own text/alt content is untrusted — without this, a string like
+ * `foo](javascript:alert(1))` in a paragraph or an `alt` attribute would be
+ * re-interpreted as real Markdown link/image syntax once this function's
+ * output is fed back into `marked`, letting arbitrary EPUB content inject
+ * links (or break structure) that weren't actually markup in the source
+ * document. Also neutralizes leading list-marker characters so a sentence
+ * that happens to start with "1. " or "- " isn't structurally reinterpreted
+ * as a list. See forge/findings.md 2026-07-19 (security review).
+ */
+function escapeMarkdown(text: string): string {
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/([`*_{}[\]()#+!|<>~])/g, "\\$1")
+    .replace(/^(\s*)-/gm, "$1\\-")
+    .replace(/^(\s*)(\d+)\./gm, "$1$2\\.");
+}
+
 /** Resolve an `<img src>`/`<image xlink:href>` path relative to its chapter's directory. */
 function resolveEpubPath(baseDir: string, relative: string): string {
   if (relative.startsWith("data:")) return relative;
@@ -74,7 +93,7 @@ async function xhtmlNodeToMarkdown(
   baseDir: string,
 ): Promise<string> {
   if (node.nodeType === Node.TEXT_NODE) {
-    return node.textContent ?? "";
+    return escapeMarkdown(node.textContent ?? "");
   }
   if (node.nodeType !== Node.ELEMENT_NODE) return "";
 
@@ -89,7 +108,7 @@ async function xhtmlNodeToMarkdown(
     if (!src) return "";
     const dataUri = await embedEpubImage(zip, baseDir, src);
     if (!dataUri) return "";
-    const alt = el.getAttribute("alt") ?? "";
+    const alt = escapeMarkdown(el.getAttribute("alt") ?? "");
     return `\n\n![${alt}](${dataUri})\n\n`;
   }
   if (tag === "br") return "\n";
