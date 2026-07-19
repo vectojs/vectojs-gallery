@@ -120,6 +120,10 @@ function initGallery(): void {
       currentStage = null;
     }
     currentCreation = null;
+    // Restore the default every creation but `chat` relies on (see the
+    // `renderMode = 'onDemand'` assignment in `loadCreation` below) before
+    // whatever mounts next gets a chance to run.
+    scene.renderMode = "always";
   };
 
   /**
@@ -196,6 +200,16 @@ function initGallery(): void {
         scene.add(currentEntity);
 
         currentCreation = creation;
+        // `onDemand` skips the entire update/render walk while idle (no
+        // dirty flag, no in-flight animation) — unlike the `maxFPS`-gated
+        // 2fps auto-throttle, it doesn't depend on a capped `maxFPS`, so it
+        // works together with the uncapped FPS display. Only safe for a
+        // creation that already calls `scene.markDirty()` at every point
+        // its own visuals change (`continuousRedraw: false`); every other
+        // creation keeps the default `always` mode set in `teardownCurrent`.
+        // See forge/findings.md 2026-07-19.
+        scene.renderMode =
+          creation.continuousRedraw === false ? "onDemand" : "always";
         currentPlate = new CaptionPlate(creation);
         currentPlate.x = RAIL_WIDTH + 16;
         currentPlate.setBottomAnchor(
@@ -280,11 +294,16 @@ function initGallery(): void {
 
   // Some ported entries animate purely by mutating their own state in
   // update() without ever calling scene.markDirty() themselves, which the
-  // core idle-throttle would otherwise starve. Keeping this on
-  // unconditionally for every entry (not just the ones that need it) is
-  // simplest and costs nothing extra — it's the same effect as
-  // `renderMode: 'always'`, just centralized here instead of per-entity.
-  keepSceneLive(scene, () => true);
+  // core idle-throttle would otherwise starve. Forcing this unconditionally
+  // for every entry was assumed to cost nothing extra, but a canvas
+  // renderer repaints everything on any dirty frame — the real cost scales
+  // with total on-screen content, so for a content-heavy creation that
+  // already calls scene.markDirty() itself whenever it actually needs to
+  // redraw (see the `chat` registry entry's `continuousRedraw: false`),
+  // forcing it forever wastes real per-frame cost once the content is fully
+  // loaded and idle (see forge/findings.md 2026-07-19). Default to `true`
+  // (unset) so every other creation keeps today's behavior unchanged.
+  keepSceneLive(scene, () => currentCreation?.continuousRedraw !== false);
   scene.start();
 }
 

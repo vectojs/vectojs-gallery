@@ -175,10 +175,21 @@ export class MathMarkdown extends Markdown {
    * invoke its MathJax pipeline directly). Shared by the `displayMath` block
    * case and the inline-math case below — both need identical
    * cache/bitmap/content-projection wiring, just at different call sites.
+   *
+   * Both the base class's own `code`-block-as-math render path and this
+   * method's cache-reconstruction branch position the image at `(16, 8)`
+   * inside a padded wrapper — margin meant for a full-width display
+   * equation sitting alone in its own block. Pass `inline: true` for a
+   * formula that will be added as a `Flow` child alongside surrounding
+   * words: it strips that block padding and returns the bare image at
+   * `(0, 0)`, so the visible glyph sits flush with the text instead of
+   * shifted toward the bottom-right of a now-invisible padded box (see
+   * forge/findings.md 2026-07-19, "inline formulas render bottom-right").
    */
   private buildMathImage(
     mathText: string,
     raw: string,
+    opts: { inline?: boolean } = {},
   ): { wrapper: Entity; img: Image } | null {
     let cached = mathjaxBase64Cache.get(mathText);
     let img: Image | null = null;
@@ -240,6 +251,12 @@ export class MathMarkdown extends Markdown {
     }
 
     if (!img || !wrapper) return null;
+
+    if (opts.inline) {
+      img.x = 0;
+      img.y = 0;
+      wrapper = img;
+    }
 
     // Disable default image click and <img alt> projection
     img.interactive = false;
@@ -362,7 +379,7 @@ export class MathMarkdown extends Markdown {
       if (child.type === "inlineMath") {
         const mathText = (child as unknown as { text: string }).text;
         const raw = (child as unknown as { raw: string }).raw;
-        const built = this.buildMathImage(mathText, raw);
+        const built = this.buildMathImage(mathText, raw, { inline: true });
         if (built) flow.add(built.wrapper);
       } else if (child.type === "image") {
         const imgToken = child as unknown as { href: string; text: string };

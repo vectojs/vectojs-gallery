@@ -26,9 +26,11 @@ export class BackChip extends Entity {
 
     this.on("hover", () => {
       this.hovered = true;
+      this.scene?.markDirty();
     });
     this.on("pointerleave", () => {
       this.hovered = false;
+      this.scene?.markDirty();
     });
     this.on("click", () => this.onBack());
   }

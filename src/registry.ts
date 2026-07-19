@@ -21,6 +21,20 @@ export interface Creation {
    * creation theme contract (AGENTS.md), same idea as `stage`.
    */
   bottomInset?: number;
+  /**
+   * Whether the shared Scene should be forced to redraw every frame while
+   * this creation is open, bypassing the core idle-throttle entirely.
+   * Defaults to `true` (unset) — most creations here animate by mutating
+   * their own state in `update()` without ever calling `scene.markDirty()`
+   * themselves, so they need the forced pump to stay visible (see
+   * `main.ts`'s `keepSceneLive`). Set `false` for a creation that already
+   * calls `scene.markDirty()` at every point its own visuals actually
+   * change: the cost of full-scene forced redraw scales with total
+   * on-screen content, so for a content-heavy creation (e.g. a long
+   * rendered document) forcing it forever is real, needless per-frame cost
+   * once nothing is left to animate. See forge/findings.md 2026-07-19.
+   */
+  continuousRedraw?: boolean;
   // A dynamic import thunk, not a direct class reference: each creation
   // becomes its own lazy-loaded chunk, so the initial bundle only ever pays
   // for creations a visitor actually opens.
@@ -65,6 +79,12 @@ export const CREATIONS: Creation[] = [
     // Reserve space above the control bar (56px desktop / 90px mobile, see
     // ControlPanel.panelHeight) plus a clear gap.
     bottomInset: 106,
+    // Every visual change here (streaming ticks, scroll, image load,
+    // control-panel interaction) already calls scene.markDirty() itself —
+    // it never needed the blanket forced-redraw pump, and paid its full
+    // per-frame content-repaint cost for nothing once a long document
+    // finished loading and sat idle.
+    continuousRedraw: false,
     load: () => import("./creations/chat"),
   },
 ];

@@ -98,6 +98,7 @@ export class CaptionPlate extends Entity {
     this.height = this.expandedHeight;
     this.y = this.bottomY - this.height;
     this.showContent();
+    this.scene?.markDirty();
   }
 
   private scheduleCollapse(): void {
@@ -108,6 +109,7 @@ export class CaptionPlate extends Entity {
       this.height = COLLAPSED_SIZE;
       this.y = this.bottomY - this.height;
       this.hideContent();
+      this.scene?.markDirty();
     }, AUTO_COLLAPSE_MS);
   }
 
