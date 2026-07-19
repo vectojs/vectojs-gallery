@@ -313,6 +313,25 @@ class StreamReader extends Entity {
     return false;
   }
 
+  // `continuousRedraw: false` (registry.ts) switches the shared Scene to
+  // `renderMode: 'onDemand'` while this creation is mounted (see
+  // main.ts) — it skips the entire update/render walk once idle (no dirty
+  // flag, no pending animation). Active streaming only re-marks the scene
+  // dirty from INSIDE update() (below, when tickStream adds new
+  // characters) — if update() itself stops being called because a single
+  // tick happened to add zero characters (accumulator hadn't crossed a
+  // full token yet) while nothing else was marking the scene dirty, that
+  // silence is self-perpetuating: no update() call means no chance to
+  // mark dirty again, so the stream can stall completely until some
+  // unrelated interaction nudges the scene awake. Without this override
+  // (the default reports "not animating"), core has no way to know
+  // streaming is still in flight. See forge/findings.md 2026-07-19
+  // ("FPS drops lower and lower as more EPUBs are loaded" — the real
+  // cause was streaming silently stalling, not the frame rate itself).
+  override hasPendingAnimations(): boolean {
+    return this.state.status === "streaming";
+  }
+
   override render(): void {
     /* everything here is a child entity (streamText/markdownView/panels) — nothing to draw directly */
   }

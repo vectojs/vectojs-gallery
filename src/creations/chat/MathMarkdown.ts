@@ -95,13 +95,56 @@ export class MathMarkdown extends Markdown {
     return { pointerEvents: "none" as const };
   }
 
+  // Bumped on every `setContent` (a brand-new document); lets a lex
+  // response that finally arrives after the document has since changed
+  // identify itself as stale and no-op instead of splicing old tokens into
+  // new content.
+  private docEpoch = 0;
+  private lexInFlight = false;
+  private lexPending = false;
+
+  public override setContent(markdown: string): this {
+    this.docEpoch++;
+    this.lexInFlight = false;
+    this.lexPending = false;
+    return super.setContent(markdown);
+  }
+
   public override appendMarkdown(chunk: string): this {
     const self = this as unknown as MarkdownInternals;
     self.rawMarkdown += chunk;
 
+    if (this.lexInFlight) {
+      // `marked.lexer()` has no incremental API — every lex re-parses the
+      // WHOLE accumulated text, so firing one request per streamed chunk
+      // makes a document's total lex cost scale with the square of its
+      // length. Coalesce: let the text keep growing, and pick up every bit
+      // of it in ONE more request once the in-flight one resolves, instead
+      // of queuing a full re-lex behind every single chunk. Without this, a
+      // fast/long document can leave the worker with a backlog that keeps
+      // growing chunk-over-chunk, and that backlog bleeds into whatever
+      // document loads next (see forge/findings.md 2026-07-19 — reported as
+      // "FPS drops lower and lower as more EPUBs are loaded").
+      this.lexPending = true;
+      return this;
+    }
+
+    this.dispatchLex();
+    return this;
+  }
+
+  private dispatchLex(): void {
+    const self = this as unknown as MarkdownInternals;
+    const epoch = this.docEpoch;
+    this.lexInFlight = true;
+    this.lexPending = false;
+
     const apply = (tokens: Token[]) => {
+      this.lexInFlight = false;
+      if (epoch !== this.docEpoch) return; // a newer document has since loaded
       self.updateTokens(tokens);
       this.reconcileLastMixedParagraph(tokens);
+      if (this.lexPending) this.dispatchLex();
     };
 
     if (lexWorker) {
@@ -116,7 +159,6 @@ export class MathMarkdown extends Markdown {
       // correct, just loses the off-main-thread benefit.
       apply(marked.lexer(self.rawMarkdown));
     }
-    return this;
   }
 
   /**
