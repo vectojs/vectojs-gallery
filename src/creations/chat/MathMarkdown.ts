@@ -99,9 +99,14 @@ export class MathMarkdown extends Markdown {
     const self = this as unknown as MarkdownInternals;
     self.rawMarkdown += chunk;
 
+    const apply = (tokens: Token[]) => {
+      self.updateTokens(tokens);
+      this.reconcileLastMixedParagraph(tokens);
+    };
+
     if (lexWorker) {
       const id = workerIdCounter++;
-      workerCallbacks.set(id, (tokens) => self.updateTokens(tokens));
+      workerCallbacks.set(id, apply);
       lexWorker.postMessage({
         id,
         text: self.rawMarkdown,
@@ -109,9 +114,59 @@ export class MathMarkdown extends Markdown {
     } else {
       // No Worker support (or it crashed) — same-thread fallback, still
       // correct, just loses the off-main-thread benefit.
-      self.updateTokens(marked.lexer(self.rawMarkdown));
+      apply(marked.lexer(self.rawMarkdown));
     }
     return this;
+  }
+
+  /**
+   * `@vectojs/ui`'s own `updateTokens` (called above) has a fast path for
+   * the common streaming case — "only the last token changed, still a
+   * paragraph" — that patches the existing entity in place via
+   * `setSpans()` if it has one, entirely bypassing `renderToken` (see
+   * Markdown.ts's `updateTokens`, the `existingEntity && 'setSpans' in
+   * existingEntity` branch). A plain-text paragraph starts as a base
+   * `RichText` (which does have `setSpans`), so as long as it keeps
+   * growing as a plain paragraph, every chunk takes that fast path — even
+   * once the growing text completes an `inlineMath`/`image` run, since the
+   * check only compares old/new token TYPE ("paragraph"), never whether
+   * the paragraph's own inline composition now needs our `Flow`-based
+   * rendering. That in-place patch calls the base class's own
+   * `collectSpans`, which renders `inlineMath` as raw amber-tinted text —
+   * so formulas stayed unrendered until the gallery's own post-stream
+   * "calibration" `setContent` rebuild ran (see forge/findings.md
+   * 2026-07-19: reported as "formulas only render once streaming reaches
+   * 100%").
+   *
+   * Fix: after every `updateTokens`, check whether the last token is a
+   * paragraph that now needs mixed rendering, and whether the live last
+   * child is still the stale plain entity from before that point — if so,
+   * swap it for one built through `this.renderToken` (our `Flow` dispatch).
+   * This only needs to run once per paragraph: once the child is a `Flow`
+   * (which has no `setSpans`), the base class's own fast-path guard fails
+   * on later ticks and correctly falls through to remove-and-rebuild via
+   * `renderToken` on its own, so streaming keeps flowing math/images live
+   * without any further help from here.
+   */
+  private reconcileLastMixedParagraph(tokens: Token[]): void {
+    const last = tokens[tokens.length - 1];
+    if (!last || last.type !== "paragraph") return;
+    const pToken = last as unknown as { tokens?: Token[] };
+    const needsFlow = pToken.tokens?.some(
+      (t) => t.type === "inlineMath" || t.type === "image",
+    );
+    if (!needsFlow) return;
+
+    const children = this.content.children;
+    const lastChild = children[children.length - 1];
+    if (!lastChild || lastChild instanceof Flow) return;
+
+    this.content.remove(lastChild);
+    const rebuilt = this.renderToken(last);
+    if (rebuilt) this.content.add(rebuilt);
+    this.width = this.content.width;
+    this.height = this.content.height;
+    this.scene?.markDirty();
   }
 
   /**
