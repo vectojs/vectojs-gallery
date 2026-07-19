@@ -89,13 +89,23 @@ export function tickStream(state: StreamState, dt: number): number {
 
 /**
  * Split text into tokens simulating an LLM tokenizer.
+ * - `![alt](url)` image markdown: the WHOLE span is one token, matched
+ *   before any other rule. A `data:` URI embedding a real image (e.g. an
+ *   EPUB cover, see forge/findings.md 2026-07-19) can be hundreds of
+ *   thousands of base64 characters — tokenizing it normally (alphanumeric
+ *   runs split by every `+`/`/`) produces tens of thousands of tokens of
+ *   pure gibberish that visibly "type out" for minutes at typical stream
+ *   rates before any real content appears, which reads as the reader being
+ *   broken rather than loading. An image isn't meant to be watched
+ *   character-by-character regardless of its source, so it reveals
+ *   atomically in a single tick instead.
  * - Chinese characters: 1-2 characters per token.
  * - English words: Words with trailing space, or punctuation.
  */
 export function tokenize(text: string): string[] {
   if (!text) return [];
   const regex =
-    /[一-龥]{1,2}|[a-zA-Z0-9]+(?:'[a-zA-Z]+)?\s*|[^一-龥a-zA-Z0-9\s]|\s+/g;
+    /!\[[^\]]*\]\([^)]*\)|[一-龥]{1,2}|[a-zA-Z0-9]+(?:'[a-zA-Z]+)?\s*|[^一-龥a-zA-Z0-9\s]|\s+/g;
   const matches = text.match(regex);
   return matches || [text];
 }
