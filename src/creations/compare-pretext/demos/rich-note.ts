@@ -26,6 +26,11 @@ type Spec =
   | { kind: "text"; text: string; style: TextStyleName }
   | { kind: "chip"; label: string; tone: ChipTone };
 
+/** True if the string contains any Arabic/Hebrew (RTL) characters. */
+function hasRTL(s: string): boolean {
+  return /[\u0590-\u05ff\u0600-\u06ff\u0700-\u074f\u0750-\u077f]/.test(s);
+}
+
 // Same content as pretext's DEFAULT_RICH_NOTE_SPECS: an engineering-standup
 // sentence deliberately mixing English, Chinese, Arabic, emoji, and five
 // chip pills of varying tone/width.
@@ -183,11 +188,17 @@ class RichNoteDemo extends Entity {
         continue;
       }
       const style = TEXT_STYLE[spec.style];
-      // Split on whitespace so each word is its own atomic Flow child —
-      // Flow only ever wraps at child boundaries, so a run of words needs
-      // one child per word to wrap naturally between them (mirrors
-      // MathMarkdown.renderMixedParagraph's word-splitting for mixed
-      // text+block paragraphs).
+      // Word-splitting into atomic Flow children reverses RTL runs: each word
+      // becomes its own L-to-R box, so a right-to-left phrase gets its words
+      // placed left-to-right. Keep any run containing RTL characters as ONE
+      // Text atom so the LayoutEngine's own bidi ordering (Intl.Segmenter)
+      // stays correct; only pure-LTR runs are split for natural wrapping.
+      if (hasRTL(spec.text)) {
+        this.flow.add(
+          new Text(spec.text.trim(), { font: style.font, color: style.color }),
+        );
+        continue;
+      }
       const words = spec.text.split(/(\s+)/).filter((w) => w.length > 0);
       for (const word of words) {
         this.flow.add(new Text(word, { font: style.font, color: style.color }));
@@ -239,8 +250,14 @@ class RichNoteDemo extends Entity {
     this.noteCard.setPosition(noteLeft, NOTE_TOP);
   }
 
-  isPointInside(): boolean {
-    return true; // owns the width slider directly, needs pointer events over its whole box
+  isPointInside(globalX: number, globalY: number): boolean {
+    // Only claim pointer events over the width-slider band; everywhere else
+    // must fall through so the browser can start a text selection on the
+    // projected Text content (returning true for the whole box ate the
+    // mousedown and made the note unselectable).
+    const local = this.worldToLocal(globalX, globalY);
+    if (!local) return false;
+    return this.pointInSlider(local.x, local.y);
   }
 
   resizeTo(width: number, height: number): void {

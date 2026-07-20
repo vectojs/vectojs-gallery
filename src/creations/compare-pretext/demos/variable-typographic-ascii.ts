@@ -14,6 +14,7 @@
 import { Entity, type IRenderer } from "@vectojs/core";
 import { DARK, FONT as UIFONT } from "../shared/theme";
 import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
+import { LinePool, type PooledLine } from "../shared/LinePool";
 
 const COLS = 44;
 const ROWS = 26;
@@ -88,12 +89,17 @@ class VariableTypographicAsciiDemo extends Entity {
     { length: COLS * ROWS },
     () => null,
   );
+  private gridLeftSource = 0;
   private gridLeftMono = 0;
   private gridLeftProp = 0;
   private gridTop = 0;
+  // Selectable copy target for the monospace ASCII (raw fillText copies
+  // nothing); one pooled Text line per grid row, refreshed each frame.
+  private monoPool = new LinePool("AsciiMonoText");
 
   constructor() {
     super("VariableTypographicAsciiDemo");
+    this.add(this.monoPool);
     this.buildPalette();
     this.buildLookup();
     this.particleStamp = this.createStamp(SPRITE_R);
@@ -148,11 +154,18 @@ class VariableTypographicAsciiDemo extends Entity {
         for (const ch of CHARSET) {
           const width = measureWidth(ch, font);
           if (width <= 0) continue;
+          const b = estimateBrightness(ch, font);
+          // Warm gold ramp keyed to glyph brightness (matches the pretext
+          // original's amber proportional column instead of flat near-white).
+          const t = Math.min(1, b * 1.6);
+          const rC = Math.round(120 + t * 132);
+          const gC = Math.round(92 + t * 108);
+          const bC = Math.round(48 + t * 70);
           this.palette.push({
             char: ch,
             font,
-            color: "#e8e6e1",
-            brightness: estimateBrightness(ch, font),
+            color: `rgb(${rC},${gC},${bC})`,
+            brightness: b,
             width,
           });
         }
@@ -316,11 +329,14 @@ class VariableTypographicAsciiDemo extends Entity {
     this.width = width;
     this.height = height;
     const gridW = COLS * CELL_W;
-    const gap = 48;
-    const totalW = gridW * 2 + gap;
-    const left = Math.max(32, (width - totalW) / 2);
-    this.gridLeftMono = left;
-    this.gridLeftProp = left + gridW + gap;
+    const gap = 40;
+    // Three panels (like pretext): raw source field, monospace ramp,
+    // proportional measured. Source panel matches the grid footprint.
+    const totalW = gridW * 3 + gap * 2;
+    const left = Math.max(24, (width - totalW) / 2);
+    this.gridLeftSource = left;
+    this.gridLeftMono = left + gridW + gap;
+    this.gridLeftProp = left + (gridW + gap) * 2;
     this.gridTop = CONTENT_TOP + 24;
   }
 
@@ -338,6 +354,13 @@ class VariableTypographicAsciiDemo extends Entity {
 
     // column labels
     r.fillText(
+      "SOURCE FIELD",
+      this.gridLeftSource,
+      this.gridTop - 12,
+      UIFONT.mono(11),
+      DARK.faint,
+    );
+    r.fillText(
       "MONOSPACE RAMP",
       this.gridLeftMono,
       this.gridTop - 12,
@@ -352,16 +375,51 @@ class VariableTypographicAsciiDemo extends Entity {
       DARK.accentSoft,
     );
 
-    const monoFont = UIFONT.mono(GLYPH_FONT_SIZE);
+    // Source-field panel: the raw brightness field as grayscale blocks — the
+    // input both character grids are sampled from (pretext shows this too).
     for (let row = 0; row < ROWS; row++) {
-      const y = this.gridTop + row * CELL_H + GLYPH_FONT_SIZE;
-      // monospace column: one string per row
+      for (let col = 0; col < COLS; col++) {
+        const cell = row * COLS + col;
+        // Reconstruct the cell brightness from the mono lookup (monoGrid maps
+        // 1:1 from the same downsample); use the prop entry's brightness when
+        // present for a smoother field.
+        const e = this.propGrid[cell];
+        const b = e ? Math.min(1, e.brightness) : 0;
+        if (b <= 0.02) continue;
+        const v = Math.round(40 + b * 200);
+        r.beginPath();
+        r.roundRect(
+          this.gridLeftSource + col * CELL_W,
+          this.gridTop + row * CELL_H,
+          CELL_W,
+          CELL_H,
+          0,
+        );
+        r.fill(`rgb(${v},${v},${v})`);
+      }
+    }
+
+    // Monospace column → selectable pooled Text (one line per row).
+    const monoFont = UIFONT.mono(GLYPH_FONT_SIZE);
+    const monoLines: PooledLine[] = [];
+    for (let row = 0; row < ROWS; row++) {
       let line = "";
       for (let col = 0; col < COLS; col++)
         line += this.monoGrid[row * COLS + col];
-      r.fillText(line, this.gridLeftMono, y, monoFont, "#d7d4cd");
+      monoLines.push({
+        x: this.gridLeftMono,
+        y: this.gridTop + row * CELL_H,
+        text: line,
+        font: monoFont,
+        color: "#d7d4cd",
+        lineHeight: CELL_H,
+      });
+    }
+    this.monoPool.setLines(monoLines);
 
-      // proportional column: per-cell glyph on a fixed cell grid
+    // Proportional column: per-cell glyph on a fixed cell grid.
+    for (let row = 0; row < ROWS; row++) {
+      const y = this.gridTop + row * CELL_H + GLYPH_FONT_SIZE;
       for (let col = 0; col < COLS; col++) {
         const e = this.propGrid[row * COLS + col];
         if (!e) continue;
