@@ -15,9 +15,9 @@
  * via `IRenderer` inside a `ScrollView`.
  */
 import { Entity, type IRenderer } from "@vectojs/core";
-import { ScrollView } from "@vectojs/ui";
 import { WARM, FONT as UIFONT } from "../shared/theme";
 import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from "../shared/chrome";
+import { ScrollColumn } from "../shared/ScrollColumn";
 import {
   PARAGRAPHS,
   FONT,
@@ -718,7 +718,7 @@ class JustificationColumn extends Entity {
 class JustificationDemo extends Entity {
   private W = 0;
   private H = 0;
-  private scrollView: ScrollView;
+  private scrollCol: ScrollColumn;
   private columns: JustificationColumn[] = [];
   private colSpecs: ColumnSpec[];
   private measure: (t: string) => number;
@@ -789,8 +789,8 @@ class JustificationDemo extends Entity {
       },
     ];
 
-    this.scrollView = new ScrollView({ width: 0, height: 0 });
-    this.add(this.scrollView);
+    this.scrollCol = new ScrollColumn(0, 0, "JustifyScroll");
+    this.add(this.scrollCol);
     for (const spec of this.colSpecs) {
       const col = new JustificationColumn(
         spec.title,
@@ -798,7 +798,7 @@ class JustificationDemo extends Entity {
         () => this.normalSpaceWidth,
       );
       this.columns.push(col);
-      this.scrollView.add(col);
+      this.scrollCol.content.add(col);
     }
 
     this.interactive = true;
@@ -872,12 +872,12 @@ class JustificationDemo extends Entity {
     }
     const totalW =
       this.columns.length * cw + (this.columns.length - 1) * COL_GAP;
-    const left = Math.max(0, (this.scrollView.width - totalW) / 2);
+    const left = Math.max(0, (this.W - totalW) / 2);
     for (let i = 0; i < this.columns.length; i++) {
       this.columns[i].setPosition(left + i * (cw + COL_GAP), 0);
     }
-    this.scrollView.content.width = this.scrollView.width;
-    this.scrollView.content.height = maxH;
+    this.scrollCol.content.width = this.W;
+    this.scrollCol.setContentHeight(maxH);
   }
 
   resizeTo(width: number, height: number): void {
@@ -885,9 +885,8 @@ class JustificationDemo extends Entity {
     this.H = height;
     this.width = width;
     this.height = height;
-    this.scrollView.width = width;
-    this.scrollView.height = height - CONTENT_TOP;
-    this.scrollView.setPosition(0, CONTENT_TOP);
+    this.scrollCol.setViewport(width, height - CONTENT_TOP);
+    this.scrollCol.setPosition(0, CONTENT_TOP);
     this.sliderX = 260;
     this.sliderW = Math.min(200, Math.max(120, width - this.sliderX - 320));
     this.toggleBox = {
