@@ -17,6 +17,7 @@
 import { Entity, type IRenderer } from "@vectojs/core";
 import { DARK } from "../shared/theme";
 import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
+import { LinePool, type PooledLine } from "../shared/LinePool";
 import {
   makeFlowMeasurer,
   prepareFlow,
@@ -80,11 +81,15 @@ class DynamicLayoutDemo extends Entity {
   private headlineLines: PositionedLine[] = [];
   private creditLine: PositionedLine | null = null;
   private anySpinning = false;
+  // Selectable text is projected through pooled Text entities (raw fillText
+  // projects nothing selectable); chrome + obstacles stay on the canvas.
+  private textPool = new LinePool("DynamicLayoutText");
 
   constructor() {
     super("DynamicLayoutDemo");
     this.measure = makeFlowMeasurer(BODY_FONT);
     this.preparedBody = prepareFlow(BODY_COPY, this.measure);
+    this.add(this.textPool);
     this.obstacles = [
       {
         kind: "poly-a",
@@ -372,6 +377,7 @@ class DynamicLayoutDemo extends Entity {
         DARK.muted,
         this.lines,
       );
+      this.syncTextPool();
       return;
     }
 
@@ -408,6 +414,50 @@ class DynamicLayoutDemo extends Entity {
       DARK.muted,
       this.lines,
     );
+    this.syncTextPool();
+  }
+
+  /**
+   * Push headline + credit + body lines into the selectable Text pool. Each
+   * pooled line's `lineHeight` is set to its own font size so the Text
+   * baseline (0.8×lineHeight) lands where the canvas layout expects it.
+   */
+  private syncTextPool(): void {
+    const pooled: PooledLine[] = [];
+    const headlineFontSize = this.headlineLines.length
+      ? parseInt(this.headlineLines[0].font.match(/(\d+)px/)?.[1] ?? "40", 10)
+      : 40;
+    for (const l of this.headlineLines) {
+      pooled.push({
+        x: l.x,
+        y: l.y,
+        text: l.text,
+        font: l.font,
+        color: l.color,
+        lineHeight: headlineFontSize * 1.02,
+      });
+    }
+    if (this.creditLine) {
+      pooled.push({
+        x: this.creditLine.x,
+        y: this.creditLine.y - 12,
+        text: this.creditLine.text,
+        font: this.creditLine.font,
+        color: this.creditLine.color,
+        lineHeight: 16,
+      });
+    }
+    for (const l of this.lines) {
+      pooled.push({
+        x: l.x,
+        y: l.y,
+        text: l.text,
+        font: l.font,
+        color: l.color,
+        lineHeight: BODY_LINE_HEIGHT,
+      });
+    }
+    this.textPool.setLines(pooled);
   }
 
   private fitHeadline(maxWidth: number): number {
@@ -463,27 +513,9 @@ class DynamicLayoutDemo extends Entity {
       r.stroke(o.color.replace(/0\.\d+\)/, "0.6)"), 1.5);
     }
 
-    // headline (fillText y is the baseline; push ~0.82em below the band top)
-    const headlineFontSize = this.headlineLines.length
-      ? parseInt(this.headlineLines[0].font.match(/(\d+)px/)?.[1] ?? "40", 10)
-      : 40;
-    for (const l of this.headlineLines) {
-      r.fillText(l.text, l.x, l.y + headlineFontSize * 0.82, l.font, l.color);
-    }
-
-    if (this.creditLine) {
-      r.fillText(
-        this.creditLine.text,
-        this.creditLine.x,
-        this.creditLine.y,
-        this.creditLine.font,
-        this.creditLine.color,
-      );
-    }
-
-    for (const l of this.lines) {
-      r.fillText(l.text, l.x, l.y + BODY_LINE_HEIGHT * 0.72, l.font, l.color);
-    }
+    // Headline, credit, and body text are projected by the selectable Text
+    // pool (see syncTextPool) — not painted here — so the browser can select
+    // and copy them. Only the chrome + obstacles draw on the canvas.
   }
 }
 

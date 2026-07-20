@@ -6,6 +6,7 @@ import { Rail } from "./ui/Rail";
 import { CaptionPlate } from "./ui/CaptionPlate";
 import { Stage } from "./ui/Stage";
 import { BackChip } from "./ui/BackChip";
+import { FullscreenChip } from "./ui/FullscreenChip";
 import { keepSceneLive } from "./keep-live";
 
 const RAIL_WIDTH = 280;
@@ -62,7 +63,9 @@ function initGallery(): void {
   let currentPlate: CaptionPlate | null = null;
   let currentStage: Stage | null = null;
   let currentBackChip: BackChip | null = null;
+  let currentFullscreenChip: FullscreenChip | null = null;
   let currentCreation: Creation | null = null;
+  let fullscreen = false;
   let loadSeq = 0;
   // `undefined` (not `null`) so the very first call to loadCreation(null) —
   // the fresh-page-load, no-hash case — never short-circuits against this
@@ -101,6 +104,11 @@ function initGallery(): void {
   // override `destroy()` to release them; `Entity.destroy()` itself only
   // clears animations/drivers/listeners, so this is a no-op for entries
   // that don't override it.
+  // Workspace origin/width depend on whether the rail is hidden (fullscreen).
+  const workspaceX = (): number => (fullscreen ? 0 : RAIL_WIDTH);
+  const workspaceW = (): number =>
+    fullscreen ? window.innerWidth : window.innerWidth - RAIL_WIDTH;
+
   const teardownCurrent = (): void => {
     if (currentPlate) {
       scene.remove(currentPlate);
@@ -109,6 +117,10 @@ function initGallery(): void {
     if (currentBackChip) {
       scene.remove(currentBackChip);
       currentBackChip = null;
+    }
+    if (currentFullscreenChip) {
+      scene.remove(currentFullscreenChip);
+      currentFullscreenChip = null;
     }
     if (currentEntity) {
       currentEntity.destroy();
@@ -149,6 +161,11 @@ function initGallery(): void {
 
   const showCatalog = (): void => {
     teardownCurrent();
+    // Leaving a creation always restores the rail-visible catalog layout.
+    if (fullscreen) {
+      fullscreen = false;
+      scene.add(rail);
+    }
     if (!bedMounted) {
       scene.add(bed);
       bedMounted = true;
@@ -178,12 +195,8 @@ function initGallery(): void {
     // Dark backdrop behind the creation (see Stage). Added before the creation
     // entity so it always paints behind it; sized to the workspace area right
     // of the rail.
-    currentStage = new Stage(
-      window.innerWidth - RAIL_WIDTH,
-      window.innerHeight,
-      creation.stage,
-    );
-    currentStage.setPosition(RAIL_WIDTH, 0);
+    currentStage = new Stage(workspaceW(), window.innerHeight, creation.stage);
+    currentStage.setPosition(workspaceX(), 0);
     scene.add(currentStage);
 
     creation
@@ -191,12 +204,8 @@ function initGallery(): void {
       .then(({ default: EntityClass }) => {
         if (seq !== loadSeq) return; // superseded by a later selection
         currentEntity = new EntityClass();
-        currentEntity.setPosition(RAIL_WIDTH, 0);
-        applySize(
-          currentEntity,
-          window.innerWidth - RAIL_WIDTH,
-          window.innerHeight,
-        );
+        currentEntity.setPosition(workspaceX(), 0);
+        applySize(currentEntity, workspaceW(), window.innerHeight);
         scene.add(currentEntity);
 
         currentCreation = creation;
@@ -211,15 +220,21 @@ function initGallery(): void {
         scene.renderMode =
           creation.continuousRedraw === false ? "onDemand" : "always";
         currentPlate = new CaptionPlate(creation);
-        currentPlate.x = RAIL_WIDTH + 16;
+        currentPlate.x = workspaceX() + 16;
         currentPlate.setBottomAnchor(
           window.innerHeight - 16 - (creation.bottomInset ?? 0),
         );
         scene.add(currentPlate);
 
         currentBackChip = new BackChip(() => navigateTo(null));
-        currentBackChip.setPosition(RAIL_WIDTH + 16, 16);
+        currentBackChip.setPosition(workspaceX() + 16, 16);
         scene.add(currentBackChip);
+
+        currentFullscreenChip = new FullscreenChip((full) =>
+          setFullscreen(full),
+        );
+        currentFullscreenChip.setPosition(window.innerWidth - 34 - 16, 16);
+        scene.add(currentFullscreenChip);
 
         // Lazily-created GPU canvases appear after the entity's first frame.
         clipStackedCanvases();
@@ -232,6 +247,28 @@ function initGallery(): void {
         if (seq !== loadSeq) return;
         console.error(`Failed to load creation "${creation.id}":`, err);
       });
+  };
+
+  const setFullscreen = (full: boolean): void => {
+    if (fullscreen === full) return;
+    fullscreen = full;
+    // Hide/show the rail; reposition + resize the mounted creation, stage,
+    // and the two theater chips to the new workspace origin/width.
+    if (full) scene.remove(rail);
+    else scene.add(rail);
+    if (currentStage) {
+      currentStage.setPosition(workspaceX(), 0);
+      currentStage.width = workspaceW();
+      currentStage.height = window.innerHeight;
+    }
+    if (currentEntity) {
+      currentEntity.setPosition(workspaceX(), 0);
+      applySize(currentEntity, workspaceW(), window.innerHeight);
+    }
+    if (currentPlate) currentPlate.x = workspaceX() + 16;
+    if (currentBackChip) currentBackChip.setPosition(workspaceX() + 16, 16);
+    clipStackedCanvases();
+    scene.markDirty();
   };
 
   const setHash = (id: string | null): void => {
@@ -261,16 +298,20 @@ function initGallery(): void {
     bed.resize(W - RAIL_WIDTH, H, CREATIONS);
 
     if (currentStage) {
-      currentStage.width = W - RAIL_WIDTH;
+      currentStage.setPosition(workspaceX(), 0);
+      currentStage.width = workspaceW();
       currentStage.height = H;
     }
     if (currentEntity) {
-      applySize(currentEntity, W - RAIL_WIDTH, H);
+      applySize(currentEntity, workspaceW(), H);
     }
     if (currentPlate) {
       currentPlate.setBottomAnchor(
         H - 16 - (currentCreation?.bottomInset ?? 0),
       );
+    }
+    if (currentFullscreenChip) {
+      currentFullscreenChip.setPosition(W - 34 - 16, 16);
     }
     clipStackedCanvases();
 

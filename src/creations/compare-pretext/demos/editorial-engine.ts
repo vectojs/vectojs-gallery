@@ -99,6 +99,8 @@ class EditorialEngineDemo extends Entity {
   private pullquotes: PullquoteBox[] = [];
   private dropCap = "";
   private dropCapFontSize = 0;
+  private dropCapX = 0;
+  private dropCapY = 0;
   private dragOrb = -1;
   private dragDX = 0;
   private dragDY = 0;
@@ -137,6 +139,17 @@ class EditorialEngineDemo extends Entity {
       this.scene?.markDirty();
     });
     const end = () => {
+      if (this.dragOrb >= 0) {
+        // Restore drift so a released orb resumes floating instead of freezing
+        // (its velocity was zeroed while dragged). Reuse the seed speed with a
+        // random direction so each release feels lively.
+        const o = this.orbs[this.dragOrb];
+        const def = ORB_DEFS[this.dragOrb];
+        const speed = Math.hypot(def.vx, def.vy);
+        const a = Math.random() * Math.PI * 2;
+        o.vx = Math.cos(a) * speed;
+        o.vy = Math.sin(a) * speed;
+      }
       this.dragOrb = -1;
     };
     this.on("pointerup", end);
@@ -267,12 +280,16 @@ class EditorialEngineDemo extends Entity {
     }
     const pqRects = this.pullquotes.map((p) => p.rect);
 
-    // drop cap size
+    // drop cap size + anchor (at the gutter, top of the body) so the glyph is
+    // drawn where its obstacle rect actually reserves space — not at the
+    // indented first body line.
     this.dropCapFontSize = BODY_LINE_HEIGHT * 3 - 6;
     const dropCapMeasure = makeFlowMeasurer(
       `700 ${this.dropCapFontSize}px ${HEADLINE_FAMILY}`,
     );
     const dropCapW = dropCapMeasure(this.dropCap) + 10;
+    this.dropCapX = gutter;
+    this.dropCapY = bodyTop;
     const dropCapRect: Rect = {
       x: gutter,
       y: bodyTop,
@@ -446,13 +463,12 @@ class EditorialEngineDemo extends Entity {
       );
     }
 
-    // drop cap
+    // drop cap (drawn at its reserved gutter anchor, not the indented body)
     if (this.lines.length > 0) {
-      const first = this.lines[0];
       r.fillText(
         this.dropCap,
-        first.x,
-        first.y + this.dropCapFontSize * 0.82,
+        this.dropCapX,
+        this.dropCapY + this.dropCapFontSize * 0.82,
         `700 ${this.dropCapFontSize}px ${HEADLINE_FAMILY}`,
         DARK.accentSoft,
       );

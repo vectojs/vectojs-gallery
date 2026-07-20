@@ -82,7 +82,10 @@ class ComparePretext extends Entity {
       font: FONT.sans(13, 600),
       color: WARM.ink,
     });
-    backLabel.setPosition(14, 21);
+    // Center the label in the 118×34 pill (Text.width is known post-construct;
+    // Text draws its baseline at 0.8×lineHeight, so y sits it vertically).
+    backLabel.lineHeight = 34;
+    backLabel.setPosition((118 - backLabel.width) / 2, 0);
     this.backChip.add(backLabel);
     this.backChip.setPosition(BACK_CHIP_X, BACK_CHIP_Y);
     this.backChip.opacity = 0;
