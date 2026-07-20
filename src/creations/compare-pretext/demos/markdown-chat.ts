@@ -12,7 +12,8 @@
  * the thing pretext must build by hand, VectoJS already has.
  */
 import { Entity, type IRenderer } from "@vectojs/core";
-import { VirtualList, Markdown, type MarkdownTheme } from "@vectojs/ui";
+import { Markdown, type MarkdownTheme } from "@vectojs/ui";
+import { ScrollColumn } from "../shared/ScrollColumn";
 import { DARK } from "../shared/theme";
 import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
 import { CHAT_SEEDS } from "./markdown-chat-data";
@@ -139,39 +140,99 @@ class ChatBubble extends Entity {
   }
 }
 
+const EST_ROW_H = 120;
+const OVERSCAN_PX = 400;
+
 class MarkdownChatDemo extends Entity {
   private W = 0;
   private H = 0;
   private messages: ChatMessage[];
-  private list: VirtualList<ChatMessage> | null = null;
+  private scrollCol: ScrollColumn;
+  private rowWidth = 0;
+  private listLeft = 0;
+  // Lazy virtualization (non-inertial, mirrors masonry): measured height per
+  // index, cumulative tops recomputed as heights become known, only the
+  // visible window mounted as real ChatBubble children.
+  private heights: number[];
+  private tops: number[];
+  private mounted = new Map<number, ChatBubble>();
+  private lastScroll = -1;
 
   constructor() {
     super("MarkdownChatDemo");
     this.messages = buildMessages();
+    this.heights = Array.from(
+      { length: this.messages.length },
+      () => EST_ROW_H,
+    );
+    this.tops = Array.from({ length: this.messages.length + 1 }, () => 0);
+    this.scrollCol = new ScrollColumn(0, 0, "ChatScroll");
+    this.add(this.scrollCol);
+    this.recomputeTops();
   }
 
   isPointInside(): boolean {
     return false;
   }
 
-  private rebuildList(): void {
-    if (this.list) {
-      this.remove(this.list);
-      this.list = null;
+  private recomputeTops(): void {
+    let y = 0;
+    for (let i = 0; i < this.messages.length; i++) {
+      this.tops[i] = y;
+      y += this.heights[i];
     }
-    const listW = Math.min(760, this.W - 48);
-    const left = Math.max(24, (this.W - listW) / 2);
-    const rowWidth = listW;
-    this.list = new VirtualList<ChatMessage>({
-      items: this.messages,
-      renderItem: (item) => new ChatBubble(item, rowWidth),
-      estimatedRowHeight: 120,
-      width: listW,
-      height: this.H - CONTENT_TOP - 16,
-      overscan: 4,
-    });
-    this.list.setPosition(left, CONTENT_TOP);
-    this.add(this.list);
+    this.tops[this.messages.length] = y;
+    this.scrollCol.setContentHeight(y);
+  }
+
+  private reconcile(): void {
+    const scroll = this.scrollCol.scroll;
+    if (Math.abs(scroll - this.lastScroll) < 0.5 && this.mounted.size > 0)
+      return;
+    this.lastScroll = scroll;
+    const viewTop = scroll - OVERSCAN_PX;
+    const viewBottom = scroll + (this.H - CONTENT_TOP) + OVERSCAN_PX;
+
+    // Binary-ish scan for the first visible index (tops is monotonic).
+    let start = 0;
+    while (start < this.messages.length && this.tops[start + 1] < viewTop)
+      start++;
+
+    const visible = new Set<number>();
+    let dirtyHeights = false;
+    for (let i = start; i < this.messages.length; i++) {
+      if (this.tops[i] > viewBottom) break;
+      visible.add(i);
+      let row = this.mounted.get(i);
+      if (!row) {
+        row = new ChatBubble(this.messages[i], this.rowWidth);
+        this.mounted.set(i, row);
+        this.scrollCol.content.add(row);
+        // Cache the real measured height; flag a reflow if it differed.
+        if (Math.abs(row.height - this.heights[i]) > 0.5) {
+          this.heights[i] = row.height;
+          dirtyHeights = true;
+        }
+      }
+      row.setPosition(this.listLeft, this.tops[i]);
+    }
+    for (const [i, row] of this.mounted) {
+      if (!visible.has(i)) {
+        this.scrollCol.content.remove(row);
+        this.mounted.delete(i);
+      }
+    }
+    if (dirtyHeights) {
+      this.recomputeTops();
+      // Reposition still-mounted rows against corrected tops.
+      for (const [i, row] of this.mounted)
+        row.setPosition(this.listLeft, this.tops[i]);
+    }
+  }
+
+  update(dt: number, time: number): void {
+    super.update(dt, time);
+    this.reconcile();
   }
 
   resizeTo(width: number, height: number): void {
@@ -179,7 +240,20 @@ class MarkdownChatDemo extends Entity {
     this.H = height;
     this.width = width;
     this.height = height;
-    this.rebuildList();
+    const listW = Math.min(760, width - 48);
+    this.listLeft = 0;
+    this.rowWidth = listW;
+    const left = Math.max(24, (width - listW) / 2);
+    this.scrollCol.setViewport(listW, height - CONTENT_TOP - 16);
+    this.scrollCol.setPosition(left, CONTENT_TOP);
+    this.scrollCol.content.width = listW;
+    // Row widths changed → drop mounted rows + measured heights and re-lay out.
+    for (const [, row] of this.mounted) this.scrollCol.content.remove(row);
+    this.mounted.clear();
+    this.heights.fill(EST_ROW_H);
+    this.lastScroll = -1;
+    this.recomputeTops();
+    this.reconcile();
   }
 
   render(r: IRenderer): void {
