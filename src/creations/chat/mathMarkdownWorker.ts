@@ -21,10 +21,15 @@ registerMathExtensions();
 export interface LexRequest {
   id: number;
   text: string;
+  /** Raw source of each of the caller's current tokens, oldest first. */
+  oldRaws: string[];
 }
 export interface LexResponse {
   id: number;
-  tokens?: Token[];
+  /** How many of the caller's own tokens (by index) are still valid. */
+  matchLen?: number;
+  /** The re-lexed tokens beyond `matchLen` — NOT the whole document. */
+  tail?: Token[];
   error?: string;
 }
 
@@ -34,10 +39,29 @@ export interface LexResponse {
 const worker = self as unknown as Worker;
 
 worker.onmessage = (e: MessageEvent<LexRequest>) => {
-  const { id, text } = e.data;
+  const { id, text, oldRaws } = e.data;
   try {
+    // `marked` has no incremental lexing API, so re-lexing the whole
+    // accumulated text on every streamed chunk is unavoidable — but posting
+    // the ENTIRE resulting token tree back is not. That tree grows with the
+    // whole document (not just the new chunk), and `postMessage` structured
+    // clones it: for a large streamed document this became multiple
+    // megabytes transferred on every single chunk, a real and escalating
+    // main/worker-thread cost layered on top of the lex itself (see
+    // forge/findings.md, 2026-07-19). Diff against the caller's own
+    // previous tokens (by raw source, same technique `updateTokens` already
+    // uses on the receiving end) and send back only the changed suffix.
     const tokens = marked.lexer(text);
-    worker.postMessage({ id, tokens } satisfies LexResponse);
+    let matchLen = 0;
+    const minLen = Math.min(oldRaws.length, tokens.length);
+    for (; matchLen < minLen; matchLen++) {
+      if (oldRaws[matchLen] !== tokens[matchLen].raw) break;
+    }
+    worker.postMessage({
+      id,
+      matchLen,
+      tail: tokens.slice(matchLen),
+    } satisfies LexResponse);
   } catch (err) {
     worker.postMessage({
       id,

@@ -7,7 +7,7 @@
       "dependencies": {
         "@vectojs/core": "1.11.2",
         "@vectojs/three": "0.1.6",
-        "@vectojs/ui": "1.11.4",
+        "@vectojs/ui": "1.11.6",
         "jszip": "^3.10.1",
         "marked": "^18.0.6",
         "three": "^0.160.0",
@@ -259,7 +259,7 @@
 
     "@vectojs/three": ["@vectojs/three@0.1.6", "", { "peerDependencies": { "@vectojs/core": ">=1.0.0 <2.0.0", "three": "^0.160.0" } }, "sha512-s+m2vuWYPswOdZoRJrslHi87xGpIj7HThtUpPuTOyucunsCLh2SoRGdoWr+RDeMtMz237iklD2tPjZyAKq+aNw=="],
 
-    "@vectojs/ui": ["@vectojs/ui@1.11.4", "", { "dependencies": { "marked": "^18.0.6", "mathjax-full": "^3.2.2" }, "peerDependencies": { "@vectojs/core": ">=1.8.0 <2.0.0" } }, "sha512-R/eqVflq6MvmIjcu5mfA8lyVx66Df+c0jzK9NiTLf/r27nBWcf36gmW6RE5JGHnu0l1IBgOhUq/DWFFO97qUvA=="],
+    "@vectojs/ui": ["@vectojs/ui@1.11.6", "", { "dependencies": { "marked": "^18.0.6", "mathjax-full": "^3.2.2" }, "peerDependencies": { "@vectojs/core": ">=1.8.0 <2.0.0" } }, "sha512-dWJ0U4dclR+WJqD40qlQlMp7kd4inY/cQx1RKj58Eyws6+wT0g9udkakuXBKgXmftRELWzk4ixKbFFWGP7myvQ=="],
 
     "@xmldom/xmldom": ["@xmldom/xmldom@0.9.10", "", {}, "sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw=="],
 

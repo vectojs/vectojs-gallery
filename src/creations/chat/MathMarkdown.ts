@@ -47,12 +47,20 @@ class MathWrapper extends Entity {
 // library uses internally — there is no public API for "append + reparse".
 interface MarkdownInternals {
   rawMarkdown: string;
+  tokens: Token[];
   updateTokens(tokens: Token[]): void;
 }
 
 let lexWorker: Worker | null = null;
 let workerIdCounter = 0;
-const workerCallbacks = new Map<number, (tokens: Token[]) => void>();
+// `cb` receives (matchLen, tail): the caller's own tokens[0..matchLen) are
+// still valid and only `tail` is new — see the matching comment in
+// mathMarkdownWorker.ts for why the worker sends a diff instead of the full
+// re-lexed tree on every call.
+const workerCallbacks = new Map<
+  number,
+  (matchLen: number, tail: Token[]) => void
+>();
 
 if (typeof Worker !== "undefined") {
   try {
@@ -63,15 +71,15 @@ if (typeof Worker !== "undefined") {
       },
     );
     lexWorker.onmessage = (e: MessageEvent<LexResponse>) => {
-      const { id, tokens, error } = e.data;
+      const { id, matchLen, tail, error } = e.data;
       const cb = workerCallbacks.get(id);
       if (!cb) return;
       workerCallbacks.delete(id);
-      if (error || !tokens) {
+      if (error || !tail) {
         console.warn("MathMarkdown worker lex failed, falling back", error);
         return;
       }
-      cb(tokens);
+      cb(matchLen ?? 0, tail);
     };
     lexWorker.onerror = (err) => {
       console.warn("MathMarkdown worker crashed; using sync fallback", err);
@@ -139,9 +147,17 @@ export class MathMarkdown extends Markdown {
     this.lexInFlight = true;
     this.lexPending = false;
 
-    const apply = (tokens: Token[]) => {
+    // Fixed for the lifetime of this exact request/response — the coalescing
+    // above (`lexInFlight` gating further dispatches) is what keeps this
+    // snapshot valid: nothing else can advance `self.tokens` while this is
+    // pending, so reconstructing against it later is always correct.
+    const oldTokensSnapshot = self.tokens;
+    const oldRaws = oldTokensSnapshot.map((t) => t.raw);
+
+    const apply = (matchLen: number, tail: Token[]) => {
       this.lexInFlight = false;
       if (epoch !== this.docEpoch) return; // a newer document has since loaded
+      const tokens = [...oldTokensSnapshot.slice(0, matchLen), ...tail];
       self.updateTokens(tokens);
       this.reconcileLastMixedParagraph(tokens);
       if (this.lexPending) this.dispatchLex();
@@ -153,11 +169,12 @@ export class MathMarkdown extends Markdown {
       lexWorker.postMessage({
         id,
         text: self.rawMarkdown,
+        oldRaws,
       } satisfies LexRequest);
     } else {
       // No Worker support (or it crashed) — same-thread fallback, still
       // correct, just loses the off-main-thread benefit.
-      apply(marked.lexer(self.rawMarkdown));
+      apply(0, marked.lexer(self.rawMarkdown));
     }
   }
 

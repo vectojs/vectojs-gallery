@@ -24,6 +24,16 @@ export interface PerfSample {
 
 const FPS_ALPHA = 0.1; // EMA smoothing
 
+// A frame gap longer than this means the render loop was idle (onDemand
+// skipped frames), not that a single frame genuinely took this long. Blending
+// such a gap into the FPS EMA (or reporting it as `frameMs`) poisons the panel
+// with a misleadingly bad reading that then stays frozen once the scene
+// settles — the exact "stuck at 14 fps / 900ms after the document finished"
+// artifact users saw. Treat a gap past this threshold as an idle resumption:
+// reseed the average from the real instantaneous rate instead of averaging in
+// the idle gap.
+const IDLE_GAP_MS = 200;
+
 export class PerfMonitor {
   private _fps = 60;
   private _last = performance.now();
@@ -33,8 +43,19 @@ export class PerfMonitor {
     this._last = now;
 
     const instantFps = dt > 0 ? 1000 / dt : 60;
+    if (dt > IDLE_GAP_MS) {
+      // Resuming after idle — don't let the idle gap masquerade as a slow
+      // frame. Reseed to the real rate so the next few real frames converge
+      // cleanly, and report a nominal frame time for THIS frame rather than
+      // the whole idle gap.
+      this._fps = instantFps;
+      return this.buildSample(1000 / Math.max(instantFps, 1));
+    }
     this._fps = this._fps * (1 - FPS_ALPHA) + instantFps * FPS_ALPHA;
+    return this.buildSample(dt);
+  }
 
+  private buildSample(frameTimeMs: number): PerfSample {
     const mem = (
       performance as Performance & {
         memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
@@ -43,7 +64,7 @@ export class PerfMonitor {
     const heapUsedMB = mem ? mem.usedJSHeapSize / 1_048_576 : NaN;
     const heapLimitMB = mem ? mem.jsHeapSizeLimit / 1_048_576 : NaN;
 
-    const frameMs = Math.round(dt * 10) / 10;
+    const frameMs = Math.round(frameTimeMs * 10) / 10;
     return {
       fps: Math.round(this._fps),
       heapUsedMB,
