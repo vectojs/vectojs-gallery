@@ -48,6 +48,7 @@ export const ACCENT: Record<string, Accent> = {
   nexus: { a: "#7c5cff", b: "#22d3ee", glow: "#7c5cff" },
   dimension: { a: "#ff4d8d", b: "#a855f7", glow: "#ff4d8d" },
   chat: { a: "#b4823c", b: "#e8c887", glow: "#c49a54" },
+  "compare-pretext": { a: "#955f3b", b: "#d8ae7c", glow: "#955f3b" },
 } as const;
 
 const FALLBACK_ACCENT: Accent = { a: "#7c5cff", b: "#22d3ee", glow: "#7c5cff" };

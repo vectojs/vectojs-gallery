@@ -87,4 +87,18 @@ export const CREATIONS: Creation[] = [
     continuousRedraw: false,
     load: () => import("./creations/chat"),
   },
+  {
+    id: "compare-pretext",
+    title: "Pretext, Rebuilt on VectoJS",
+    description:
+      "Nine public demos from the pretext text-layout library, reimplemented on VectoJS's own canvas-native layout engine — no DOM reflow to avoid, because there was never any DOM to reflow.",
+    tags: ["Text Layout", "Comparison", "Typography"],
+    stage: "#f5f1ea",
+    // Every interaction here (opening a demo, dragging a slider, toggling
+    // an accordion row) already calls scene.markDirty() itself through the
+    // normal @vectojs/ui component event handlers — like `chat`, it never
+    // needs the blanket forced-redraw pump once idle.
+    continuousRedraw: false,
+    load: () => import("./creations/compare-pretext"),
+  },
 ];
