@@ -12,10 +12,11 @@
  * scroll away are unmounted, not just hidden.
  */
 import { Entity, LayoutEngine, type IRenderer } from "@vectojs/core";
-import { ScrollView, Text } from "@vectojs/ui";
+import { Text } from "@vectojs/ui";
 import { WARM, FONT } from "../shared/theme";
 import { fontMeasurer } from "../shared/measure";
 import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from "../shared/chrome";
+import { ScrollColumn } from "../shared/ScrollColumn";
 import { MASONRY_QUIPS } from "./masonry-data";
 
 const CARD_FONT_SIZE = 14;
@@ -65,7 +66,7 @@ class MasonryCard extends Entity {
 class MasonryDemo extends Entity {
   private W = 0;
   private H = 0;
-  private scrollView: ScrollView;
+  private scrollCol: ScrollColumn;
   private engine: LayoutEngine;
 
   // Full-dataset layout, computed once per width change (mirrors pretext's
@@ -82,8 +83,8 @@ class MasonryDemo extends Entity {
   constructor() {
     super("MasonryDemo");
     this.engine = new LayoutEngine(1e9, 1e9, fontMeasurer(CARD_FONT));
-    this.scrollView = new ScrollView({ width: 0, height: 0 });
-    this.add(this.scrollView);
+    this.scrollCol = new ScrollColumn(0, 0, "MasonryScroll");
+    this.add(this.scrollCol);
   }
 
   isPointInside(): boolean {
@@ -146,17 +147,17 @@ class MasonryDemo extends Entity {
     this.positioned = positioned;
     this.colWidth = colWidth;
     this.contentHeight = contentHeight;
-    this.scrollView.content.height = contentHeight;
-    this.scrollView.content.width = viewportWidth;
+    this.scrollCol.setContentHeight(contentHeight);
+    this.scrollCol.content.width = viewportWidth;
 
     // Full re-layout invalidates every mounted card's cached width.
-    for (const [, card] of this.mounted) this.scrollView.content.remove(card);
+    for (const [, card] of this.mounted) this.scrollCol.content.remove(card);
     this.mounted.clear();
     this.lastScrollTop = -1;
   }
 
   private reconcileVisible(): void {
-    const scrollTop = -this.scrollView.content.y;
+    const scrollTop = this.scrollCol.scroll;
     if (Math.abs(scrollTop - this.lastScrollTop) < 1) return;
     this.lastScrollTop = scrollTop;
 
@@ -172,14 +173,14 @@ class MasonryDemo extends Entity {
         card.width = p.w;
         card.height = p.h;
         card.setPosition(p.x, p.y);
-        this.scrollView.content.add(card);
+        this.scrollCol.content.add(card);
         this.mounted.set(p.index, card);
       }
     }
 
     for (const [index, card] of this.mounted) {
       if (!stillVisible.has(index)) {
-        this.scrollView.content.remove(card);
+        this.scrollCol.content.remove(card);
         this.mounted.delete(index);
       }
     }
@@ -190,21 +191,13 @@ class MasonryDemo extends Entity {
     this.reconcileVisible();
   }
 
-  hasPendingAnimations(): boolean {
-    // Wheel/drag scroll drives content.y through a spring; keep the idle
-    // throttle awake so reconcileVisible() keeps mounting/unmounting cards
-    // mid-scroll instead of freezing the virtualization window.
-    return this.scrollView.content.y !== Math.round(this.scrollView.content.y);
-  }
-
   resizeTo(width: number, height: number): void {
     this.W = width;
     this.H = height;
     this.width = width;
     this.height = height;
-    this.scrollView.width = width;
-    this.scrollView.height = height - CONTENT_TOP;
-    this.scrollView.setPosition(0, CONTENT_TOP);
+    this.scrollCol.setViewport(width, height - CONTENT_TOP);
+    this.scrollCol.setPosition(0, CONTENT_TOP);
     this.computeLayout(width);
     this.reconcileVisible();
   }
