@@ -16,6 +16,7 @@
 import { Entity, type IRenderer } from "@vectojs/core";
 import { DARK } from "../shared/theme";
 import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
+import { LinePool, type PooledLine } from "../shared/LinePool";
 import {
   makeFlowMeasurer,
   prepareFlow,
@@ -105,9 +106,14 @@ class EditorialEngineDemo extends Entity {
   private dragDX = 0;
   private dragDY = 0;
   private lastTime = 0;
+  // Selectable text pool (raw fillText projects nothing selectable). Reflows
+  // every frame as orbs drift, but Text.setText only re-measures a line whose
+  // string actually changed, so unchanged lines are just repositioned.
+  private textPool = new LinePool("EditorialText");
 
   constructor() {
     super("EditorialEngineDemo");
+    this.add(this.textPool);
     this.measure = makeFlowMeasurer(BODY_FONT);
     this.dropCap = BODY_TEXT[0];
     this.preparedBody = prepareFlow(BODY_TEXT.slice(1), this.measure);
@@ -305,6 +311,7 @@ class EditorialEngineDemo extends Entity {
         height: pageBottom - bodyTop,
       };
       this.flowColumn(region, 0, [...pqRects, dropCapRect]);
+      this.syncTextPool();
       return;
     }
 
@@ -322,6 +329,46 @@ class EditorialEngineDemo extends Entity {
     };
     const cursor = this.flowColumn(leftRegion, 0, [...pqRects, dropCapRect]);
     this.flowColumn(rightRegion, cursor, pqRects);
+    this.syncTextPool();
+  }
+
+  /** Push headline + body + pullquote lines into the selectable Text pool. */
+  private syncTextPool(): void {
+    const pooled: PooledLine[] = [];
+    const hlFont = `700 ${this.headlineFontSize}px ${HEADLINE_FAMILY}`;
+    for (const l of this.headlineLines) {
+      pooled.push({
+        x: l.x,
+        y: l.y,
+        text: l.text,
+        font: hlFont,
+        color: DARK.ink,
+        lineHeight: this.headlineFontSize * 1.05,
+      });
+    }
+    for (const l of this.lines) {
+      pooled.push({
+        x: l.x,
+        y: l.y,
+        text: l.text,
+        font: BODY_FONT,
+        color: DARK.muted,
+        lineHeight: BODY_LINE_HEIGHT,
+      });
+    }
+    for (const pq of this.pullquotes) {
+      for (const l of pq.lines) {
+        pooled.push({
+          x: l.x + 6,
+          y: l.y,
+          text: l.text,
+          font: PQ_FONT,
+          color: DARK.ink,
+          lineHeight: PQ_LINE_HEIGHT,
+        });
+      }
+    }
+    this.textPool.setLines(pooled);
   }
 
   private layoutPullquote(
@@ -452,16 +499,9 @@ class EditorialEngineDemo extends Entity {
       true,
     );
 
-    // headline
-    for (const l of this.headlineLines) {
-      r.fillText(
-        l.text,
-        l.x,
-        l.y + this.headlineFontSize * 0.82,
-        `700 ${this.headlineFontSize}px ${HEADLINE_FAMILY}`,
-        DARK.ink,
-      );
-    }
+    // Headline, body, and pull-quote text are projected by the selectable
+    // Text pool (see syncTextPool) so they can be selected/copied. Only the
+    // drop-cap glyph and pull-quote accent rails stay on the canvas.
 
     // drop cap (drawn at its reserved gutter anchor, not the indented body)
     if (this.lines.length > 0) {
@@ -474,31 +514,11 @@ class EditorialEngineDemo extends Entity {
       );
     }
 
-    // body
-    for (const l of this.lines) {
-      r.fillText(
-        l.text,
-        l.x,
-        l.y + BODY_LINE_HEIGHT * 0.72,
-        BODY_FONT,
-        DARK.muted,
-      );
-    }
-
-    // pull-quotes
+    // pull-quote accent rails
     for (const pq of this.pullquotes) {
       r.beginPath();
       r.roundRect(pq.rect.x - 6, pq.rect.y, 3, pq.rect.height, 1.5);
       r.fill(DARK.accent);
-      for (const l of pq.lines) {
-        r.fillText(
-          l.text,
-          l.x + 6,
-          l.y + PQ_LINE_HEIGHT * 0.72,
-          PQ_FONT,
-          DARK.ink,
-        );
-      }
     }
   }
 }
