@@ -27,6 +27,7 @@ import { StreamTextEntity } from "./StreamTextEntity";
 import { ControlPanel } from "./ControlPanel";
 import { PerfPanel } from "./PerfPanel";
 import { DropZone } from "./DropZone";
+import { ScrollBar, SCROLLBAR_HIT_BAND } from "./ScrollBar";
 import { MathMarkdown } from "./MathMarkdown";
 
 const MD_THEME: MarkdownTheme = {
@@ -67,6 +68,7 @@ class StreamReader extends Entity {
   private controlPanel: ControlPanel;
   private perfPanel: PerfPanel;
   private dropZone: DropZone;
+  private scrollBar: ScrollBar;
   private canvasEl: HTMLCanvasElement | null;
 
   private mdScrollY = 0;
@@ -80,6 +82,10 @@ class StreamReader extends Entity {
   private lastPerfUpdate = 0;
   private mdDragging = false;
   private mdDragY = 0;
+  // Scrollbar-thumb drag (mouse or touch), tracked at window level.
+  private thumbDragging = false;
+  private thumbStartClientY = 0;
+  private thumbStartScroll = 0;
 
   constructor() {
     super("StreamReader");
@@ -125,6 +131,16 @@ class StreamReader extends Entity {
     this.perfPanel = new PerfPanel();
     this.dropZone = new DropZone(() => this.openFilePicker());
 
+    this.scrollBar = new ScrollBar();
+    // The bar is a pure visual; it reads live scroll geometry each render. Thumb
+    // hit-testing + dragging live in the window pointer handlers below (the bar
+    // is non-interactive so it never blocks the document's text selection).
+    this.scrollBar.metrics = () => ({
+      viewH: this.height - this.controlPanel.panelHeight,
+      contentH: this.markdownView.height + 64,
+      scrollY: this.mdScrollY,
+    });
+
     // maxWidth is a placeholder — the entity's real width is 0 until the
     // shell's first resizeTo() call; layout() sets the real value (and only
     // then populates content) once it's known, same fix as the portfolio
@@ -143,6 +159,7 @@ class StreamReader extends Entity {
     // which must stay usable even while the drop zone shows).
     this.add(this.streamText);
     this.add(this.markdownView);
+    this.add(this.scrollBar); // over the document, under the chrome/drop layers
     this.add(this.dropZone);
     this.add(this.controlPanel);
     this.add(this.perfPanel);
@@ -164,6 +181,53 @@ class StreamReader extends Entity {
 
   private markdownMaxScroll(viewportH: number): number {
     return Math.max(0, this.markdownView.height + 64 - viewportH);
+  }
+
+  /**
+   * Single clamp path for every scroll input (wheel, touch drag, scrollbar).
+   * Clamps to `[0, maxScroll]`, drops auto-follow once scrolled off the bottom,
+   * and moves the view. No-op when the offset is unchanged.
+   */
+  private scrollMarkdownTo(y: number): void {
+    if (this.state.kind !== "markdown") return;
+    const h = this.height - this.controlPanel.panelHeight;
+    const maxScroll = this.markdownMaxScroll(h);
+    const clamped = Math.max(0, Math.min(maxScroll, y));
+    if (clamped === this.mdScrollY) return;
+    this.mdScrollY = clamped;
+    this.mdAutoScroll = this.mdScrollY >= maxScroll - 8;
+    this.markdownView.y = 32 - this.mdScrollY;
+    this.scene?.markDirty();
+  }
+
+  /**
+   * Hit-test a window pointer against the scrollbar thumb. The bar overlays the
+   * content viewport at creation-local (0,0); the creation sits at scene y=0
+   * (canvas top) and the scene's logical space is 1:1 with CSS pixels, so a
+   * client point maps to bar-local by subtracting the canvas rect. X is tested
+   * as "within the right-edge band"; Y against the current thumb rectangle.
+   */
+  private pointerOnThumb(clientX: number, clientY: number): boolean {
+    if (!this.canvasEl) return false;
+    const band = this.scrollBar.thumbBand();
+    if (!band) return false;
+    const rect = this.canvasEl.getBoundingClientRect();
+    if (clientX < rect.right - SCROLLBAR_HIT_BAND || clientX > rect.right) {
+      return false;
+    }
+    const localY = clientY - rect.top;
+    return localY >= band.top - 2 && localY <= band.top + band.height + 2;
+  }
+
+  /** Convert a thumb-drag distance (client px) into a scroll offset delta. */
+  private thumbDragToScroll(deltaClientY: number): number {
+    const band = this.scrollBar.thumbBand();
+    if (!band || band.trackTravel <= 0) return this.thumbStartScroll;
+    const h = this.height - this.controlPanel.panelHeight;
+    const maxScroll = this.markdownMaxScroll(h);
+    return (
+      this.thumbStartScroll + (deltaClientY / band.trackTravel) * maxScroll
+    );
   }
 
   /**
@@ -204,6 +268,13 @@ class StreamReader extends Entity {
       this.markdownView.x = 32;
       this.markdownView.y = 32 - this.mdScrollY;
 
+      // Scrollbar overlays the content viewport (above the control panel).
+      this.scrollBar.x = 0;
+      this.scrollBar.y = 0;
+      this.scrollBar.width = w;
+      this.scrollBar.height = h - ctrlH;
+      this.scrollBar.opacity = 1;
+
       const targetW = w - 64;
       if (this.markdownView.maxWidth !== targetW) {
         this.markdownView.maxWidth = targetW;
@@ -217,6 +288,7 @@ class StreamReader extends Entity {
     } else {
       this.streamText.visible = true;
       this.setMarkdownShown(false);
+      this.scrollBar.opacity = 0;
     }
 
     this.controlPanel.x = 0;
@@ -438,21 +510,20 @@ class StreamReader extends Entity {
 
   private readonly onWheel = (e: WheelEvent): void => {
     if (this.state.kind !== "markdown") return;
-    const dy = e.deltaY;
-    const oldY = this.mdScrollY;
-    this.mdScrollY += dy;
-    const h = this.height - this.controlPanel.panelHeight;
-    const maxScroll = this.markdownMaxScroll(h);
-    this.mdScrollY = Math.max(0, Math.min(maxScroll, this.mdScrollY));
-    if (this.mdScrollY < maxScroll - 8) this.mdAutoScroll = false;
-    if (this.mdScrollY !== oldY) {
-      this.markdownView.y = 32 - this.mdScrollY;
-      this.scene?.markDirty();
-    }
+    this.scrollMarkdownTo(this.mdScrollY + e.deltaY);
   };
 
   private readonly onWindowPointerDown = (e: PointerEvent): void => {
     if (this.state.kind !== "markdown") return;
+    // Scrollbar-thumb grab (mouse or touch) takes priority over body drag.
+    if (this.pointerOnThumb(e.clientX, e.clientY)) {
+      this.thumbDragging = true;
+      this.thumbStartClientY = e.clientY;
+      this.thumbStartScroll = this.mdScrollY;
+      this.scrollBar.dragging = true;
+      this.scene?.markDirty();
+      return;
+    }
     if (e.pointerType === "touch") {
       this.mdDragging = true;
       this.mdDragY = e.clientY;
@@ -460,23 +531,32 @@ class StreamReader extends Entity {
   };
 
   private readonly onWindowPointerMove = (e: PointerEvent): void => {
-    if (!this.mdDragging || this.state.kind !== "markdown") return;
-    const dy = this.mdDragY - e.clientY;
-    this.mdDragY = e.clientY;
-    const oldY = this.mdScrollY;
-    this.mdScrollY += dy;
-    const h = this.height - this.controlPanel.panelHeight;
-    const maxScroll = this.markdownMaxScroll(h);
-    this.mdScrollY = Math.max(0, Math.min(maxScroll, this.mdScrollY));
-    if (this.mdScrollY < maxScroll - 8) this.mdAutoScroll = false;
-    if (this.mdScrollY !== oldY) {
-      this.markdownView.y = 32 - this.mdScrollY;
+    if (this.state.kind !== "markdown") return;
+    if (this.thumbDragging) {
+      this.scrollMarkdownTo(
+        this.thumbDragToScroll(e.clientY - this.thumbStartClientY),
+      );
+      return;
+    }
+    // Hover highlight when the pointer is over the thumb (not dragging).
+    const over = this.pointerOnThumb(e.clientX, e.clientY);
+    if (over !== this.scrollBar.hover) {
+      this.scrollBar.hover = over;
       this.scene?.markDirty();
     }
+    if (!this.mdDragging) return;
+    const dy = this.mdDragY - e.clientY;
+    this.mdDragY = e.clientY;
+    this.scrollMarkdownTo(this.mdScrollY + dy);
   };
 
   private readonly onWindowPointerUp = (): void => {
     this.mdDragging = false;
+    if (this.thumbDragging) {
+      this.thumbDragging = false;
+      this.scrollBar.dragging = false;
+      this.scene?.markDirty();
+    }
   };
 
   // ── Keyboard shortcuts: Space = play/pause, Esc = stop, L = toggle loop ────
