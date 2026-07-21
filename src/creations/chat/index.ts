@@ -48,7 +48,8 @@ const PERF_H = 98;
 const PERF_PAD = 12;
 // Top margin for the top-right-anchored perf panel, matching the back chip's
 // top inset (y = 16) so the two top-anchored overlays sit on the same band.
-const PERF_TOP = 56;
+// (Was dropped to 56 only to clear the old FullscreenChip, since removed.)
+const PERF_TOP = 16;
 
 // A plain function parameter always gets its declared type, not whatever
 // narrowing the caller's control flow had applied — needed below because

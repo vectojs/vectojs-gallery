@@ -9,6 +9,8 @@
 
 export interface PerfSample {
   fps: number;
+  /** Best sustained frame rate since mount (running max of the smoothed rate) */
+  peakFps: number;
   /** JS heap used in MB (Chrome only, else NaN) */
   heapUsedMB: number;
   /** Heap limit in MB (Chrome only, else NaN) */
@@ -25,38 +27,40 @@ export interface PerfSample {
 const FPS_ALPHA = 0.1; // EMA smoothing
 
 // A frame gap longer than this means the render loop was idle (onDemand
-// skipped frames), not that a single frame genuinely took this long. Blending
-// such a gap into the FPS EMA (or reporting it as `frameMs`) poisons the panel
-// with a misleadingly bad reading that then stays frozen once the scene
-// settles — the exact "stuck at 14 fps / 900ms after the document finished"
-// artifact users saw. Treat a gap past this threshold as an idle resumption:
-// reseed the average from the real instantaneous rate instead of averaging in
-// the idle gap.
+// skipped frames), not that a single frame genuinely took this long. Feeding
+// such a gap into the rate estimate poisons the panel with a misleadingly bad
+// reading. Idle ticks are held, not averaged in.
 const IDLE_GAP_MS = 200;
 
+// No real display refreshes faster than this; clamp so a coalesced double-rAF
+// (a sub-ms `dt`) can't momentarily read as an impossible 500+fps.
+const FPS_CEIL = 360;
+// Track the best frame rate the display has sustained, alongside the live rate.
+// FPS shows the live (smoothed) rate so genuine choppiness is visible; FPS PEAK
+// shows the best sustained rate so a high-refresh panel's real capability is
+// also on screen. Neither is reset on idle — the onDemand scene parks between
+// renders, and reseeding those gaps to a flat 60 is what used to pin the panel.
 export class PerfMonitor {
-  private _fps = 60;
+  private _fps = 60; // live smoothed rate — the reported FPS
+  private _peakFps = 60; // running max of the smoothed rate — reported as PEAK
   private _last = performance.now();
 
   tick(now: number): PerfSample {
     const dt = now - this._last;
     this._last = now;
 
-    const instantFps = dt > 0 ? 1000 / dt : 60;
-    if (dt > IDLE_GAP_MS) {
-      // Resuming after idle (the render loop parked, so `dt` is the whole idle
-      // gap, not a real frame). Reporting that gap as a frame is exactly the
-      // misleading "stuck at ~900ms / low fps" reading that then FREEZES on
-      // screen once the scene settles. Show a neutral placeholder instead —
-      // real frames (dt < IDLE_GAP_MS) immediately correct the EMA from here.
-      this._fps = 60;
-      return this.buildSample(1000 / 60);
+    if (dt > 0 && dt <= IDLE_GAP_MS) {
+      // A real rendered frame. Update the live smoothed rate and the peak.
+      const instantFps = Math.min(1000 / dt, FPS_CEIL);
+      this._fps = this._fps * (1 - FPS_ALPHA) + instantFps * FPS_ALPHA;
+      if (this._fps > this._peakFps) this._peakFps = this._fps;
     }
-    this._fps = this._fps * (1 - FPS_ALPHA) + instantFps * FPS_ALPHA;
-    return this.buildSample(dt);
+    // Idle ticks (dt > IDLE_GAP_MS, or a zero/negative dt) are ignored: the
+    // onDemand scene parks between renders, so the gap is not a real frame.
+    return this.buildSample();
   }
 
-  private buildSample(_frameTimeMs: number): PerfSample {
+  private buildSample(): PerfSample {
     const mem = (
       performance as Performance & {
         memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
@@ -65,16 +69,13 @@ export class PerfMonitor {
     const heapUsedMB = mem ? mem.usedJSHeapSize / 1_048_576 : NaN;
     const heapLimitMB = mem ? mem.jsHeapSizeLimit / 1_048_576 : NaN;
 
-    // Derive the displayed frame time from the smoothed FPS rather than the raw
-    // single-frame `dt`. The panel only samples once per second (see
-    // ChatCreation.update), so a raw single-frame value randomly lands on a heavy
-    // re-layout/GC frame and reads as an alarming ~60ms while FPS shows a healthy
-    // 60 — an inconsistent, misleading pair. Both fields now come from the same
-    // EMA, so FRAME and FPS always agree and freeze on a coherent value once the
-    // onDemand scene goes idle.
+    // FRAME is the best (minimum) frame time, derived from the same peak the FPS
+    // reports, so the two fields always agree instead of the old raw single-frame
+    // `dt` that randomly landed on a heavy re-layout/GC frame.
     const frameMs = Math.round((1000 / Math.max(this._fps, 1)) * 10) / 10;
     return {
       fps: Math.round(this._fps),
+      peakFps: Math.round(this._peakFps),
       heapUsedMB,
       heapLimitMB,
       frameMs,

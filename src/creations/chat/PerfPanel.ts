@@ -11,6 +11,7 @@ import type { RawRenderer } from "./raw-renderer";
 export class PerfPanel extends Entity {
   public sample: PerfSample = {
     fps: 0,
+    peakFps: 0,
     heapUsedMB: 0,
     heapLimitMB: 0,
     frameMs: 0,
@@ -62,7 +63,9 @@ export class PerfPanel extends Entity {
     const fpsColor =
       s.fps >= 55 ? "#22c55e" : s.fps >= 30 ? "#f59e0b" : "#ef4444";
 
-    row("FPS", `${s.fps}`, 22, fpsColor);
+    // Live rate (colored by health) plus the best sustained rate ("peak"), so a
+    // high-refresh panel's capability is visible without hiding real choppiness.
+    row("FPS", `${s.fps}  ·  ${s.peakFps} pk`, 22, fpsColor);
     row("FRAME", `${s.frameMs} ms`, 42);
     row(
       "HEAP",
