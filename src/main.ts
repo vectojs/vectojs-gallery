@@ -6,7 +6,6 @@ import { Rail, COLLAPSED_RAIL_WIDTH } from "./ui/Rail";
 import { CaptionPlate } from "./ui/CaptionPlate";
 import { Stage } from "./ui/Stage";
 import { BackChip } from "./ui/BackChip";
-import { FullscreenChip } from "./ui/FullscreenChip";
 import { keepSceneLive } from "./keep-live";
 
 const RAIL_WIDTH = 280;
@@ -78,11 +77,9 @@ function initGallery(): void {
   let currentPlate: CaptionPlate | null = null;
   let currentStage: Stage | null = null;
   let currentBackChip: BackChip | null = null;
-  let currentFullscreenChip: FullscreenChip | null = null;
   let currentCreation: Creation | null = null;
-  let fullscreen = false;
-  // Catalog-view rail collapse (independent of a creation's fullscreen): the
-  // rail shrinks to a thin brand strip so the cards get the width back.
+  // Catalog + creation views both let the user collapse the rail to a thin
+  // brand strip so the cards / creation get the width back.
   let railCollapsed = false;
   let loadSeq = 0;
   // `undefined` (not `null`) so the very first call to loadCreation(null) —
@@ -121,10 +118,10 @@ function initGallery(): void {
   // override `destroy()` to release them; `Entity.destroy()` itself only
   // clears animations/drivers/listeners, so this is a no-op for entries
   // that don't override it.
-  // Workspace origin/width depend on whether the rail is hidden (a creation's
-  // fullscreen) or collapsed to its thin brand strip (catalog-view toggle).
+  // Workspace origin/width depend on whether the rail is collapsed to its thin
+  // brand strip.
   const railWidth = (): number =>
-    fullscreen ? 0 : railCollapsed ? COLLAPSED_RAIL_WIDTH : RAIL_WIDTH;
+    railCollapsed ? COLLAPSED_RAIL_WIDTH : RAIL_WIDTH;
   const workspaceX = (): number => railWidth();
   const workspaceW = (): number => window.innerWidth - railWidth();
 
@@ -136,10 +133,6 @@ function initGallery(): void {
     if (currentBackChip) {
       scene.remove(currentBackChip);
       currentBackChip = null;
-    }
-    if (currentFullscreenChip) {
-      scene.remove(currentFullscreenChip);
-      currentFullscreenChip = null;
     }
     if (currentEntity) {
       currentEntity.destroy();
@@ -188,11 +181,6 @@ function initGallery(): void {
 
   const showCatalog = (): void => {
     teardownCurrent();
-    // Leaving a creation always restores the rail-visible catalog layout.
-    if (fullscreen) {
-      fullscreen = false;
-      scene.add(rail);
-    }
     if (!bedMounted) {
       scene.add(bed);
       bedMounted = true;
@@ -271,12 +259,6 @@ function initGallery(): void {
         currentBackChip.setPosition(workspaceX() + 16, 16);
         scene.add(currentBackChip);
 
-        currentFullscreenChip = new FullscreenChip((full) =>
-          setFullscreen(full),
-        );
-        currentFullscreenChip.setPosition(window.innerWidth - 34 - 16, 16);
-        scene.add(currentFullscreenChip);
-
         // Lazily-created GPU canvases appear after the entity's first frame.
         clipStackedCanvases();
         setTimeout(clipStackedCanvases, 100);
@@ -292,7 +274,7 @@ function initGallery(): void {
 
   // Reposition + resize the mounted creation, its Stage backdrop, and the
   // bottom-left plate / top-left back chip to the current workspace band.
-  // Shared by the fullscreen toggle and the rail-collapse toggle.
+  // Used by the rail-collapse toggle.
   function layoutWorkspaceEntity(): void {
     if (currentStage) {
       currentStage.setPosition(workspaceX(), 0);
@@ -306,18 +288,6 @@ function initGallery(): void {
     if (currentPlate) currentPlate.x = workspaceX() + 16;
     if (currentBackChip) currentBackChip.setPosition(workspaceX() + 16, 16);
   }
-
-  const setFullscreen = (full: boolean): void => {
-    if (fullscreen === full) return;
-    fullscreen = full;
-    // Hide/show the rail; reposition + resize the mounted creation, stage,
-    // and the two theater chips to the new workspace origin/width.
-    if (full) scene.remove(rail);
-    else scene.add(rail);
-    layoutWorkspaceEntity();
-    clipStackedCanvases();
-    scene.markDirty();
-  };
 
   const setHash = (id: string | null): void => {
     const next = id ? `${HASH_PREFIX}${id}` : "";
@@ -358,9 +328,6 @@ function initGallery(): void {
       currentPlate.setBottomAnchor(
         H - 16 - (currentCreation?.bottomInset ?? 0),
       );
-    }
-    if (currentFullscreenChip) {
-      currentFullscreenChip.setPosition(W - 34 - 16, 16);
     }
     clipStackedCanvases();
 

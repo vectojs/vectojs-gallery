@@ -744,13 +744,12 @@ class CanvasStudio extends Entity {
     };
   }
 
-  // The shared chrome chips (back top-left, fullscreen top-right) own their own
-  // hit-testing through the scene; skip our raw handler over their footprints
-  // so a click there doesn't also clear the selection or start a marquee.
+  // The shared back chip (top-left) owns its own hit-testing through the
+  // scene; skip our raw handler over its footprint so a click there doesn't
+  // also clear the selection or start a marquee.
   private overChip(x: number, y: number): boolean {
     if (y > 56) return false;
     if (x < 180) return true; // back chip band
-    if (x > this.W - 60) return true; // fullscreen chip band
     return false;
   }
 

@@ -46,11 +46,8 @@ const MD_THEME: MarkdownTheme = {
 const PERF_W = 190;
 const PERF_H = 98;
 const PERF_PAD = 12;
-// The shared gallery shell floats a FullscreenChip in the top-right corner of
-// the workspace (main.ts: x = innerWidth - 34 - 16, y = 16, 34px square →
-// bottom edge at 50). The perf panel is also top-right-anchored, so its first
-// row (FPS) rendered right under that chip. Drop the panel below the chip band
-// so the two overlays never overlap. Keep in sync if the chip moves.
+// Top margin for the top-right-anchored perf panel, matching the back chip's
+// top inset (y = 16) so the two top-anchored overlays sit on the same band.
 const PERF_TOP = 56;
 
 // A plain function parameter always gets its declared type, not whatever
