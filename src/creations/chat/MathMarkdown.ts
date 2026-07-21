@@ -229,6 +229,31 @@ export class MathMarkdown extends Markdown {
   }
 
   /**
+   * Whether a post-stream calibration `setContent` rebuild could actually
+   * change anything. The rebuild's only job is to correct paragraphs that
+   * `updateTokens`' fast path left rendered as plain text even though they
+   * completed an `inlineMath`/`image` run mid-stream and became non-last
+   * before `reconcileLastMixedParagraph` could swap them (see index.ts). A
+   * document with NO math/image content anywhere therefore has nothing to
+   * correct — every paragraph is legitimately plain — so the expensive full
+   * re-lex + re-render (which re-shapes every block in one frame, the single
+   * worst streaming-completion hitch) is pure waste and is skipped. Kept
+   * conservative: any math/image content at all still triggers the full,
+   * known-correct rebuild.
+   */
+  public needsCalibration(): boolean {
+    const tokens = (this as unknown as MarkdownInternals).tokens;
+    for (const tok of tokens) {
+      if (tok.type === "displayMath" || tok.type === "image") return true;
+      const inner = (tok as unknown as { tokens?: Token[] }).tokens;
+      if (inner?.some((t) => t.type === "inlineMath" || t.type === "image")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Build (or reuse from cache) a MathJax-rendered Image for one formula, via
    * the library's own code-block-as-math trick (there is no public API to
    * invoke its MathJax pipeline directly). Shared by the `displayMath` block

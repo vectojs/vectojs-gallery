@@ -375,14 +375,19 @@ class StreamReader extends Entity {
       }
 
       if (finished && !this.mdCalibrated) {
-        // One full calibration rebuild right as streaming ends. Needed for
-        // more than drift: @vectojs/ui's incremental `updateTokens` diff can
-        // leave a stale entity in place when a paragraph's token
-        // composition changes structurally mid-stream (e.g. plain text that
-        // later completes into an `image` token) — a full `setContent`
-        // rebuild re-renders from scratch and always shows the correct
-        // final entity. See forge/findings.md 2026-07-18.
-        this.markdownView.setContent(this.state.visible);
+        // One calibration rebuild right as streaming ends, but ONLY when the
+        // document actually contains math/image content that could have been
+        // left stale by @vectojs/ui's incremental `updateTokens` fast path
+        // (a paragraph that completed an `inlineMath`/`image` run mid-stream
+        // then became non-last before `reconcileLastMixedParagraph` swapped
+        // it). A full `setContent` re-lexes and re-shapes every block in one
+        // frame — the single worst streaming-completion hitch (~700ms+ on a
+        // large doc, real-GPU) — so skipping it for plain text/code documents
+        // (which have nothing to correct) removes that hitch entirely. See
+        // forge/findings.md 2026-07-18 / 2026-07-20.
+        if (this.markdownView.needsCalibration()) {
+          this.markdownView.setContent(this.state.visible);
+        }
         this.mdPushedText = this.state.visible;
         this.mdCalibrated = true;
       }

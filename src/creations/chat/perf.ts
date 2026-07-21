@@ -44,18 +44,19 @@ export class PerfMonitor {
 
     const instantFps = dt > 0 ? 1000 / dt : 60;
     if (dt > IDLE_GAP_MS) {
-      // Resuming after idle — don't let the idle gap masquerade as a slow
-      // frame. Reseed to the real rate so the next few real frames converge
-      // cleanly, and report a nominal frame time for THIS frame rather than
-      // the whole idle gap.
-      this._fps = instantFps;
-      return this.buildSample(1000 / Math.max(instantFps, 1));
+      // Resuming after idle (the render loop parked, so `dt` is the whole idle
+      // gap, not a real frame). Reporting that gap as a frame is exactly the
+      // misleading "stuck at ~900ms / low fps" reading that then FREEZES on
+      // screen once the scene settles. Show a neutral placeholder instead —
+      // real frames (dt < IDLE_GAP_MS) immediately correct the EMA from here.
+      this._fps = 60;
+      return this.buildSample(1000 / 60);
     }
     this._fps = this._fps * (1 - FPS_ALPHA) + instantFps * FPS_ALPHA;
     return this.buildSample(dt);
   }
 
-  private buildSample(frameTimeMs: number): PerfSample {
+  private buildSample(_frameTimeMs: number): PerfSample {
     const mem = (
       performance as Performance & {
         memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
@@ -64,7 +65,14 @@ export class PerfMonitor {
     const heapUsedMB = mem ? mem.usedJSHeapSize / 1_048_576 : NaN;
     const heapLimitMB = mem ? mem.jsHeapSizeLimit / 1_048_576 : NaN;
 
-    const frameMs = Math.round(frameTimeMs * 10) / 10;
+    // Derive the displayed frame time from the smoothed FPS rather than the raw
+    // single-frame `dt`. The panel only samples once per second (see
+    // ChatCreation.update), so a raw single-frame value randomly lands on a heavy
+    // re-layout/GC frame and reads as an alarming ~60ms while FPS shows a healthy
+    // 60 — an inconsistent, misleading pair. Both fields now come from the same
+    // EMA, so FRAME and FPS always agree and freeze on a coherent value once the
+    // onDemand scene goes idle.
+    const frameMs = Math.round((1000 / Math.max(this._fps, 1)) * 10) / 10;
     return {
       fps: Math.round(this._fps),
       heapUsedMB,
