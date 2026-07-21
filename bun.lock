@@ -5,7 +5,7 @@
     "": {
       "name": "vectojs-gallery",
       "dependencies": {
-        "@vectojs/core": "1.11.2",
+        "@vectojs/core": "1.14.0",
         "@vectojs/three": "0.1.6",
         "@vectojs/ui": "1.11.6",
         "jszip": "^3.10.1",
@@ -255,7 +255,7 @@
 
     "@types/webxr": ["@types/webxr@0.5.24", "", {}, "sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg=="],
 
-    "@vectojs/core": ["@vectojs/core@1.11.2", "", {}, "sha512-/Q8s81uAhUyrexcaDdIlVPai7lKyqLj5y5MoVOBAgDbJerosJlEhyHt2MfofLoO+n/urBGP+GnTUkpjfcihVUA=="],
+    "@vectojs/core": ["@vectojs/core@1.14.0", "", {}, "sha512-6NhGjGo70TrQJOYa1XmdDVq3Lgw5pTQLMCtljFVSrcqCboV0aBX0yIrg3peDBFlskvn4owi4Xqpfeb1gDXdZ8w=="],
 
     "@vectojs/three": ["@vectojs/three@0.1.6", "", { "peerDependencies": { "@vectojs/core": ">=1.0.0 <2.0.0", "three": "^0.160.0" } }, "sha512-s+m2vuWYPswOdZoRJrslHi87xGpIj7HThtUpPuTOyucunsCLh2SoRGdoWr+RDeMtMz237iklD2tPjZyAKq+aNw=="],
 

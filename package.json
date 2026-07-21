@@ -11,7 +11,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@vectojs/core": "1.11.2",
+    "@vectojs/core": "1.14.0",
     "@vectojs/three": "0.1.6",
     "@vectojs/ui": "1.11.6",
     "jszip": "^3.10.1",
