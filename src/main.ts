@@ -57,20 +57,19 @@ function initGallery(): void {
   // explicit cap (the engine default is 60) would hide (forge/findings.md
   // 2026-07-19).
   //
-  // `a11ySyncInterval: 100` throttles the accessibility/content-projection
-  // DOM mirror sync, which otherwise walks the ENTIRE entity tree every
-  // qualifying frame (default interval is 0 = unthrottled) once anything is
-  // interactive/selectable or content projection is enabled — for a large
-  // streamed Markdown document (thousands of mounted paragraphs) this walk
-  // itself became a dominant per-frame cost, independent of and on top of
-  // every other streaming fix (see forge/findings.md 2026-07-19). A 100ms
-  // staleness bound for the DOM mirror (used for native text selection,
-  // screen readers, and automation) is imperceptible to users while cutting
-  // this walk's frequency by roughly two orders of magnitude at 60fps.
+  // `a11ySyncInterval: 0` = sync the content-projection DOM mirror every frame,
+  // so native text selection stays glued to the scrolling canvas instead of
+  // lagging it. This was previously throttled to 100ms because the mirror
+  // materialized one DOM node per block for the WHOLE document (~14.8k nodes on
+  // a large doc) and repositioning them every frame was a dominant cost. Since
+  // @vectojs/core now viewport-virtualizes the projection (only ~visible-count
+  // nodes exist; see forge/findings.md 2026-07-21), per-frame sync is cheap
+  // again — measured no scroll-fps regression on a 346KB doc — so the throttle
+  // (and its visible selection lag) is no longer needed.
   const scene = new Scene(canvas, {
     maxFPS: 0,
     maxDPR: 2,
-    a11ySyncInterval: 100,
+    a11ySyncInterval: 0,
   });
 
   let currentEntity: Entity | null = null;
