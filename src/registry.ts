@@ -101,4 +101,16 @@ export const CREATIONS: Creation[] = [
     continuousRedraw: false,
     load: () => import("./creations/compare-pretext"),
   },
+  {
+    id: "studio",
+    title: "Canvas Studio — a Fabric.js-style editor",
+    description:
+      "Fabric.js's interactive object model, rebuilt from first principles on VectoJS: drag, scale from 8 oriented handles, rotate, band-select and group-move, reorder z-depth, and serialize the whole scene to JSON and back — every shape a plain numeric record, every handle computed geometry.",
+    tags: ["Editor", "Interaction", "Serialization"],
+    stage: "#f2efe8",
+    // Every mutation here happens inside a raw pointer/keyboard handler that
+    // doesn't call scene.markDirty(), so it relies on the forced-redraw pump
+    // (same as `catch`) — leave continuousRedraw at its default (true).
+    load: () => import("./creations/studio"),
+  },
 ];
