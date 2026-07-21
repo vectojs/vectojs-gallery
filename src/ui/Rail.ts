@@ -1,16 +1,15 @@
 import { Entity, type IRenderer } from "@vectojs/core";
-import { Button, Input, Stack, Text } from "@vectojs/ui";
+import { Button, Stack, Text } from "@vectojs/ui";
 import type { Creation } from "../registry";
 import type { ForgeApp } from "../apps";
-import { filterCreations } from "../filter";
 import { COLOR, FONT, BRAND_GRADIENT } from "./tokens";
 
-const CHIP_ACTIVE_BG = COLOR.ink;
-const CHIP_INACTIVE_BG = "transparent";
 const TILE = 40;
 const TILE_X = 20;
 const TILE_Y = 20;
 const CONTENT_TOP = 84;
+/** Width of the rail when collapsed to just the brand tile + expand button. */
+export const COLLAPSED_RAIL_WIDTH = 56;
 
 /** Small uppercase group label used between the rail's nav sections. */
 function groupLabel(text: string): Text {
@@ -21,76 +20,47 @@ function groupLabel(text: string): Text {
 }
 
 export class Rail extends Entity {
-  private search = "";
-  private activeTags = new Set<string>();
   private readonly root: Stack;
-  private readonly listStack: Stack;
-  private readonly chipRow: Stack;
-  private chipButtons = new Map<string, Button>();
+  private readonly toggleBtn: Button;
+  private collapsed = false;
+  private readonly fullWidth: number;
 
   constructor(
     width: number,
     height: number,
-    private readonly allCreations: Creation[],
+    creations: Creation[],
     apps: ForgeApp[],
     private readonly onOpen: (creation: Creation) => void,
-    private readonly onFilterChange: (filtered: Creation[]) => void,
+    private readonly onToggleCollapse: (collapsed: boolean) => void,
   ) {
     super("Rail");
     this.width = width;
     this.height = height;
+    this.fullWidth = width;
 
     const root = new Stack({ direction: "vertical", gap: 16 });
     root.setPosition(20, CONTENT_TOP);
     this.add(root);
     this.root = root;
 
-    // @vectojs/ui Input defaults to a dark palette; pass the warm-white chrome
-    // tokens explicitly so the search field matches the light theme (the
-    // component's colors aren't token-driven, so a bare Input would stay dark).
-    const searchInput = new Input({
-      width: width - 40,
-      placeholder: "Filter creations…",
-      font: FONT.body(13),
-      bg: COLOR.groundRaised,
-      color: COLOR.textPrimary,
-      placeholderColor: COLOR.textFaint,
-      border: COLOR.rule,
-      radius: 8,
-      onChange: (value) => {
-        this.search = value;
-        this.applyFilter();
-      },
-    });
-    root.add(searchInput);
-
-    this.chipRow = new Stack({
-      direction: "horizontal",
-      gap: 8,
-      wrap: true,
-      maxWidth: width - 40,
-    });
-    root.add(this.chipRow);
-
-    const allTags = Array.from(
-      new Set(allCreations.flatMap((c) => c.tags)),
-    ).sort();
-    for (const tag of allTags) {
-      const btn = new Button(tag, {
-        font: FONT.mono(11),
-        bg: CHIP_INACTIVE_BG,
-        color: COLOR.textMuted,
-        padding: 7,
-        radius: 12,
-        onClick: () => this.toggleTag(tag),
-      });
-      this.chipButtons.set(tag, btn);
-      this.chipRow.add(btn);
-    }
-
+    // Creations — the catalog is intentionally small, so the list is shown in
+    // full with no search field or tag filter (removed 2026-07-21): both were
+    // dead weight for a handful of entries.
     root.add(groupLabel("Creations"));
-    this.listStack = new Stack({ direction: "vertical", gap: 4 });
-    root.add(this.listStack);
+    const listStack = new Stack({ direction: "vertical", gap: 4 });
+    for (const creation of creations) {
+      listStack.add(
+        new Button(creation.title, {
+          font: FONT.body(13),
+          bg: "transparent",
+          color: COLOR.textPrimary,
+          padding: 8,
+          radius: 8,
+          onClick: () => this.onOpen(creation),
+        }),
+      );
+    }
+    root.add(listStack);
 
     root.add(groupLabel("Built on VectoJS"));
     const appsStack = new Stack({ direction: "vertical", gap: 4 });
@@ -107,50 +77,47 @@ export class Rail extends Entity {
       );
     }
     root.add(appsStack);
+    root.layout();
 
-    this.rebuildList(allCreations);
-  }
-
-  private toggleTag(tag: string): void {
-    if (this.activeTags.has(tag)) this.activeTags.delete(tag);
-    else this.activeTags.add(tag);
-
-    const btn = this.chipButtons.get(tag);
-    if (btn)
-      btn.bg = this.activeTags.has(tag) ? CHIP_ACTIVE_BG : CHIP_INACTIVE_BG;
-
-    this.applyFilter();
-  }
-
-  private applyFilter(): void {
-    const filtered = filterCreations(this.allCreations, {
-      search: this.search,
-      activeTags: Array.from(this.activeTags),
+    // Collapse / expand toggle. Added directly (not in the scrolling list) so
+    // it stays pinned; its label + position flip with the collapsed state.
+    this.toggleBtn = new Button("«", {
+      font: FONT.display(15),
+      bg: COLOR.groundSunk,
+      color: COLOR.textMuted,
+      padding: 6,
+      radius: 8,
+      onClick: () => this.toggle(),
     });
-    this.rebuildList(filtered);
-    this.onFilterChange(filtered);
+    this.add(this.toggleBtn);
+    this.positionToggle();
   }
 
-  private rebuildList(creations: Creation[]): void {
-    while (this.listStack.children.length) {
-      this.listStack.remove(this.listStack.children[0]);
+  private positionToggle(): void {
+    if (this.collapsed) {
+      // Below the brand tile, centered in the narrow strip.
+      this.toggleBtn.setPosition(TILE_X - 6, TILE_Y + TILE + 12);
+    } else {
+      // Top-right corner of the full rail.
+      this.toggleBtn.setPosition(this.fullWidth - 40, TILE_Y + 6);
     }
+  }
 
-    for (const creation of creations) {
-      const row = new Button(creation.title, {
-        font: FONT.body(13),
-        bg: "transparent",
-        color: COLOR.textPrimary,
-        padding: 8,
-        radius: 8,
-        onClick: () => this.onOpen(creation),
-      });
-      this.listStack.add(row);
-    }
-    // A nested Stack growing does not reflow its parent: without this, the
-    // group label and app rows keep the positions they got while listStack
-    // was empty and the two nav groups interleave.
-    this.root.layout();
+  private toggle(): void {
+    this.setCollapsed(!this.collapsed);
+    this.onToggleCollapse(this.collapsed);
+  }
+
+  /** Collapses to a thin brand strip (hides the nav) or restores the full rail. */
+  setCollapsed(collapsed: boolean): void {
+    if (this.collapsed === collapsed) return;
+    this.collapsed = collapsed;
+    this.width = collapsed ? COLLAPSED_RAIL_WIDTH : this.fullWidth;
+    if (collapsed) this.remove(this.root);
+    else this.add(this.root);
+    this.toggleBtn.label = collapsed ? "»" : "«";
+    this.positionToggle();
+    this.scene?.markDirty();
   }
 
   override isPointInside(_globalX: number, _globalY: number): boolean {
@@ -178,6 +145,8 @@ export class Rail extends Entity {
     r.fill(tileGrad);
     r.fillText("V", TILE_X + 12, TILE_Y + 29, FONT.display(22), COLOR.void);
 
+    // The brand word-mark is only drawn when there's room for it.
+    if (this.collapsed) return;
     const textX = TILE_X + TILE + 14;
     r.fillText(
       "Gallery",

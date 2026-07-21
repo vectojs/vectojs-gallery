@@ -2,7 +2,7 @@ import { Scene, Entity } from "@vectojs/core";
 import { CREATIONS, type Creation } from "./registry";
 import { APPS } from "./apps";
 import { Bed } from "./ui/Bed";
-import { Rail } from "./ui/Rail";
+import { Rail, COLLAPSED_RAIL_WIDTH } from "./ui/Rail";
 import { CaptionPlate } from "./ui/CaptionPlate";
 import { Stage } from "./ui/Stage";
 import { BackChip } from "./ui/BackChip";
@@ -81,6 +81,9 @@ function initGallery(): void {
   let currentFullscreenChip: FullscreenChip | null = null;
   let currentCreation: Creation | null = null;
   let fullscreen = false;
+  // Catalog-view rail collapse (independent of a creation's fullscreen): the
+  // rail shrinks to a thin brand strip so the cards get the width back.
+  let railCollapsed = false;
   let loadSeq = 0;
   // `undefined` (not `null`) so the very first call to loadCreation(null) —
   // the fresh-page-load, no-hash case — never short-circuits against this
@@ -108,21 +111,22 @@ function initGallery(): void {
     CREATIONS,
     APPS,
     (creation) => navigateTo(creation),
-    (filtered) => bed.setCreations(filtered),
+    (collapsed) => setRailCollapsed(collapsed),
   );
   rail.setPosition(0, 0);
   scene.add(rail);
-  bed.setPosition(RAIL_WIDTH, 0);
 
   // Disposes whatever entry is currently mounted before it's removed —
   // entries that own extra resources (e.g. a secondary WebGL canvas)
   // override `destroy()` to release them; `Entity.destroy()` itself only
   // clears animations/drivers/listeners, so this is a no-op for entries
   // that don't override it.
-  // Workspace origin/width depend on whether the rail is hidden (fullscreen).
-  const workspaceX = (): number => (fullscreen ? 0 : RAIL_WIDTH);
-  const workspaceW = (): number =>
-    fullscreen ? window.innerWidth : window.innerWidth - RAIL_WIDTH;
+  // Workspace origin/width depend on whether the rail is hidden (a creation's
+  // fullscreen) or collapsed to its thin brand strip (catalog-view toggle).
+  const railWidth = (): number =>
+    fullscreen ? 0 : railCollapsed ? COLLAPSED_RAIL_WIDTH : RAIL_WIDTH;
+  const workspaceX = (): number => railWidth();
+  const workspaceW = (): number => window.innerWidth - railWidth();
 
   const teardownCurrent = (): void => {
     if (currentPlate) {
@@ -169,10 +173,18 @@ function initGallery(): void {
       // Clip only the portion that actually overlaps the rail: a creation-
       // owned canvas already positioned at the workspace offset (e.g.
       // Dimension's Three.js canvas) must NOT lose its left edge.
-      const overlap = RAIL_WIDTH - el.getBoundingClientRect().left;
+      const overlap = railWidth() - el.getBoundingClientRect().left;
       el.style.clipPath = overlap > 0 ? `inset(0 0 0 ${overlap}px)` : "";
     }
   };
+
+  // Positions + sizes the catalog Bed to the current workspace band (right of
+  // whatever width the rail currently occupies).
+  const layoutBed = (): void => {
+    bed.setPosition(railWidth(), 0);
+    bed.resize(workspaceW(), window.innerHeight, CREATIONS);
+  };
+  layoutBed();
 
   const showCatalog = (): void => {
     teardownCurrent();
@@ -185,7 +197,21 @@ function initGallery(): void {
       scene.add(bed);
       bedMounted = true;
     }
-    bed.setCreations(CREATIONS);
+    layoutBed();
+    scene.markDirty();
+  };
+
+  // Catalog-view rail collapse toggle. Reflows the Bed (catalog) or the mounted
+  // creation + its chrome (creation view) into the widened workspace.
+  const setRailCollapsed = (collapsed: boolean): void => {
+    if (railCollapsed === collapsed) return;
+    railCollapsed = collapsed;
+    if (bedMounted) {
+      layoutBed();
+    } else {
+      layoutWorkspaceEntity();
+    }
+    clipStackedCanvases();
     scene.markDirty();
   };
 
@@ -264,13 +290,10 @@ function initGallery(): void {
       });
   };
 
-  const setFullscreen = (full: boolean): void => {
-    if (fullscreen === full) return;
-    fullscreen = full;
-    // Hide/show the rail; reposition + resize the mounted creation, stage,
-    // and the two theater chips to the new workspace origin/width.
-    if (full) scene.remove(rail);
-    else scene.add(rail);
+  // Reposition + resize the mounted creation, its Stage backdrop, and the
+  // bottom-left plate / top-left back chip to the current workspace band.
+  // Shared by the fullscreen toggle and the rail-collapse toggle.
+  function layoutWorkspaceEntity(): void {
     if (currentStage) {
       currentStage.setPosition(workspaceX(), 0);
       currentStage.width = workspaceW();
@@ -282,6 +305,16 @@ function initGallery(): void {
     }
     if (currentPlate) currentPlate.x = workspaceX() + 16;
     if (currentBackChip) currentBackChip.setPosition(workspaceX() + 16, 16);
+  }
+
+  const setFullscreen = (full: boolean): void => {
+    if (fullscreen === full) return;
+    fullscreen = full;
+    // Hide/show the rail; reposition + resize the mounted creation, stage,
+    // and the two theater chips to the new workspace origin/width.
+    if (full) scene.remove(rail);
+    else scene.add(rail);
+    layoutWorkspaceEntity();
     clipStackedCanvases();
     scene.markDirty();
   };
@@ -310,7 +343,8 @@ function initGallery(): void {
     scene.resize(W, H);
 
     rail.height = H;
-    bed.resize(W - RAIL_WIDTH, H, CREATIONS);
+    bed.setPosition(railWidth(), 0);
+    bed.resize(workspaceW(), H, CREATIONS);
 
     if (currentStage) {
       currentStage.setPosition(workspaceX(), 0);

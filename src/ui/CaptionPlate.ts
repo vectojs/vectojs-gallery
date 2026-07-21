@@ -6,22 +6,22 @@ import { COLOR, FONT } from "./tokens";
 const PADDING = 18;
 const MAX_WIDTH = 560;
 const COLLAPSED_SIZE = 40;
-const AUTO_COLLAPSE_MS = 4000;
+const CLOSE_SIZE = 22; // hit box of the "x" button in the expanded plate
 
 /**
- * Floating overlay shown at the bottom-left of the workspace while a
- * creation is open. Auto-collapses to a small dismissible tab after a
- * few seconds so it doesn't permanently block bottom-anchored content
- * some creations draw there (e.g. Fruit Catch's paddle) — expands again
- * on hover/click. Anchors to a caller-supplied bottom Y (see
- * `setBottomAnchor`) rather than a fixed `y`, since collapsing/expanding
+ * Floating help overlay at the bottom-left of the workspace while a creation
+ * is open. Starts COLLAPSED (a small "i" tab) so it never blocks a creation's
+ * own interactive chrome on entry — the user opts in to reading it by hovering
+ * or clicking the tab, and dismisses it again with the explicit "x" button in
+ * the expanded card's top-right corner. Anchors to a caller-supplied bottom Y
+ * (see `setBottomAnchor`) rather than a fixed `y`, since expanding/collapsing
  * changes its own height.
  */
 export class CaptionPlate extends Entity {
   private readonly expandedWidth = MAX_WIDTH;
   private readonly expandedHeight: number;
-  private collapsed = false;
-  private collapseTimer: ReturnType<typeof setTimeout> | null = null;
+  // Start collapsed: help is hidden by default and blocks nothing.
+  private collapsed = true;
   private bottomY = 0;
   private readonly titleText: Text;
   private readonly descText: Text;
@@ -30,7 +30,8 @@ export class CaptionPlate extends Entity {
   constructor(creation: Creation) {
     super("CaptionPlate");
     this.interactive = true;
-    this.width = MAX_WIDTH;
+    this.width = COLLAPSED_SIZE;
+    this.height = COLLAPSED_SIZE;
 
     this.titleText = new Text(creation.title, {
       font: FONT.display(18),
@@ -56,14 +57,13 @@ export class CaptionPlate extends Entity {
 
     this.expandedHeight =
       PADDING + 40 + this.descText.height + 12 + 20 + PADDING;
-    this.height = this.expandedHeight;
-    this.showContent();
 
+    // Hover the collapsed tab to peek; click routes to expand-or-close so the
+    // "x" hit box can dismiss it (see onClick).
     this.on("hover", () => this.expand());
-    this.on("click", () => this.expand());
-    this.on("pointerleave", () => this.scheduleCollapse());
-
-    this.scheduleCollapse();
+    this.on("click", (e: { localX?: number; localY?: number }) =>
+      this.onClick(e.localX ?? 0, e.localY ?? 0),
+    );
   }
 
   /** Sets the fixed bottom Y this plate's bottom edge tracks as its height changes. */
@@ -84,14 +84,25 @@ export class CaptionPlate extends Entity {
     this.remove(this.tagsText);
   }
 
-  // Cancels any pending auto-collapse (does not reschedule one — only
-  // `pointerleave` does that, so staying hovered keeps this expanded
-  // indefinitely instead of re-collapsing out from under the cursor).
+  // Top-right "x" hit box in the expanded plate's local space.
+  private inCloseButton(localX: number, localY: number): boolean {
+    if (this.collapsed) return false;
+    const x0 = this.width - PADDING - CLOSE_SIZE;
+    const y0 = PADDING - 4;
+    return (
+      localX >= x0 &&
+      localX <= x0 + CLOSE_SIZE &&
+      localY >= y0 &&
+      localY <= y0 + CLOSE_SIZE
+    );
+  }
+
+  private onClick(localX: number, localY: number): void {
+    if (!this.collapsed && this.inCloseButton(localX, localY)) this.collapse();
+    else this.expand();
+  }
+
   private expand(): void {
-    if (this.collapseTimer) {
-      clearTimeout(this.collapseTimer);
-      this.collapseTimer = null;
-    }
     if (!this.collapsed) return;
     this.collapsed = false;
     this.width = this.expandedWidth;
@@ -101,21 +112,14 @@ export class CaptionPlate extends Entity {
     this.scene?.markDirty();
   }
 
-  private scheduleCollapse(): void {
-    if (this.collapseTimer) clearTimeout(this.collapseTimer);
-    this.collapseTimer = setTimeout(() => {
-      this.collapsed = true;
-      this.width = COLLAPSED_SIZE;
-      this.height = COLLAPSED_SIZE;
-      this.y = this.bottomY - this.height;
-      this.hideContent();
-      this.scene?.markDirty();
-    }, AUTO_COLLAPSE_MS);
-  }
-
-  override destroy(): void {
-    if (this.collapseTimer) clearTimeout(this.collapseTimer);
-    super.destroy();
+  private collapse(): void {
+    if (this.collapsed) return;
+    this.collapsed = true;
+    this.width = COLLAPSED_SIZE;
+    this.height = COLLAPSED_SIZE;
+    this.y = this.bottomY - this.height;
+    this.hideContent();
+    this.scene?.markDirty();
   }
 
   override isPointInside(globalX: number, globalY: number): boolean {
@@ -149,6 +153,21 @@ export class CaptionPlate extends Entity {
         FONT.display(14),
         COLOR.ink,
       );
+      return;
     }
+
+    // Expanded: draw the "x" close button in the top-right corner.
+    const cx = this.width - PADDING - CLOSE_SIZE / 2;
+    const cy = PADDING - 4 + CLOSE_SIZE / 2;
+    r.beginPath();
+    r.arc(cx, cy, CLOSE_SIZE / 2, 0, Math.PI * 2);
+    r.fill(COLOR.groundSunk);
+    const arm = 4;
+    r.beginPath();
+    r.moveTo(cx - arm, cy - arm);
+    r.lineTo(cx + arm, cy + arm);
+    r.moveTo(cx + arm, cy - arm);
+    r.lineTo(cx - arm, cy + arm);
+    r.stroke(COLOR.textMuted, 1.5);
   }
 }

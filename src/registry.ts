@@ -44,7 +44,29 @@ export interface Creation {
 // Registry of creations. Each ported creation is added by its own dedicated
 // implementation plan (see
 // superpowers/tasks/2026-07-15-vectojs-gallery-redesign/plans/).
+// Ordered alphabetically by `title` — the Rail's list and the Bed's grid both
+// render CREATIONS in array order, so sorting here sorts both surfaces.
 export const CREATIONS: Creation[] = [
+  {
+    id: "studio",
+    title: "Canvas Studio — a Fabric.js-style editor",
+    description:
+      "Fabric.js's interactive object model, rebuilt from first principles on VectoJS: drag, scale from 8 oriented handles, rotate, band-select and group-move, reorder z-depth, and serialize the whole scene to JSON and back — every shape a plain numeric record, every handle computed geometry.",
+    tags: ["Editor", "Interaction", "Serialization"],
+    stage: "#f2efe8",
+    // Every mutation here happens inside a raw pointer/keyboard handler that
+    // doesn't call scene.markDirty(), so it relies on the forced-redraw pump
+    // (same as `catch`) — leave continuousRedraw at its default (true).
+    load: () => import("./creations/studio"),
+  },
+  {
+    id: "dimension",
+    title: "Dimension",
+    description:
+      "A VectoJS control panel floating in real 3D space — drag to orbit, and every click is raycast through the plane into a fully interactive 2D UI underneath.",
+    tags: ["WebGL", "Three.js", "3D"],
+    load: () => import("./creations/dimension"),
+  },
   {
     id: "catch",
     title: "Fruit Catch",
@@ -62,12 +84,18 @@ export const CREATIONS: Creation[] = [
     load: () => import("./creations/nexus"),
   },
   {
-    id: "dimension",
-    title: "Dimension",
+    id: "compare-pretext",
+    title: "Pretext, Rebuilt on VectoJS",
     description:
-      "A VectoJS control panel floating in real 3D space — drag to orbit, and every click is raycast through the plane into a fully interactive 2D UI underneath.",
-    tags: ["WebGL", "Three.js", "3D"],
-    load: () => import("./creations/dimension"),
+      "Nine public demos from the pretext text-layout library, reimplemented on VectoJS's own canvas-native layout engine — no DOM reflow to avoid, because there was never any DOM to reflow.",
+    tags: ["Text Layout", "Comparison", "Typography"],
+    stage: "#f5f1ea",
+    // Every interaction here (opening a demo, dragging a slider, toggling
+    // an accordion row) already calls scene.markDirty() itself through the
+    // normal @vectojs/ui component event handlers — like `chat`, it never
+    // needs the blanket forced-redraw pump once idle.
+    continuousRedraw: false,
+    load: () => import("./creations/compare-pretext"),
   },
   {
     id: "chat",
@@ -86,31 +114,5 @@ export const CREATIONS: Creation[] = [
     // finished loading and sat idle.
     continuousRedraw: false,
     load: () => import("./creations/chat"),
-  },
-  {
-    id: "compare-pretext",
-    title: "Pretext, Rebuilt on VectoJS",
-    description:
-      "Nine public demos from the pretext text-layout library, reimplemented on VectoJS's own canvas-native layout engine — no DOM reflow to avoid, because there was never any DOM to reflow.",
-    tags: ["Text Layout", "Comparison", "Typography"],
-    stage: "#f5f1ea",
-    // Every interaction here (opening a demo, dragging a slider, toggling
-    // an accordion row) already calls scene.markDirty() itself through the
-    // normal @vectojs/ui component event handlers — like `chat`, it never
-    // needs the blanket forced-redraw pump once idle.
-    continuousRedraw: false,
-    load: () => import("./creations/compare-pretext"),
-  },
-  {
-    id: "studio",
-    title: "Canvas Studio — a Fabric.js-style editor",
-    description:
-      "Fabric.js's interactive object model, rebuilt from first principles on VectoJS: drag, scale from 8 oriented handles, rotate, band-select and group-move, reorder z-depth, and serialize the whole scene to JSON and back — every shape a plain numeric record, every handle computed geometry.",
-    tags: ["Editor", "Interaction", "Serialization"],
-    stage: "#f2efe8",
-    // Every mutation here happens inside a raw pointer/keyboard handler that
-    // doesn't call scene.markDirty(), so it relies on the forced-redraw pump
-    // (same as `catch`) — leave continuousRedraw at its default (true).
-    load: () => import("./creations/studio"),
   },
 ];

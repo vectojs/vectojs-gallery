@@ -39,4 +39,10 @@ describe("forge app manifest", () => {
     expect(displayUrl("https://vem.run/")).toBe("vem.run");
     expect(displayUrl("https://unisol.vectojs.org")).toBe("unisol.vectojs.org");
   });
+
+  test("apps are ordered alphabetically by name", () => {
+    const names = APPS.map((a) => a.name);
+    const sorted = [...names].sort((a, b) => a.localeCompare(b));
+    expect(names).toEqual(sorted);
+  });
 });

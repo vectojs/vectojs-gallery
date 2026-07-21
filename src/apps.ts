@@ -19,7 +19,36 @@ export interface ForgeApp {
   accent: Accent;
 }
 
+// Ordered alphabetically by `name` — the Rail and the Bed's "Built on VectoJS"
+// grid both render APPS in array order, so sorting here sorts both surfaces.
 export const APPS: ForgeApp[] = [
+  {
+    id: "bakudan",
+    name: "Bakudan",
+    tagline:
+      "A canvas-native danmaku playground and stress bench — 5,000 concurrent comments on a slate console.",
+    url: "https://bakudan.vectojs.org",
+    screenshot: "/apps/bakudan.webp",
+    accent: { a: "#38bdf8", b: "#818cf8", glow: "#38bdf8" },
+  },
+  {
+    id: "brings",
+    name: "Brings",
+    tagline:
+      "A local-first vector design editor — pages, frames, shapes, and selection on an infinite canvas.",
+    url: "https://brings-website.vectojs.org",
+    screenshot: "/apps/brings.webp",
+    accent: { a: "#6d5ef2", b: "#a78bfa", glow: "#7c5cff" },
+  },
+  {
+    id: "motif",
+    name: "Motif",
+    tagline:
+      "The component and effect gallery — every @vectojs/ui component demoed live, with source.",
+    url: "https://motif.vectojs.org",
+    screenshot: "/apps/motif.webp",
+    accent: { a: "#d97757", b: "#f2b880", glow: "#d97757" },
+  },
   {
     id: "numera",
     name: "Numera",
@@ -32,24 +61,6 @@ export const APPS: ForgeApp[] = [
     accent: { a: "#2563eb", b: "#7dd3fc", glow: "#3b82f6" },
   },
   {
-    id: "brings",
-    name: "Brings",
-    tagline:
-      "A local-first vector design editor — pages, frames, shapes, and selection on an infinite canvas.",
-    url: "https://brings-website.vectojs.org",
-    screenshot: "/apps/brings.webp",
-    accent: { a: "#6d5ef2", b: "#a78bfa", glow: "#7c5cff" },
-  },
-  {
-    id: "vem",
-    name: "Vem",
-    tagline:
-      "A canvas-native Vim-style modal editor — buffers, splits, a file explorer, and a plugin lab.",
-    url: "https://vem.run",
-    screenshot: "/apps/vem.webp",
-    accent: { a: "#334155", b: "#60a5fa", glow: "#3b82f6" },
-  },
-  {
     id: "unisol",
     name: "Unisol",
     tagline:
@@ -59,13 +70,13 @@ export const APPS: ForgeApp[] = [
     accent: { a: "#155e75", b: "#22d3ee", glow: "#06b6d4" },
   },
   {
-    id: "motif",
-    name: "Motif",
+    id: "vem",
+    name: "Vem",
     tagline:
-      "The component and effect gallery — every @vectojs/ui component demoed live, with source.",
-    url: "https://motif.vectojs.org",
-    screenshot: "/apps/motif.webp",
-    accent: { a: "#d97757", b: "#f2b880", glow: "#d97757" },
+      "A canvas-native Vim-style modal editor — buffers, splits, a file explorer, and a plugin lab.",
+    url: "https://vem.run",
+    screenshot: "/apps/vem.webp",
+    accent: { a: "#334155", b: "#60a5fa", glow: "#3b82f6" },
   },
 ];
 
