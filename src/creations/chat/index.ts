@@ -46,6 +46,12 @@ const MD_THEME: MarkdownTheme = {
 const PERF_W = 190;
 const PERF_H = 98;
 const PERF_PAD = 12;
+// The shared gallery shell floats a FullscreenChip in the top-right corner of
+// the workspace (main.ts: x = innerWidth - 34 - 16, y = 16, 34px square →
+// bottom edge at 50). The perf panel is also top-right-anchored, so its first
+// row (FPS) rendered right under that chip. Drop the panel below the chip band
+// so the two overlays never overlap. Keep in sync if the chip moves.
+const PERF_TOP = 56;
 
 // A plain function parameter always gets its declared type, not whatever
 // narrowing the caller's control flow had applied — needed below because
@@ -222,7 +228,7 @@ class StreamReader extends Entity {
     this.controlPanel.state = this.state;
 
     this.perfPanel.x = w - PERF_W - PERF_PAD;
-    this.perfPanel.y = PERF_PAD;
+    this.perfPanel.y = PERF_TOP;
     this.perfPanel.width = PERF_W;
     this.perfPanel.height = PERF_H;
 
