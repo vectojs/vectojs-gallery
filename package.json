@@ -11,12 +11,13 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@vectojs/core": "1.14.0",
-    "@vectojs/three": "0.1.6",
-    "@vectojs/ui": "1.11.6",
+    "@vectojs/core": "1.16.1",
+    "@vectojs/three": "0.1.7",
+    "@vectojs/ui": "2.1.0",
     "jszip": "^3.10.1",
     "marked": "^18.0.6",
-    "three": "^0.160.0"
+    "three": "^0.160.0",
+    "@vectojs/markdown": "0.1.1"
   },
   "devDependencies": {
     "@types/three": "^0.160.0",
@@ -24,6 +25,7 @@
     "prettier": "^3.9.1",
     "typescript": "^5.4.5",
     "vite": "^5.2.11",
-    "wrangler": "^4.110.0"
+    "wrangler": "^4.110.0",
+    "@chenglou/pretext": "^0.0.8"
   }
 }

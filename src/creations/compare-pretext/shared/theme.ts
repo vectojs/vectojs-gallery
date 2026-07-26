@@ -48,6 +48,12 @@ export interface DemoCardInfo {
 
 export const DEMO_CARDS: DemoCardInfo[] = [
   {
+    id: "benchmark",
+    title: "Measured head-to-head",
+    description:
+      "The real comparison: this Creation's other demos reimplement pretext's layouts, but this one runs pretext itself alongside VectoJS on the same corpus and reports what each actually costs — including where VectoJS is slower.",
+  },
+  {
     id: "accordion",
     title: "Accordion",
     description:

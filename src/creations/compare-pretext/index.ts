@@ -3,8 +3,8 @@
  * reimplementations of the public demos at https://chenglou.me/pretext/demos,
  * a library for measuring/laying out multiline text without touching the
  * DOM. VectoJS is canvas-native — there's no DOM to reflow in the first
- * place, and its own `LayoutEngine.prepare()`/`layoutPrepared()` cold/hot
- * split already exceeds pretext's two-phase API (paragraph-level memoization,
+ * place. Its `LayoutEngine.prepare()`/`layoutPrepared()` cold/hot split mirrors
+ * pretext's two-phase API (paragraph-level memoization,
  * Intl.Segmenter i18n, bidi, exclusion-rect flow) — so every demo here is
  * ported to run on that engine directly, matching the pretext original's
  * visuals and interactions.
@@ -38,6 +38,7 @@ function hasResizeTo(e: Entity): e is Entity & ResizableChild {
 }
 
 const LOADERS: Record<string, () => Promise<{ default: new () => Entity }>> = {
+  benchmark: () => import("./demos/benchmark"),
   accordion: () => import("./demos/accordion"),
   masonry: () => import("./demos/masonry"),
   bubbles: () => import("./demos/bubbles"),

@@ -20,7 +20,9 @@
  *    selection and preventing accidental clicks into SVG source.
  */
 
-import { Markdown, Image, Stack, Flow } from "@vectojs/ui";
+import { Image, Stack, Flow } from "@vectojs/ui";
+// Markdown/CodeBlock moved to @vectojs/markdown in ui 2.0.0.
+import { Markdown } from "@vectojs/markdown";
 import { marked, type Token } from "marked";
 import { Entity } from "@vectojs/core";
 import { registerMathExtensions } from "./marked-extensions";

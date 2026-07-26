@@ -87,7 +87,7 @@ export const CREATIONS: Creation[] = [
     id: "compare-pretext",
     title: "Pretext, Rebuilt on VectoJS",
     description:
-      "Nine public demos from the pretext text-layout library, reimplemented on VectoJS's own canvas-native layout engine — no DOM reflow to avoid, because there was never any DOM to reflow.",
+      "Nine public demos from the pretext text-layout library, reimplemented on VectoJS's canvas-native layout engine — plus a measured head-to-head that runs pretext itself alongside VectoJS and reports where each one wins.",
     tags: ["Text Layout", "Comparison", "Typography"],
     stage: "#f5f1ea",
     // Every interaction here (opening a demo, dragging a slider, toggling

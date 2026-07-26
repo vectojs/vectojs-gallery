@@ -14,7 +14,7 @@
  * in `destroy()` so switching creations doesn't leak them.
  */
 import { Entity } from "@vectojs/core";
-import type { MarkdownTheme } from "@vectojs/ui";
+import type { MarkdownTheme } from "@vectojs/markdown";
 import {
   createStreamState,
   tickStream,

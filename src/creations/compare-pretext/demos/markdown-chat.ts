@@ -12,7 +12,7 @@
  * the thing pretext must build by hand, VectoJS already has.
  */
 import { Entity, type IRenderer } from "@vectojs/core";
-import { Markdown, type MarkdownTheme } from "@vectojs/ui";
+import { Markdown, type MarkdownTheme } from "@vectojs/markdown";
 import { ScrollColumn } from "../shared/ScrollColumn";
 import { DARK } from "../shared/theme";
 import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
