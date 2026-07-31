@@ -1,14 +1,14 @@
-import { Entity, ComputeParticleEntity, type IRenderer } from "@vectojs/core";
-import { Button, Stack, Text, Dropdown } from "@vectojs/ui";
-import { sampleTextPoints } from "./text-shape";
+import { Entity, ComputeParticleEntity, type IRenderer } from '@vectojs/core';
+import { Button, Stack, Text, Dropdown } from '@vectojs/ui';
+import { sampleTextPoints } from './text-shape';
 
-const SHAPE_TEXT = "VectoJS";
+const SHAPE_TEXT = 'VectoJS';
 const FLOATS = 8; // per particle: pos.xy, vel.xy, origin.xy, size, life
 const SPRING_K = 0.5;
 const DAMPING = 0.85;
 
 const GALLERY_DEFAULT_MAX_FPS = 60; // matches main.ts's shared Scene({ maxFPS: 60 })
-const FPS_OPTIONS = ["30", "60", "120", "Uncapped"];
+const FPS_OPTIONS = ['30', '60', '120', 'Uncapped'];
 
 /**
  * The particle field itself: a single `ComputeParticleEntity` seeded onto
@@ -34,7 +34,7 @@ class Nexus extends Entity {
   private particleRebuildTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    super("Nexus");
+    super('Nexus');
 
     this.hasGPU = !!(navigator as Navigator & { gpu?: unknown }).gpu;
     this.countMin = this.hasGPU ? 5000 : 500;
@@ -45,59 +45,59 @@ class Nexus extends Entity {
     this.particles = this.buildParticles(this.particleCount);
     this.add(this.particles);
 
-    this.reformBtn = new Button("✦ Reform", {
-      font: "600 13px Inter, system-ui",
+    this.reformBtn = new Button('✦ Reform', {
+      font: '600 13px Inter, system-ui',
       onClick: () => this.applyShape(),
     });
     this.add(this.reformBtn);
 
     this.countLabel = new Text(`Particles — ${this.particleCount}`, {
-      font: "600 13px Inter, system-ui",
-      color: "#e2e8f0",
+      font: '600 13px Inter, system-ui',
+      color: '#e2e8f0',
     });
-    const STEPPER_BTN_OPTS = { font: "600 15px sans-serif", padding: 8 };
-    const minusBtn = new Button("−", {
+    const STEPPER_BTN_OPTS = { font: '600 15px sans-serif', padding: 8 };
+    const minusBtn = new Button('−', {
       ...STEPPER_BTN_OPTS,
       onClick: () => this.setParticleCount(this.particleCount - this.countStep),
     });
-    const plusBtn = new Button("+", {
+    const plusBtn = new Button('+', {
       ...STEPPER_BTN_OPTS,
       onClick: () => this.setParticleCount(this.particleCount + this.countStep),
     });
     const countRow = new Stack({
-      direction: "horizontal",
+      direction: 'horizontal',
       gap: 10,
-      align: "center",
+      align: 'center',
     });
     countRow.add(minusBtn);
     countRow.add(this.countLabel);
     countRow.add(plusBtn);
 
-    const fpsLabel = new Text("Max FPS", {
-      font: "600 13px Inter, system-ui",
-      color: "#e2e8f0",
+    const fpsLabel = new Text('Max FPS', {
+      font: '600 13px Inter, system-ui',
+      color: '#e2e8f0',
     });
     const fpsDropdown = new Dropdown(FPS_OPTIONS, {
       value: String(GALLERY_DEFAULT_MAX_FPS),
       width: 110,
       height: 32,
-      font: "13px sans-serif",
+      font: '13px sans-serif',
       onChange: (v: string) => {
-        if (this.scene) this.scene.maxFPS = v === "Uncapped" ? 0 : Number(v);
+        if (this.scene) this.scene.maxFPS = v === 'Uncapped' ? 0 : Number(v);
       },
     });
     const fpsRow = new Stack({
-      direction: "horizontal",
+      direction: 'horizontal',
       gap: 10,
-      align: "center",
+      align: 'center',
     });
     fpsRow.add(fpsLabel);
     fpsRow.add(fpsDropdown);
 
     this.controlsPanel = new Stack({
-      direction: "vertical",
+      direction: 'vertical',
       gap: 10,
-      align: "start",
+      align: 'start',
     });
     this.controlsPanel.add(countRow);
     this.controlsPanel.add(fpsRow);
@@ -108,7 +108,7 @@ class Nexus extends Entity {
     return new ComputeParticleEntity({
       maxParticles: count,
       size: 1.5,
-      color: "#7cb3ff",
+      color: '#7cb3ff',
       springK: SPRING_K,
       damping: DAMPING,
       bounceDamping: 0.6,

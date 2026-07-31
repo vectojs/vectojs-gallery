@@ -11,12 +11,12 @@
  * bubble containing a `Markdown`. That is the whole point of the comparison —
  * the thing pretext must build by hand, VectoJS already has.
  */
-import { Entity, type IRenderer } from "@vectojs/core";
-import { Markdown, type MarkdownTheme } from "@vectojs/markdown";
-import { ScrollColumn } from "../shared/ScrollColumn";
-import { DARK } from "../shared/theme";
-import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
-import { CHAT_SEEDS } from "./markdown-chat-data";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { Markdown, type MarkdownTheme } from '@vectojs/markdown';
+import { ScrollColumn } from '../shared/ScrollColumn';
+import { DARK } from '../shared/theme';
+import { CONTENT_TOP, drawDemoHeader } from '../shared/chrome';
+import { CHAT_SEEDS } from './markdown-chat-data';
 
 const TOTAL_MESSAGES = 10000;
 const BUBBLE_PAD = 14;
@@ -24,7 +24,7 @@ const ROW_GAP = 10;
 const MAX_BUBBLE_WIDTH = 560;
 
 interface ChatMessage {
-  role: "assistant" | "user";
+  role: 'assistant' | 'user';
   markdown: string;
 }
 
@@ -35,32 +35,32 @@ function buildMessages(): ChatMessage[] {
   for (let i = 0; i < TOTAL_MESSAGES; i++) {
     const seed = CHAT_SEEDS[i % CHAT_SEEDS.length];
     const turn = Math.floor(i / CHAT_SEEDS.length) + 1;
-    const suffix = turn > 1 ? `\n\n_(turn ${turn}, message ${i + 1})_` : "";
+    const suffix = turn > 1 ? `\n\n_(turn ${turn}, message ${i + 1})_` : '';
     out.push({ role: seed.role, markdown: seed.markdown + suffix });
   }
   return out;
 }
 
 const ASSISTANT_THEME: MarkdownTheme = {
-  textColor: "#d9d6cf",
-  headingColor: "#f3f1ea",
-  codeColor: "#c9b98f",
-  codeBgColor: "rgba(255,255,255,0.05)",
+  textColor: '#d9d6cf',
+  headingColor: '#f3f1ea',
+  codeColor: '#c9b98f',
+  codeBgColor: 'rgba(255,255,255,0.05)',
   quoteBorderColor: DARK.accentSoft,
-  quoteTextColor: "#b7b3aa",
-  hrColor: "rgba(255,255,255,0.12)",
+  quoteTextColor: '#b7b3aa',
+  hrColor: 'rgba(255,255,255,0.12)',
   bodyFont: 'system-ui, -apple-system, "Segoe UI", sans-serif',
   codeFont: '"SF Mono", ui-monospace, monospace',
   fontSize: 15,
 };
 const USER_THEME: MarkdownTheme = {
   ...ASSISTANT_THEME,
-  textColor: "#f5f5f7",
-  headingColor: "#ffffff",
-  codeColor: "#fbe7c9",
-  codeBgColor: "rgba(0,0,0,0.22)",
-  quoteBorderColor: "rgba(255,255,255,0.5)",
-  quoteTextColor: "#eef",
+  textColor: '#f5f5f7',
+  headingColor: '#ffffff',
+  codeColor: '#fbe7c9',
+  codeBgColor: 'rgba(0,0,0,0.22)',
+  quoteBorderColor: 'rgba(255,255,255,0.5)',
+  quoteTextColor: '#eef',
 };
 
 /** Deepest child bottom edge, in the root's local space (recursive). */
@@ -78,24 +78,23 @@ function subtreeBottom(root: Entity): number {
 
 /** One chat row: an editorial (assistant) block or a tinted (user) bubble. */
 class ChatBubble extends Entity {
-  private role: "assistant" | "user";
+  private role: 'assistant' | 'user';
   private md: Markdown;
   private bubbleW: number;
   private bubbleH: number;
-  private align: "left" | "right";
+  private align: 'left' | 'right';
   private rowWidth: number;
 
   constructor(msg: ChatMessage, rowWidth: number) {
     super();
     this.role = msg.role;
     this.rowWidth = rowWidth;
-    this.align = msg.role === "user" ? "right" : "left";
+    this.align = msg.role === 'user' ? 'right' : 'left';
 
-    const contentWidth =
-      Math.min(MAX_BUBBLE_WIDTH, rowWidth - 32) - BUBBLE_PAD * 2;
+    const contentWidth = Math.min(MAX_BUBBLE_WIDTH, rowWidth - 32) - BUBBLE_PAD * 2;
     this.md = new Markdown(msg.markdown, {
       maxWidth: contentWidth,
-      theme: msg.role === "user" ? USER_THEME : ASSISTANT_THEME,
+      theme: msg.role === 'user' ? USER_THEME : ASSISTANT_THEME,
       selectable: false,
     });
     this.md.setPosition(BUBBLE_PAD, BUBBLE_PAD);
@@ -114,7 +113,7 @@ class ChatBubble extends Entity {
   }
 
   private layoutBubble(): void {
-    const x = this.align === "right" ? this.rowWidth - this.bubbleW - 16 : 16;
+    const x = this.align === 'right' ? this.rowWidth - this.bubbleW - 16 : 16;
     this.md.setPosition(x + BUBBLE_PAD, BUBBLE_PAD);
     this._bubbleX = x;
   }
@@ -126,16 +125,16 @@ class ChatBubble extends Entity {
   }
 
   render(r: IRenderer): void {
-    if (this.role === "user") {
+    if (this.role === 'user') {
       r.beginPath();
       r.roundRect(this._bubbleX, 0, this.bubbleW, this.bubbleH, 16);
-      r.fill("#3a4256");
+      r.fill('#3a4256');
     }
     // assistant messages are editorial (no bubble); a faint left rule instead
-    if (this.role === "assistant") {
+    if (this.role === 'assistant') {
       r.beginPath();
       r.roundRect(this._bubbleX, 4, 3, this.bubbleH - 8, 1.5);
-      r.fill("rgba(255,255,255,0.10)");
+      r.fill('rgba(255,255,255,0.10)');
     }
   }
 }
@@ -159,14 +158,11 @@ class MarkdownChatDemo extends Entity {
   private lastScroll = -1;
 
   constructor() {
-    super("MarkdownChatDemo");
+    super('MarkdownChatDemo');
     this.messages = buildMessages();
-    this.heights = Array.from(
-      { length: this.messages.length },
-      () => EST_ROW_H,
-    );
+    this.heights = Array.from({ length: this.messages.length }, () => EST_ROW_H);
     this.tops = Array.from({ length: this.messages.length + 1 }, () => 0);
-    this.scrollCol = new ScrollColumn(0, 0, "ChatScroll");
+    this.scrollCol = new ScrollColumn(0, 0, 'ChatScroll');
     this.add(this.scrollCol);
     this.recomputeTops();
   }
@@ -187,16 +183,14 @@ class MarkdownChatDemo extends Entity {
 
   private reconcile(): void {
     const scroll = this.scrollCol.scroll;
-    if (Math.abs(scroll - this.lastScroll) < 0.5 && this.mounted.size > 0)
-      return;
+    if (Math.abs(scroll - this.lastScroll) < 0.5 && this.mounted.size > 0) return;
     this.lastScroll = scroll;
     const viewTop = scroll - OVERSCAN_PX;
     const viewBottom = scroll + (this.H - CONTENT_TOP) + OVERSCAN_PX;
 
     // Binary-ish scan for the first visible index (tops is monotonic).
     let start = 0;
-    while (start < this.messages.length && this.tops[start + 1] < viewTop)
-      start++;
+    while (start < this.messages.length && this.tops[start + 1] < viewTop) start++;
 
     const visible = new Set<number>();
     let dirtyHeights = false;
@@ -225,8 +219,7 @@ class MarkdownChatDemo extends Entity {
     if (dirtyHeights) {
       this.recomputeTops();
       // Reposition still-mounted rows against corrected tops.
-      for (const [i, row] of this.mounted)
-        row.setPosition(this.listLeft, this.tops[i]);
+      for (const [i, row] of this.mounted) row.setPosition(this.listLeft, this.tops[i]);
     }
   }
 
@@ -263,7 +256,7 @@ class MarkdownChatDemo extends Entity {
     drawDemoHeader(
       r,
       32,
-      "Ten thousand messages",
+      'Ten thousand messages',
       `A virtualized list of ${TOTAL_MESSAGES.toLocaleString()} markdown messages — each row's height known before it mounts.`,
       true,
     );

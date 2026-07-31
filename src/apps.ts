@@ -1,4 +1,4 @@
-import type { Accent } from "./ui/tokens";
+import type { Accent } from './ui/tokens';
 
 /**
  * One forge application shown in the "Built on VectoJS" section: a full
@@ -23,64 +23,64 @@ export interface ForgeApp {
 // grid both render APPS in array order, so sorting here sorts both surfaces.
 export const APPS: ForgeApp[] = [
   {
-    id: "bakudan",
-    name: "Bakudan",
+    id: 'bakudan',
+    name: 'Bakudan',
     tagline:
-      "A canvas-native danmaku playground and stress bench — 5,000 concurrent comments on a slate console.",
-    url: "https://bakudan.vectojs.org",
-    screenshot: "/apps/bakudan.webp",
-    accent: { a: "#38bdf8", b: "#818cf8", glow: "#38bdf8" },
+      'A canvas-native danmaku playground and stress bench — 5,000 concurrent comments on a slate console.',
+    url: 'https://bakudan.vectojs.org',
+    screenshot: '/apps/bakudan.webp',
+    accent: { a: '#38bdf8', b: '#818cf8', glow: '#38bdf8' },
   },
   {
-    id: "brings",
-    name: "Brings",
+    id: 'brings',
+    name: 'Brings',
     tagline:
-      "A local-first vector design editor — pages, frames, shapes, and selection on an infinite canvas.",
-    url: "https://brings-website.vectojs.org",
-    screenshot: "/apps/brings.webp",
-    accent: { a: "#6d5ef2", b: "#a78bfa", glow: "#7c5cff" },
+      'A local-first vector design editor — pages, frames, shapes, and selection on an infinite canvas.',
+    url: 'https://brings-website.vectojs.org',
+    screenshot: '/apps/brings.webp',
+    accent: { a: '#6d5ef2', b: '#a78bfa', glow: '#7c5cff' },
   },
   {
-    id: "motif",
-    name: "Motif",
+    id: 'motif',
+    name: 'Motif',
     tagline:
-      "The component and effect gallery — every @vectojs/ui component demoed live, with source.",
-    url: "https://motif.vectojs.org",
-    screenshot: "/apps/motif.webp",
-    accent: { a: "#d97757", b: "#f2b880", glow: "#d97757" },
+      'The component and effect gallery — every @vectojs/ui component demoed live, with source.',
+    url: 'https://motif.vectojs.org',
+    screenshot: '/apps/motif.webp',
+    accent: { a: '#d97757', b: '#f2b880', glow: '#d97757' },
   },
   {
-    id: "numera",
-    name: "Numera",
+    id: 'numera',
+    name: 'Numera',
     tagline:
-      "An offline consumer spreadsheet — virtualized grid, formula engine, XLSX import and export.",
+      'An offline consumer spreadsheet — virtualized grid, formula engine, XLSX import and export.',
     // Canonical numera-website.vectojs.org is not wired up yet (DNS); switch
     // this to the canonical domain once it resolves.
-    url: "https://numera-website.pages.dev",
-    screenshot: "/apps/numera.webp",
-    accent: { a: "#2563eb", b: "#7dd3fc", glow: "#3b82f6" },
+    url: 'https://numera-website.pages.dev',
+    screenshot: '/apps/numera.webp',
+    accent: { a: '#2563eb', b: '#7dd3fc', glow: '#3b82f6' },
   },
   {
-    id: "unisol",
-    name: "Unisol",
+    id: 'unisol',
+    name: 'Unisol',
     tagline:
-      "An interactive 3D map of the Kubernetes resource model, rendered with @vectojs/graph3d.",
-    url: "https://unisol.vectojs.org",
-    screenshot: "/apps/unisol.webp",
-    accent: { a: "#155e75", b: "#22d3ee", glow: "#06b6d4" },
+      'An interactive 3D map of the Kubernetes resource model, rendered with @vectojs/graph3d.',
+    url: 'https://unisol.vectojs.org',
+    screenshot: '/apps/unisol.webp',
+    accent: { a: '#155e75', b: '#22d3ee', glow: '#06b6d4' },
   },
   {
-    id: "vem",
-    name: "Vem",
+    id: 'vem',
+    name: 'Vem',
     tagline:
-      "A canvas-native Vim-style modal editor — buffers, splits, a file explorer, and a plugin lab.",
-    url: "https://vem.run",
-    screenshot: "/apps/vem.webp",
-    accent: { a: "#334155", b: "#60a5fa", glow: "#3b82f6" },
+      'A canvas-native Vim-style modal editor — buffers, splits, a file explorer, and a plugin lab.',
+    url: 'https://vem.run',
+    screenshot: '/apps/vem.webp',
+    accent: { a: '#334155', b: '#60a5fa', glow: '#3b82f6' },
   },
 ];
 
 /** "https://example.org/x" -> "example.org/x" for display on cards. */
 export function displayUrl(url: string): string {
-  return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }

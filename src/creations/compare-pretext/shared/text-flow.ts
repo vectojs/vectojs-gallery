@@ -26,9 +26,7 @@ function isSpace(t: string): boolean {
 /** Build a per-font canvas measurer (cached per string). */
 export function makeFlowMeasurer(font: string): (t: string) => number {
   const ctx =
-    typeof document !== "undefined"
-      ? document.createElement("canvas").getContext("2d")
-      : null;
+    typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
   if (ctx) ctx.font = font;
   const cache = new Map<string, number>();
   return (t: string): number => {
@@ -42,23 +40,20 @@ export function makeFlowMeasurer(font: string): (t: string) => number {
 }
 
 /** Segment a paragraph into alternating word/space segments with measured widths. */
-export function prepareFlow(
-  text: string,
-  measure: (t: string) => number,
-): PreparedFlow {
+export function prepareFlow(text: string, measure: (t: string) => number): PreparedFlow {
   const segments: string[] = [];
   const widths: number[] = [];
   for (const token of text.split(/(\s+)/)) {
     if (token.length === 0) continue;
     if (isSpace(token)) {
-      segments.push(" ");
-      widths.push(measure(" "));
+      segments.push(' ');
+      widths.push(measure(' '));
     } else {
       segments.push(token);
       widths.push(measure(token));
     }
   }
-  return { segments, widths, spaceWidth: measure(" ") };
+  return { segments, widths, spaceWidth: measure(' ') };
 }
 
 /**
@@ -79,7 +74,7 @@ export function layoutNextFlowLine(
 
   let used = 0;
   let end = i;
-  let text = "";
+  let text = '';
   let width = 0;
   while (i < n) {
     const seg = segments[i];
@@ -94,6 +89,6 @@ export function layoutNextFlowLine(
     }
   }
   // Trim trailing spaces from the emitted text.
-  const trimmed = text.replace(/\s+$/, "");
+  const trimmed = text.replace(/\s+$/, '');
   return { text: trimmed, width, endSeg: end };
 }

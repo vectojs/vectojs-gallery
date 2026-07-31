@@ -1,6 +1,6 @@
-import { Entity } from "@vectojs/core";
-import type { IRenderer } from "@vectojs/core";
-import { COLOR } from "../../ui/tokens";
+import { Entity } from '@vectojs/core';
+import type { IRenderer } from '@vectojs/core';
+import { COLOR } from '../../ui/tokens';
 
 /**
  * Canvas Studio — a small Fabric.js-style interactive object model rebuilt on
@@ -27,7 +27,7 @@ const HIT_TOL = 9; // pointer distance that still counts as "on" a handle
 const ROTATE_ARM = 26; // gap between the top edge and the rotate knob
 const MIN_SIZE = 16; // smallest a shape may be scaled to
 
-type ShapeType = "rect" | "ellipse" | "text";
+type ShapeType = 'rect' | 'ellipse' | 'text';
 
 interface Shape {
   id: number;
@@ -54,19 +54,19 @@ interface ShapeDTO {
 }
 
 const PALETTE = [
-  "#4f46e5",
-  "#06b6d4",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#ec4899",
-  "#3d3529",
-  "#faf7f1",
+  '#4f46e5',
+  '#06b6d4',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#ec4899',
+  '#3d3529',
+  '#faf7f1',
 ] as const;
 
-const STORAGE_KEY = "vectojs-studio-scene";
+const STORAGE_KEY = 'vectojs-studio-scene';
 
-type DragMode = "none" | "move" | "resize" | "rotate" | "marquee";
+type DragMode = 'none' | 'move' | 'resize' | 'rotate' | 'marquee';
 
 interface ToolButton {
   key: string;
@@ -109,30 +109,28 @@ class CanvasStudio extends Entity {
   private currentFill: string = PALETTE[0];
 
   // Drag state.
-  private drag: DragMode = "none";
+  private drag: DragMode = 'none';
   private dragStart = { x: 0, y: 0 };
   private handleAxis = { hx: 0, hy: 0 };
   private anchor = { x: 0, y: 0 }; // pinned world point during a resize
   private moveOrigins = new Map<number, { cx: number; cy: number }>();
   private marquee = { x0: 0, y0: 0, x1: 0, y1: 0 };
-  private hoverCursor = "default";
+  private hoverCursor = 'default';
 
   private savedBytes = 0;
-  private toast = { msg: "", t: 0 };
+  private toast = { msg: '', t: 0 };
 
   private canvas: HTMLCanvasElement | null = null;
 
   constructor() {
-    super("CanvasStudio");
-    this.canvas = document.getElementById(
-      "gallery-canvas",
-    ) as HTMLCanvasElement | null;
+    super('CanvasStudio');
+    this.canvas = document.getElementById('gallery-canvas') as HTMLCanvasElement | null;
     if (this.canvas) {
-      this.canvas.addEventListener("pointerdown", this.onPointerDown);
-      this.canvas.addEventListener("dblclick", this.onDblClick);
-      window.addEventListener("pointermove", this.onPointerMove);
-      window.addEventListener("pointerup", this.onPointerUp);
-      window.addEventListener("keydown", this.onKeyDown);
+      this.canvas.addEventListener('pointerdown', this.onPointerDown);
+      this.canvas.addEventListener('dblclick', this.onDblClick);
+      window.addEventListener('pointermove', this.onPointerMove);
+      window.addEventListener('pointerup', this.onPointerUp);
+      window.addEventListener('keydown', this.onKeyDown);
     }
   }
 
@@ -157,13 +155,13 @@ class CanvasStudio extends Entity {
 
   override destroy(): void {
     if (this.canvas) {
-      this.canvas.removeEventListener("pointerdown", this.onPointerDown);
-      this.canvas.removeEventListener("dblclick", this.onDblClick);
-      this.canvas.style.cursor = "default";
+      this.canvas.removeEventListener('pointerdown', this.onPointerDown);
+      this.canvas.removeEventListener('dblclick', this.onDblClick);
+      this.canvas.style.cursor = 'default';
     }
-    window.removeEventListener("pointermove", this.onPointerMove);
-    window.removeEventListener("pointerup", this.onPointerUp);
-    window.removeEventListener("keydown", this.onKeyDown);
+    window.removeEventListener('pointermove', this.onPointerMove);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('keydown', this.onKeyDown);
     super.destroy();
   }
 
@@ -175,9 +173,9 @@ class CanvasStudio extends Entity {
     const cx = this.W / 2;
     const cy = this.H / 2;
     this.shapes = [
-      this.make("rect", cx - 150, cy - 40, 190, 120, 0, PALETTE[0]),
-      this.make("ellipse", cx + 120, cy + 30, 150, 150, 0, PALETTE[1]),
-      this.make("text", cx - 40, cy + 150, 0, 0, 0, PALETTE[6], "VectoJS"),
+      this.make('rect', cx - 150, cy - 40, 190, 120, 0, PALETTE[0]),
+      this.make('ellipse', cx + 120, cy + 30, 150, 150, 0, PALETTE[1]),
+      this.make('text', cx - 40, cy + 150, 0, 0, 0, PALETTE[6], 'VectoJS'),
     ];
     this.fitText(this.shapes[2]);
   }
@@ -200,10 +198,10 @@ class CanvasStudio extends Entity {
   }
 
   private fitText(s: Shape): void {
-    if (s.type !== "text") return;
+    if (s.type !== 'text') return;
     const px = s.h > 0 ? this.fontSizeOf(s) : 34;
     if (s.h <= 0) s.h = px / 0.72;
-    s.w = Math.max(40, approxW(s.text ?? "", this.fontSizeOf(s)) + 8);
+    s.w = Math.max(40, approxW(s.text ?? '', this.fontSizeOf(s)) + 8);
   }
 
   private byId(id: number): Shape | undefined {
@@ -218,11 +216,7 @@ class CanvasStudio extends Entity {
 
   // Local (shape-space) corner/edge point → world, applying the shape's
   // rotation about its own center. hx/hy in {-1,0,1}.
-  private worldPoint(
-    s: Shape,
-    hx: number,
-    hy: number,
-  ): { x: number; y: number } {
+  private worldPoint(s: Shape, hx: number, hy: number): { x: number; y: number } {
     const lx = (hx * s.w) / 2;
     const ly = (hy * s.h) / 2;
     const c = Math.cos(s.rot);
@@ -271,17 +265,15 @@ class CanvasStudio extends Entity {
   private hitHandle(
     x: number,
     y: number,
-  ): { kind: "resize" | "rotate"; hx: number; hy: number } | null {
+  ): { kind: 'resize' | 'rotate'; hx: number; hy: number } | null {
     if (this.selection.size !== 1) return null;
     const s = this.selShapes()[0];
     if (!s) return null;
     const rp = this.rotateHandlePoint(s);
-    if (Math.hypot(x - rp.x, y - rp.y) <= HIT_TOL)
-      return { kind: "rotate", hx: 0, hy: 0 };
+    if (Math.hypot(x - rp.x, y - rp.y) <= HIT_TOL) return { kind: 'rotate', hx: 0, hy: 0 };
     for (const [hx, hy] of CanvasStudio.HANDLE_AXES) {
       const p = this.worldPoint(s, hx, hy);
-      if (Math.hypot(x - p.x, y - p.y) <= HIT_TOL)
-        return { kind: "resize", hx, hy };
+      if (Math.hypot(x - p.x, y - p.y) <= HIT_TOL) return { kind: 'resize', hx, hy };
     }
     return null;
   }
@@ -318,14 +310,14 @@ class CanvasStudio extends Entity {
 
   private toolButtons(): ToolButton[] {
     const defs: { key: string; label: string }[] = [
-      { key: "rect", label: "+ Rect" },
-      { key: "ellipse", label: "+ Ellipse" },
-      { key: "text", label: "+ Text" },
-      { key: "front", label: "Front" },
-      { key: "back", label: "Back" },
-      { key: "delete", label: "Delete" },
-      { key: "save", label: "Save" },
-      { key: "load", label: "Load" },
+      { key: 'rect', label: '+ Rect' },
+      { key: 'ellipse', label: '+ Ellipse' },
+      { key: 'text', label: '+ Text' },
+      { key: 'front', label: 'Front' },
+      { key: 'back', label: 'Back' },
+      { key: 'delete', label: 'Delete' },
+      { key: 'save', label: 'Save' },
+      { key: 'load', label: 'Load' },
     ];
     const gap = 8;
     const padX = 12;
@@ -334,8 +326,7 @@ class CanvasStudio extends Entity {
     let total = 0;
     const widths = defs.map((d) => Math.round(approxW(d.label, px) + padX * 2));
     total = widths.reduce((a, b) => a + b, 0) + gap * (defs.length - 1);
-    const swatchesW =
-      PALETTE.length * (CanvasStudio.SWATCH + 6) + 18; /* separator */
+    const swatchesW = PALETTE.length * (CanvasStudio.SWATCH + 6) + 18; /* separator */
     total += swatchesW;
     // Center within the safe band (clear of the back chip / fullscreen chip).
     const safeLeft = 180;
@@ -367,12 +358,7 @@ class CanvasStudio extends Entity {
     let sx = this.swatchStartX();
     const sy = ty + (CanvasStudio.TOOL_H - CanvasStudio.SWATCH) / 2;
     for (const col of PALETTE) {
-      if (
-        x >= sx &&
-        x <= sx + CanvasStudio.SWATCH &&
-        y >= sy &&
-        y <= sy + CanvasStudio.SWATCH
-      ) {
+      if (x >= sx && x <= sx + CanvasStudio.SWATCH && y >= sy && y <= sy + CanvasStudio.SWATCH) {
         this.applyFill(col);
         return true;
       }
@@ -385,28 +371,28 @@ class CanvasStudio extends Entity {
 
   private onTool(key: string): void {
     switch (key) {
-      case "rect":
-        this.addShape("rect");
+      case 'rect':
+        this.addShape('rect');
         break;
-      case "ellipse":
-        this.addShape("ellipse");
+      case 'ellipse':
+        this.addShape('ellipse');
         break;
-      case "text":
-        this.addShape("text");
+      case 'text':
+        this.addShape('text');
         break;
-      case "front":
+      case 'front':
         this.reorder(true);
         break;
-      case "back":
+      case 'back':
         this.reorder(false);
         break;
-      case "delete":
+      case 'delete':
         this.deleteSelection();
         break;
-      case "save":
+      case 'save':
         this.save();
         break;
-      case "load":
+      case 'load':
         this.tryLoad(true);
         break;
     }
@@ -416,13 +402,13 @@ class CanvasStudio extends Entity {
     const cx = this.W / 2 + (Math.random() - 0.5) * 80;
     const cy = this.H / 2 + (Math.random() - 0.5) * 80;
     let s: Shape;
-    if (type === "text") {
-      s = this.make("text", cx, cy, 0, 0, 0, this.currentFill, "Text");
+    if (type === 'text') {
+      s = this.make('text', cx, cy, 0, 0, 0, this.currentFill, 'Text');
       this.fitText(s);
-    } else if (type === "ellipse") {
-      s = this.make("ellipse", cx, cy, 130, 130, 0, this.currentFill);
+    } else if (type === 'ellipse') {
+      s = this.make('ellipse', cx, cy, 130, 130, 0, this.currentFill);
     } else {
-      s = this.make("rect", cx, cy, 170, 110, 0, this.currentFill);
+      s = this.make('rect', cx, cy, 170, 110, 0, this.currentFill);
     }
     this.shapes.push(s);
     this.selection = new Set([s.id]);
@@ -471,10 +457,9 @@ class CanvasStudio extends Entity {
     } catch {
       /* storage may be unavailable (private mode) — round-trip still works */
     }
-    if (navigator.clipboard?.writeText)
-      navigator.clipboard.writeText(json).catch(() => {});
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(json).catch(() => {});
     // eslint-disable-next-line no-console
-    console.log("[Canvas Studio] scene JSON:\n" + json);
+    console.log('[Canvas Studio] scene JSON:\n' + json);
     this.showToast(
       `Saved ${this.shapes.length} objects · ${this.savedBytes} B → clipboard + console`,
     );
@@ -488,7 +473,7 @@ class CanvasStudio extends Entity {
       json = null;
     }
     if (!json) {
-      if (announce) this.showToast("Nothing saved yet — press Save first");
+      if (announce) this.showToast('Nothing saved yet — press Save first');
       return false;
     }
     try {
@@ -498,11 +483,10 @@ class CanvasStudio extends Entity {
         this.make(d.type, d.cx, d.cy, d.w, d.h, d.rot, d.fill, d.text),
       );
       this.selection.clear();
-      if (announce)
-        this.showToast(`Loaded ${this.shapes.length} objects from JSON`);
+      if (announce) this.showToast(`Loaded ${this.shapes.length} objects from JSON`);
       return true;
     } catch {
-      if (announce) this.showToast("Saved JSON was invalid");
+      if (announce) this.showToast('Saved JSON was invalid');
       return false;
     }
   }
@@ -524,7 +508,7 @@ class CanvasStudio extends Entity {
     this.drawGrid(r);
     for (const s of this.shapes) this.drawShape(r, s);
     this.drawSelection(r);
-    if (this.drag === "marquee") this.drawMarquee(r);
+    if (this.drag === 'marquee') this.drawMarquee(r);
     this.drawToolbar(r);
     this.drawHint(r);
     if (this.toast.t > 0) this.drawToast(r);
@@ -553,11 +537,11 @@ class CanvasStudio extends Entity {
     r.save();
     r.translate(s.cx, s.cy);
     r.rotate(s.rot);
-    if (s.type === "rect") {
+    if (s.type === 'rect') {
       r.beginPath();
       r.roundRect(-s.w / 2, -s.h / 2, s.w, s.h, 10);
       r.fill(s.fill);
-    } else if (s.type === "ellipse") {
+    } else if (s.type === 'ellipse') {
       r.save();
       r.scale(s.w / 2, s.h / 2);
       r.beginPath();
@@ -566,13 +550,7 @@ class CanvasStudio extends Entity {
       r.restore();
     } else {
       const px = this.fontSizeOf(s);
-      r.fillText(
-        s.text ?? "",
-        -s.w / 2 + 4,
-        px * 0.34,
-        `700 ${px}px Inter, system-ui`,
-        s.fill,
-      );
+      r.fillText(s.text ?? '', -s.w / 2 + 4, px * 0.34, `700 ${px}px Inter, system-ui`, s.fill);
     }
     r.restore();
   }
@@ -594,12 +572,7 @@ class CanvasStudio extends Entity {
     r.stroke(COLOR.ink, 1.5);
   }
 
-  private strokeOutline(
-    r: IRenderer,
-    s: Shape,
-    color: string,
-    width: number,
-  ): void {
+  private strokeOutline(r: IRenderer, s: Shape, color: string, width: number): void {
     const c = [
       this.worldPoint(s, -1, -1),
       this.worldPoint(s, 1, -1),
@@ -657,8 +630,7 @@ class CanvasStudio extends Entity {
     const btns = this.toolButtons();
     const first = btns[0];
     const barX = first.x - 10;
-    const swEnd =
-      this.swatchStartX() + PALETTE.length * (CanvasStudio.SWATCH + 6);
+    const swEnd = this.swatchStartX() + PALETTE.length * (CanvasStudio.SWATCH + 6);
     const barW = swEnd - barX + 4;
     r.save();
     r.setGlobalAlpha(0.96);
@@ -673,18 +645,18 @@ class CanvasStudio extends Entity {
     const px = 13;
     const midY = ty + CanvasStudio.TOOL_H / 2;
     for (const b of btns) {
-      const danger = b.key === "delete";
+      const danger = b.key === 'delete';
       r.beginPath();
       r.roundRect(b.x, ty + 4, b.w, CanvasStudio.TOOL_H - 8, 8);
-      r.fill(danger ? "#fdece9" : COLOR.groundSunk);
-      r.stroke(danger ? "#e9a99b" : COLOR.rule, 1);
+      r.fill(danger ? '#fdece9' : COLOR.groundSunk);
+      r.stroke(danger ? '#e9a99b' : COLOR.rule, 1);
       ctext(
         r,
         b.label,
         b.x + b.w / 2,
         midY + px * 0.34,
         px,
-        danger ? "#c0442e" : COLOR.textPrimary,
+        danger ? '#c0442e' : COLOR.textPrimary,
         600,
       );
     }
@@ -707,7 +679,7 @@ class CanvasStudio extends Entity {
     const y = this.H - 30;
     ctext(
       r,
-      "Drag to move · corner handles scale · top knob rotates · drag empty space to band-select · Delete removes",
+      'Drag to move · corner handles scale · top knob rotates · drag empty space to band-select · Delete removes',
       this.W / 2,
       y,
       12,
@@ -765,10 +737,10 @@ class CanvasStudio extends Entity {
     const h = this.hitHandle(p.x, p.y);
     if (h) {
       const s = this.selShapes()[0];
-      if (h.kind === "rotate") {
-        this.drag = "rotate";
+      if (h.kind === 'rotate') {
+        this.drag = 'rotate';
       } else {
-        this.drag = "resize";
+        this.drag = 'resize';
         this.handleAxis = { hx: h.hx, hy: h.hy };
         this.anchor = this.worldPoint(s, -h.hx, -h.hy);
       }
@@ -787,26 +759,25 @@ class CanvasStudio extends Entity {
       }
       this.currentFill = hit.fill;
       // Begin a move of everything currently selected.
-      this.drag = "move";
+      this.drag = 'move';
       this.moveOrigins.clear();
-      for (const s of this.selShapes())
-        this.moveOrigins.set(s.id, { cx: s.cx, cy: s.cy });
+      for (const s of this.selShapes()) this.moveOrigins.set(s.id, { cx: s.cx, cy: s.cy });
       return;
     }
 
     // 3) Empty space → marquee (clear unless shift-adding).
     if (!e.shiftKey) this.selection.clear();
-    this.drag = "marquee";
+    this.drag = 'marquee';
     this.marquee = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
   };
 
   private readonly onPointerMove = (e: PointerEvent): void => {
     const p = this.scenePt(e.clientX, e.clientY);
-    if (this.drag === "none") {
+    if (this.drag === 'none') {
       this.updateCursor(p.x, p.y);
       return;
     }
-    if (this.drag === "move") {
+    if (this.drag === 'move') {
       const dx = p.x - this.dragStart.x;
       const dy = p.y - this.dragStart.y;
       for (const [id, o] of this.moveOrigins) {
@@ -816,16 +787,16 @@ class CanvasStudio extends Entity {
           s.cy = o.cy + dy;
         }
       }
-    } else if (this.drag === "resize") {
+    } else if (this.drag === 'resize') {
       this.applyResize(p.x, p.y);
-    } else if (this.drag === "rotate") {
+    } else if (this.drag === 'rotate') {
       const s = this.selShapes()[0];
       if (s) {
         let ang = Math.atan2(p.y - s.cy, p.x - s.cx) + Math.PI / 2;
         if (e.shiftKey) ang = Math.round(ang / (Math.PI / 12)) * (Math.PI / 12);
         s.rot = ang;
       }
-    } else if (this.drag === "marquee") {
+    } else if (this.drag === 'marquee') {
       this.marquee.x1 = p.x;
       this.marquee.y1 = p.y;
     }
@@ -859,30 +830,29 @@ class CanvasStudio extends Entity {
   }
 
   private readonly onPointerUp = (): void => {
-    if (this.drag === "marquee") {
+    if (this.drag === 'marquee') {
       const x0 = Math.min(this.marquee.x0, this.marquee.x1);
       const y0 = Math.min(this.marquee.y0, this.marquee.y1);
       const x1 = Math.max(this.marquee.x0, this.marquee.x1);
       const y1 = Math.max(this.marquee.y0, this.marquee.y1);
       if (x1 - x0 > 3 || y1 - y0 > 3) {
         for (const s of this.shapes) {
-          if (s.cx >= x0 && s.cx <= x1 && s.cy >= y0 && s.cy <= y1)
-            this.selection.add(s.id);
+          if (s.cx >= x0 && s.cx <= x1 && s.cy >= y0 && s.cy <= y1) this.selection.add(s.id);
         }
       }
     }
-    this.drag = "none";
+    this.drag = 'none';
   };
 
   private updateCursor(x: number, y: number): void {
-    let cursor = "default";
+    let cursor = 'default';
     if (this.overChip(x, y) || this.inToolbarBand(x, y)) {
-      cursor = "default";
+      cursor = 'default';
     } else if (this.hitHandle(x, y)) {
       const h = this.hitHandle(x, y);
-      cursor = h?.kind === "rotate" ? "crosshair" : "nwse-resize";
+      cursor = h?.kind === 'rotate' ? 'crosshair' : 'nwse-resize';
     } else if (this.hitShape(x, y)) {
-      cursor = "move";
+      cursor = 'move';
     }
     if (cursor !== this.hoverCursor && this.canvas) {
       this.hoverCursor = cursor;
@@ -903,8 +873,8 @@ class CanvasStudio extends Entity {
   private readonly onDblClick = (e: MouseEvent): void => {
     const p = this.scenePt(e.clientX, e.clientY);
     const hit = this.hitShape(p.x, p.y);
-    if (hit && hit.type === "text") {
-      const next = window.prompt("Edit text", hit.text ?? "");
+    if (hit && hit.type === 'text') {
+      const next = window.prompt('Edit text', hit.text ?? '');
       if (next !== null) {
         hit.text = next;
         this.fitText(hit);
@@ -914,9 +884,9 @@ class CanvasStudio extends Entity {
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (this.selection.size === 0) return;
-    const tag = (document.activeElement?.tagName ?? "").toLowerCase();
-    if (tag === "input" || tag === "textarea") return;
-    if (e.key === "Delete" || e.key === "Backspace") {
+    const tag = (document.activeElement?.tagName ?? '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
       this.deleteSelection();
       return;
@@ -924,10 +894,10 @@ class CanvasStudio extends Entity {
     const nudge = e.shiftKey ? 10 : 1;
     let dx = 0;
     let dy = 0;
-    if (e.key === "ArrowLeft") dx = -nudge;
-    else if (e.key === "ArrowRight") dx = nudge;
-    else if (e.key === "ArrowUp") dy = -nudge;
-    else if (e.key === "ArrowDown") dy = nudge;
+    if (e.key === 'ArrowLeft') dx = -nudge;
+    else if (e.key === 'ArrowRight') dx = nudge;
+    else if (e.key === 'ArrowUp') dy = -nudge;
+    else if (e.key === 'ArrowDown') dy = nudge;
     else return;
     e.preventDefault();
     for (const s of this.selShapes()) {

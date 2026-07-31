@@ -1,14 +1,14 @@
-import { Entity, Group, type IRenderer } from "@vectojs/core";
-import { ScrollView, Text } from "@vectojs/ui";
-import type { Creation } from "../registry";
-import { APPS } from "../apps";
-import { DotGridBackground } from "./DotGridBackground";
-import { CreationCard } from "./CreationCard";
-import { AppCard } from "./AppCard";
-import { SubmitCard } from "./SubmitCard";
-import { Masthead } from "./Masthead";
-import { SectionHeader } from "./SectionHeader";
-import { COLOR, FONT } from "./tokens";
+import { Entity, Group, type IRenderer } from '@vectojs/core';
+import { ScrollView, Text } from '@vectojs/ui';
+import type { Creation } from '../registry';
+import { APPS } from '../apps';
+import { DotGridBackground } from './DotGridBackground';
+import { CreationCard } from './CreationCard';
+import { AppCard } from './AppCard';
+import { SubmitCard } from './SubmitCard';
+import { Masthead } from './Masthead';
+import { SectionHeader } from './SectionHeader';
+import { COLOR, FONT } from './tokens';
 
 const CARD_MIN_WIDTH = 250;
 const APP_MIN_WIDTH = 340;
@@ -33,7 +33,7 @@ export class Bed extends Entity {
     height: number,
     private readonly onOpen: (creation: Creation) => void,
   ) {
-    super("Bed");
+    super('Bed');
     this.width = width;
     this.height = height;
     this.background = new DotGridBackground(width, height);
@@ -71,8 +71,8 @@ export class Bed extends Entity {
 
     const creationsHeader = new SectionHeader(
       innerW,
-      "Creations",
-      "Single-entity showcase pieces — click one to run it live, right here.",
+      'Creations',
+      'Single-entity showcase pieces — click one to run it live, right here.',
     );
     creationsHeader.setPosition(PADDING, y);
     this.scroll.add(creationsHeader);
@@ -83,8 +83,8 @@ export class Bed extends Entity {
     y += SECTION_GAP;
     const appsHeader = new SectionHeader(
       innerW,
-      "Built on VectoJS",
-      "Full applications from the forge program — real products stress-testing the engine.",
+      'Built on VectoJS',
+      'Full applications from the forge program — real products stress-testing the engine.',
     );
     appsHeader.setPosition(PADDING, y);
     this.scroll.add(appsHeader);
@@ -104,25 +104,18 @@ export class Bed extends Entity {
   }
 
   /** Lays out creation cards + the submit CTA; returns the next free Y. */
-  private layoutCreationGrid(
-    creations: Creation[],
-    innerW: number,
-    startY: number,
-  ): number {
+  private layoutCreationGrid(creations: Creation[], innerW: number, startY: number): number {
     if (creations.length === 0) {
-      const empty = new Text(
-        "No matches — try a different search or fewer tags.",
-        { font: FONT.body(14), color: COLOR.textMuted },
-      );
+      const empty = new Text('No matches — try a different search or fewer tags.', {
+        font: FONT.body(14),
+        color: COLOR.textMuted,
+      });
       empty.setPosition(PADDING, startY + 8);
       this.scroll.add(empty);
       return startY + 8 + empty.height + GAP;
     }
 
-    const columns = Math.max(
-      1,
-      Math.floor((innerW + GAP) / (CARD_MIN_WIDTH + GAP)),
-    );
+    const columns = Math.max(1, Math.floor((innerW + GAP) / (CARD_MIN_WIDTH + GAP)));
     const cardW = (innerW - GAP * (columns - 1)) / columns;
 
     const cards = creations.map(
@@ -135,10 +128,7 @@ export class Bed extends Entity {
       if (cell instanceof CreationCard) cell.setUniformHeight(rowH);
       const col = i % columns;
       const row = Math.floor(i / columns);
-      cell.setPosition(
-        PADDING + col * (cardW + GAP),
-        startY + row * (rowH + GAP),
-      );
+      cell.setPosition(PADDING + col * (cardW + GAP), startY + row * (rowH + GAP));
       this.scroll.add(cell);
       bottom = Math.max(bottom, startY + row * (rowH + GAP) + rowH);
     });
@@ -147,25 +137,17 @@ export class Bed extends Entity {
 
   /** Lays out the forge-app cards; returns the next free Y. */
   private layoutAppGrid(innerW: number, startY: number): number {
-    const columns = Math.max(
-      1,
-      Math.floor((innerW + GAP) / (APP_MIN_WIDTH + GAP)),
-    );
+    const columns = Math.max(1, Math.floor((innerW + GAP) / (APP_MIN_WIDTH + GAP)));
     const cardW = (innerW - GAP * (columns - 1)) / columns;
 
-    const cards = APPS.map(
-      (app) => new AppCard(cardW, app, () => this.scene?.markDirty()),
-    );
+    const cards = APPS.map((app) => new AppCard(cardW, app, () => this.scene?.markDirty()));
     const rowH = Math.max(...cards.map((c) => c.height));
     let bottom = startY;
     cards.forEach((card, i) => {
       card.setUniformHeight(rowH);
       const col = i % columns;
       const row = Math.floor(i / columns);
-      card.setPosition(
-        PADDING + col * (cardW + GAP),
-        startY + row * (rowH + GAP),
-      );
+      card.setPosition(PADDING + col * (cardW + GAP), startY + row * (rowH + GAP));
       this.scroll.add(card);
       bottom = Math.max(bottom, startY + row * (rowH + GAP) + rowH);
     });

@@ -6,8 +6,8 @@
  * Every demo draws its header via {@link drawDemoHeader} and starts its
  * interactive content at or below {@link CONTENT_TOP}.
  */
-import type { IRenderer } from "@vectojs/core";
-import { WARM, DARK, FONT } from "./theme";
+import type { IRenderer } from '@vectojs/core';
+import { WARM, DARK, FONT } from './theme';
 
 /** Height of the reserved top band that holds the back chips. */
 export const CHIP_BAND_H = 56;
@@ -37,7 +37,7 @@ export function drawDemoHeader(
   dark = false,
 ): void {
   const t = dark ? DARK : WARM;
-  r.fillText("DEMO", left, HEADER_EYEBROW_Y, FONT.mono(12), t.accent);
+  r.fillText('DEMO', left, HEADER_EYEBROW_Y, FONT.mono(12), t.accent);
   r.fillText(title, left, HEADER_TITLE_Y, FONT.serifDisplay(26), t.ink);
   if (subtitle) {
     r.fillText(subtitle, left, HEADER_SUBTITLE_Y, FONT.sans(14), t.muted);

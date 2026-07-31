@@ -18,19 +18,11 @@
  * glyph — strictly more work — and is reported separately rather than being
  * passed off as the same operation.
  */
-import {
-  Entity,
-  LayoutEngine,
-  type GlyphAtlas,
-  type IRenderer,
-} from "@vectojs/core";
-import { Text } from "@vectojs/ui";
-import {
-  prepare as pretextPrepare,
-  layout as pretextLayout,
-} from "@chenglou/pretext";
-import { WARM, FONT } from "../shared/theme";
-import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
+import { Entity, LayoutEngine, type GlyphAtlas, type IRenderer } from '@vectojs/core';
+import { Text } from '@vectojs/ui';
+import { prepare as pretextPrepare, layout as pretextLayout } from '@chenglou/pretext';
+import { WARM, FONT } from '../shared/theme';
+import { CONTENT_TOP, drawDemoHeader } from '../shared/chrome';
 
 const MEASURE_FONT = FONT.sans(16);
 const FONT_SIZE = 16;
@@ -61,14 +53,14 @@ const time = (f: () => void): number => {
 
 function corpus(blocks: number): string[] {
   const s =
-    "The quick brown fox jumps over the lazy dog while the examiner records every measurement. ";
+    'The quick brown fox jumps over the lazy dog while the examiner records every measurement. ';
   return Array.from({ length: blocks }, (_, i) => s.repeat(1 + (i % 3)));
 }
 
 /** Per-glyph advances for the same font, so VectoJS shapes without canvas calls. */
 function atlasFor(texts: string[]): GlyphAtlas {
   const atlas: GlyphAtlas = {};
-  const ctx = document.createElement("canvas").getContext("2d");
+  const ctx = document.createElement('canvas').getContext('2d');
   if (!ctx) return atlas;
   ctx.font = MEASURE_FONT;
   const seen = new Set<string>();
@@ -114,23 +106,21 @@ export function runBenchmark(blocks = BLOCKS): Row[] {
   vFull();
   pLayout();
 
-  const measureMs = median(
-    Array.from({ length: TRIALS }, () => time(vMeasure)),
-  );
+  const measureMs = median(Array.from({ length: TRIALS }, () => time(vMeasure)));
   const fullMs = median(Array.from({ length: TRIALS }, () => time(vFull)));
   const pretextMs = median(Array.from({ length: TRIALS }, () => time(pLayout)));
 
   return [
     {
-      label: "Relayout — line count + height",
+      label: 'Relayout — line count + height',
       vectoMs: measureMs,
       pretextMs,
       ratio: pretextMs / Math.max(measureMs, 1e-6),
       likeForLike: true,
-      note: "Like for like: measurePrepared() vs pretext layout(). Both return only lineCount + height.",
+      note: 'Like for like: measurePrepared() vs pretext layout(). Both return only lineCount + height.',
     },
     {
-      label: "Relayout — positioned glyphs",
+      label: 'Relayout — positioned glyphs',
       vectoMs: fullMs,
       pretextMs,
       ratio: pretextMs / Math.max(fullMs, 1e-6),
@@ -145,7 +135,7 @@ export class BenchmarkDemo extends Entity {
   private built = false;
 
   constructor() {
-    super("compare-pretext-benchmark");
+    super('compare-pretext-benchmark');
   }
 
   /** The launcher calls this after mounting; build once we know the width. */
@@ -168,8 +158,8 @@ export class BenchmarkDemo extends Entity {
 
     const intro = new Text(
       `${BLOCKS} prose blocks relaid out at ${WIDTHS.length} widths, median of ${TRIALS} runs. ` +
-        "Both libraries execute in this frame, on the same corpus, so these numbers reflect your " +
-        "hardware and engine rather than a figure quoted from a README.",
+        'Both libraries execute in this frame, on the same corpus, so these numbers reflect your ' +
+        'hardware and engine rather than a figure quoted from a README.',
       { font: FONT.sans(14), color: WARM.muted, maxWidth: maxW },
     );
     intro.setPosition(48, y);
@@ -204,13 +194,13 @@ export class BenchmarkDemo extends Entity {
     }
 
     const caveat = new Text(
-      "Scope differs, and it matters: pretext is text measurement and layout only. It renders " +
+      'Scope differs, and it matters: pretext is text measurement and layout only. It renders ' +
         "nothing and has no scene graph, hit-testing, or accessibility layer. VectoJS's layout " +
-        "output feeds glyph positions, selection geometry, and the semantic DOM projection. If you " +
-        "only need text measurement, pretext is a far smaller dependency.\n\n" +
-        "prepare() is deliberately excluded from this table. VectoJS memoizes prepared paragraphs " +
-        "internally, so a repeating corpus flatters it there and the comparison would not be like " +
-        "for like.",
+        'output feeds glyph positions, selection geometry, and the semantic DOM projection. If you ' +
+        'only need text measurement, pretext is a far smaller dependency.\n\n' +
+        'prepare() is deliberately excluded from this table. VectoJS memoizes prepared paragraphs ' +
+        'internally, so a repeating corpus flatters it there and the comparison would not be like ' +
+        'for like.',
       { font: FONT.sans(13), color: WARM.faint, maxWidth: maxW },
     );
     caveat.setPosition(48, y + 4);
@@ -225,8 +215,8 @@ export class BenchmarkDemo extends Entity {
     drawDemoHeader(
       r,
       48,
-      "Measured head-to-head",
-      "Both libraries, same corpus, same frame — running on your own hardware.",
+      'Measured head-to-head',
+      'Both libraries, same corpus, same frame — running on your own hardware.',
     );
   }
 }

@@ -13,8 +13,8 @@
  * the main thread — mirroring the architecture the base library already
  * uses for its own supported syntax — removes the block entirely.
  */
-import { marked, type Token } from "marked";
-import { registerMathExtensions } from "./marked-extensions";
+import { marked, type Token } from 'marked';
+import { registerMathExtensions } from './marked-extensions';
 
 registerMathExtensions();
 

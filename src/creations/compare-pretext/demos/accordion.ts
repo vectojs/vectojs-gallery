@@ -13,11 +13,11 @@
  * hairline dividers, meta right-aligned by the filled-triangle chevron, and
  * only one section open at a time (clicking the open one closes it).
  */
-import { Entity, Group, LayoutEngine, type IRenderer } from "@vectojs/core";
-import { Card, Text } from "@vectojs/ui";
-import { WARM, FONT } from "../shared/theme";
-import { fontMeasurer } from "../shared/measure";
-import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
+import { Entity, Group, LayoutEngine, type IRenderer } from '@vectojs/core';
+import { Card, Text } from '@vectojs/ui';
+import { WARM, FONT } from '../shared/theme';
+import { fontMeasurer } from '../shared/measure';
+import { CONTENT_TOP, drawDemoHeader } from '../shared/chrome';
 
 interface AccordionItemSpec {
   id: string;
@@ -29,23 +29,23 @@ interface AccordionItemSpec {
 // mixed-script/bidi/URL/soft-hyphen stress paragraph.
 const ITEMS: AccordionItemSpec[] = [
   {
-    id: "shipping",
-    title: "Section 1",
-    text: "Mina cut the release note to three crisp lines, then realized the support caveat still needed one more sentence before it could ship without surprises.",
+    id: 'shipping',
+    title: 'Section 1',
+    text: 'Mina cut the release note to three crisp lines, then realized the support caveat still needed one more sentence before it could ship without surprises.',
   },
   {
-    id: "ops",
-    title: "Section 2",
-    text: "The handoff doc now reads like a proper morning checklist instead of a diary entry. Restart the worker, verify the queue drains, and only then mark the incident quiet. If the backlog grows again, page the same owner instead of opening a new thread.",
+    id: 'ops',
+    title: 'Section 2',
+    text: 'The handoff doc now reads like a proper morning checklist instead of a diary entry. Restart the worker, verify the queue drains, and only then mark the incident quiet. If the backlog grows again, page the same owner instead of opening a new thread.',
   },
   {
-    id: "research",
-    title: "Section 3",
-    text: "We learned the hard way that a giant native scroll range can dominate everything else. The bug looked like DOM churn, then like pooling, then like rendering pressure, until the repros were stripped down enough to show the real limit. That changed the fix completely: simplify the DOM, keep virtualization honest, and stop hiding the worst-case path behind caches that only make the common frame look cheaper.",
+    id: 'research',
+    title: 'Section 3',
+    text: 'We learned the hard way that a giant native scroll range can dominate everything else. The bug looked like DOM churn, then like pooling, then like rendering pressure, until the repros were stripped down enough to show the real limit. That changed the fix completely: simplify the DOM, keep virtualization honest, and stop hiding the worst-case path behind caches that only make the common frame look cheaper.',
   },
   {
-    id: "mixed",
-    title: "Section 4",
+    id: 'mixed',
+    title: 'Section 4',
     text: 'AGI 春天到了. بدأت الرحلة 🚀 and the long URL is https://example.com/reports/q3?lang=ar&mode=full. Nora wrote "please keep 10\u202f000 rows visible," Mina replied "trans\u00adatlantic labels are still weird."',
   },
 ];
@@ -94,7 +94,7 @@ class AccordionRow extends Group {
     this.hitCard = new Card({
       width: 0,
       height: ROW_HEADER_H,
-      bg: "rgba(0,0,0,0)",
+      bg: 'rgba(0,0,0,0)',
       radius: 0,
       label: `${spec.title} — toggle`,
       onClick: () => onToggle(spec.id),
@@ -106,9 +106,9 @@ class AccordionRow extends Group {
       color: WARM.ink,
     });
     this.titleText.setPosition(ROW_PAD_X, 20);
-    this.meta = new Text("", { font: META_FONT, color: WARM.faint });
+    this.meta = new Text('', { font: META_FONT, color: WARM.faint });
     this.meta.setPosition(200, 22);
-    this.chevron = new Text("▶", {
+    this.chevron = new Text('▶', {
       font: FONT.sans(10),
       color: WARM.accent,
     });
@@ -140,10 +140,7 @@ class AccordionRow extends Group {
     const result = this.engine.layoutPrepared(prepared);
     this.copyText.setMaxWidth(this.innerWidth);
 
-    const lineCount = Math.max(
-      1,
-      Math.round(result.totalHeight / (COPY_FONT_SIZE * 1.5)),
-    );
+    const lineCount = Math.max(1, Math.round(result.totalHeight / (COPY_FONT_SIZE * 1.5)));
     // Report the panel's own measured height the same way pretext does:
     // lineCount × lineHeight (pretext uses a 26px line box; ours is 21px).
     const px = lineCount * COPY_LINE_HEIGHT;
@@ -163,7 +160,7 @@ class AccordionRow extends Group {
     if (this.expanded === expanded) return;
     this.expanded = expanded;
     this.chevron.setTransition({
-      rotation: { duration: 180, easing: "easeOutCubic" },
+      rotation: { duration: 180, easing: 'easeOutCubic' },
     });
     this.chevron.rotation = expanded ? Math.PI / 2 : 0;
     const targetH = expanded ? this.panelHeight : 0;
@@ -195,13 +192,13 @@ class AccordionRow extends Group {
 
 class AccordionDemo extends Entity {
   private rows: AccordionRow[] = [];
-  private openId: string | null = "shipping";
+  private openId: string | null = 'shipping';
   private container: Card;
   private W = 0;
   private H = 0;
 
   constructor() {
-    super("AccordionDemo");
+    super('AccordionDemo');
     this.container = new Card({
       width: 0,
       height: 0,
@@ -229,8 +226,7 @@ class AccordionDemo extends Entity {
   }
 
   private applyOpen(animate: boolean): void {
-    for (const row of this.rows)
-      row.setExpanded(row.id === this.openId, animate);
+    for (const row of this.rows) row.setExpanded(row.id === this.openId, animate);
   }
 
   private reflowList(): void {
@@ -268,8 +264,8 @@ class AccordionDemo extends Entity {
     drawDemoHeader(
       r,
       left,
-      "Finally sane accordion",
-      "The section heights are calculated without measuring the DOM and without CSS hacks.",
+      'Finally sane accordion',
+      'The section heights are calculated without measuring the DOM and without CSS hacks.',
     );
   }
 }

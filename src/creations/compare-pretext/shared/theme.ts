@@ -9,27 +9,27 @@
  */
 
 export const WARM = {
-  page: "#f5f1ea",
-  pageTop: "#fbf7f0",
-  panel: "#fffdf8",
-  ink: "#201b18",
-  muted: "#6d645d",
-  faint: "#8f857b",
-  rule: "#d8cec3",
-  accent: "#955f3b",
-  accentSoft: "#c99b6f",
+  page: '#f5f1ea',
+  pageTop: '#fbf7f0',
+  panel: '#fffdf8',
+  ink: '#201b18',
+  muted: '#6d645d',
+  faint: '#8f857b',
+  rule: '#d8cec3',
+  accent: '#955f3b',
+  accentSoft: '#c99b6f',
 } as const;
 
 export const DARK = {
-  page: "#0a0a0c",
-  pageAlt: "#0f0f14",
-  panel: "#14141b",
-  ink: "#f1f0ee",
-  muted: "#9a978f",
-  faint: "#6b6862",
-  rule: "#262630",
-  accent: "#7c5cff",
-  accentSoft: "#22d3ee",
+  page: '#0a0a0c',
+  pageAlt: '#0f0f14',
+  panel: '#14141b',
+  ink: '#f1f0ee',
+  muted: '#9a978f',
+  faint: '#6b6862',
+  rule: '#262630',
+  accent: '#7c5cff',
+  accentSoft: '#22d3ee',
 } as const;
 
 export const FONT = {
@@ -48,62 +48,62 @@ export interface DemoCardInfo {
 
 export const DEMO_CARDS: DemoCardInfo[] = [
   {
-    id: "benchmark",
-    title: "Measured head-to-head",
+    id: 'benchmark',
+    title: 'Measured head-to-head',
     description:
       "The real comparison: this Creation's other demos reimplement pretext's layouts, but this one runs pretext itself alongside VectoJS on the same corpus and reports what each actually costs — including where VectoJS is slower.",
   },
   {
-    id: "accordion",
-    title: "Accordion",
+    id: 'accordion',
+    title: 'Accordion',
     description:
-      "Expand and collapse sections whose text heights are calculated ahead of time — zero layout shift, on a canvas that never had DOM reflow to begin with.",
+      'Expand and collapse sections whose text heights are calculated ahead of time — zero layout shift, on a canvas that never had DOM reflow to begin with.',
   },
   {
-    id: "bubbles",
-    title: "Bubbles",
+    id: 'bubbles',
+    title: 'Bubbles',
     description:
-      "Tight multiline message bubbles that keep the same line count with less wasted area, found by a binary search over cached glyph widths.",
+      'Tight multiline message bubbles that keep the same line count with less wasted area, found by a binary search over cached glyph widths.',
   },
   {
-    id: "dynamic-layout",
-    title: "Dynamic Layout",
+    id: 'dynamic-layout',
+    title: 'Dynamic Layout',
     description:
-      "A fixed-height editorial spread with obstacle-aware title routing and continuous multi-column flow.",
+      'A fixed-height editorial spread with obstacle-aware title routing and continuous multi-column flow.',
   },
   {
-    id: "variable-typographic-ascii",
-    title: "Variable Typographic ASCII",
+    id: 'variable-typographic-ascii',
+    title: 'Variable Typographic ASCII',
     description:
-      "Particle-driven ASCII art comparing proportional measured glyphs against a monospace version.",
+      'Particle-driven ASCII art comparing proportional measured glyphs against a monospace version.',
   },
   {
-    id: "editorial-engine",
-    title: "Editorial Engine",
+    id: 'editorial-engine',
+    title: 'Editorial Engine',
     description:
-      "Animated orbs, live text reflow, pull quotes, and multi-column flow, computed every frame without a single DOM read.",
+      'Animated orbs, live text reflow, pull quotes, and multi-column flow, computed every frame without a single DOM read.',
   },
   {
-    id: "justification-comparison",
-    title: "Justification Comparison",
+    id: 'justification-comparison',
+    title: 'Justification Comparison',
     description:
-      "Greedy hyphenation and Knuth-Plass paragraph layout shown side by side to reveal rivers and spacing tradeoffs.",
+      'Greedy hyphenation and Knuth-Plass paragraph layout shown side by side to reveal rivers and spacing tradeoffs.',
   },
   {
-    id: "rich-note",
-    title: "Rich Text",
+    id: 'rich-note',
+    title: 'Rich Text',
     description:
-      "Rich inline text, code spans, links, and chips laid out together — pills stay whole while the text keeps wrapping naturally.",
+      'Rich inline text, code spans, links, and chips laid out together — pills stay whole while the text keeps wrapping naturally.',
   },
   {
-    id: "markdown-chat",
-    title: "Markdown Chat",
+    id: 'markdown-chat',
+    title: 'Markdown Chat',
     description:
-      "A virtualized chat demo rendering ten thousand markdown messages with rich inline flow and preserved-whitespace code blocks.",
+      'A virtualized chat demo rendering ten thousand markdown messages with rich inline flow and preserved-whitespace code blocks.',
   },
   {
-    id: "masonry",
-    title: "Masonry",
+    id: 'masonry',
+    title: 'Masonry',
     description:
       "A text-card masonry layout where every card's exact height is known before it's ever placed on screen.",
   },

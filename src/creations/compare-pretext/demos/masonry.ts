@@ -11,13 +11,13 @@
  * viewport are mounted as real children of `ScrollView.content`; cards that
  * scroll away are unmounted, not just hidden.
  */
-import { Entity, LayoutEngine, type IRenderer } from "@vectojs/core";
-import { Text } from "@vectojs/ui";
-import { WARM, FONT } from "../shared/theme";
-import { fontMeasurer } from "../shared/measure";
-import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from "../shared/chrome";
-import { ScrollColumn } from "../shared/ScrollColumn";
-import { MASONRY_QUIPS } from "./masonry-data";
+import { Entity, LayoutEngine, type IRenderer } from '@vectojs/core';
+import { Text } from '@vectojs/ui';
+import { WARM, FONT } from '../shared/theme';
+import { fontMeasurer } from '../shared/measure';
+import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from '../shared/chrome';
+import { ScrollColumn } from '../shared/ScrollColumn';
+import { MASONRY_QUIPS } from './masonry-data';
 
 const CARD_FONT_SIZE = 14;
 const CARD_LINE_HEIGHT = 21;
@@ -58,8 +58,8 @@ class MasonryCard extends Entity {
   render(r: IRenderer): void {
     r.beginPath();
     r.roundRect(0, 0, this.width, this.height, 10);
-    r.fill("#ffffff");
-    r.stroke("rgba(0,0,0,0.06)", 1);
+    r.fill('#ffffff');
+    r.stroke('rgba(0,0,0,0.06)', 1);
   }
 }
 
@@ -81,9 +81,9 @@ class MasonryDemo extends Entity {
   private lastScrollTop = -1;
 
   constructor() {
-    super("MasonryDemo");
+    super('MasonryDemo');
     this.engine = new LayoutEngine(1e9, 1e9, fontMeasurer(CARD_FONT));
-    this.scrollCol = new ScrollColumn(0, 0, "MasonryScroll");
+    this.scrollCol = new ScrollColumn(0, 0, 'MasonryScroll');
     this.add(this.scrollCol);
   }
 
@@ -99,14 +99,8 @@ class MasonryDemo extends Entity {
       colWidth = Math.min(MAX_COL_WIDTH, viewportWidth - GAP * 2);
     } else {
       const minColWidth = 100 + viewportWidth * 0.1;
-      colCount = Math.max(
-        2,
-        Math.floor((viewportWidth + GAP) / (minColWidth + GAP)),
-      );
-      colWidth = Math.min(
-        MAX_COL_WIDTH,
-        (viewportWidth - (colCount + 1) * GAP) / colCount,
-      );
+      colCount = Math.max(2, Math.floor((viewportWidth + GAP) / (minColWidth + GAP)));
+      colWidth = Math.min(MAX_COL_WIDTH, (viewportWidth - (colCount + 1) * GAP) / colCount);
     }
     const textWidth = colWidth - CARD_PADDING * 2;
     const contentWidth = colCount * colWidth + (colCount - 1) * GAP;
@@ -121,11 +115,7 @@ class MasonryDemo extends Entity {
       for (let c = 1; c < colCount; c++) {
         if (colHeights[c] < colHeights[shortest]) shortest = c;
       }
-      const prepared = this.engine.prepare(
-        MASONRY_QUIPS[i],
-        {},
-        CARD_FONT_SIZE,
-      );
+      const prepared = this.engine.prepare(MASONRY_QUIPS[i], {}, CARD_FONT_SIZE);
       const result = this.engine.layoutPrepared(prepared);
       const totalH = result.totalHeight + CARD_PADDING * 2;
 
@@ -205,11 +195,11 @@ class MasonryDemo extends Entity {
   render(r: IRenderer): void {
     r.beginPath();
     r.roundRect(0, 0, this.W, this.H, 0);
-    r.fill("#f0f0f0");
+    r.fill('#f0f0f0');
     drawDemoHeader(
       r,
       32,
-      "Masonry",
+      'Masonry',
       "Every card's exact height is known before it is placed — no off-screen measure pass.",
     );
     r.fillText(
@@ -217,7 +207,7 @@ class MasonryDemo extends Entity {
       210,
       HEADER_TITLE_Y,
       FONT.mono(12),
-      "#8a8378",
+      '#8a8378',
     );
   }
 }

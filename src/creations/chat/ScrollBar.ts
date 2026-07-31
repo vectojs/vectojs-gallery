@@ -12,7 +12,7 @@
  * back through {@link ScrollBar.thumbBand} and the `hover`/`dragging` flags.
  * Thumb sizing math is adapted from `compare-pretext/shared/ScrollColumn`.
  */
-import { Entity, type IRenderer } from "@vectojs/core";
+import { Entity, type IRenderer } from '@vectojs/core';
 
 export const SCROLLBAR_W = 8;
 export const SCROLLBAR_PAD = 4;
@@ -41,7 +41,7 @@ export class ScrollBar extends Entity {
   public dragging = false;
 
   constructor() {
-    super("ScrollBar");
+    super('ScrollBar');
     this.interactive = false; // pure overlay — see class doc
   }
 
@@ -56,10 +56,7 @@ export class ScrollBar extends Entity {
     const { viewH, contentH, scrollY } = this.metrics();
     const maxScroll = Math.max(1, contentH - viewH);
     const track = this.height - SCROLLBAR_PAD * 2 - this.thumbH();
-    return (
-      SCROLLBAR_PAD +
-      (Math.max(0, Math.min(scrollY, maxScroll)) / maxScroll) * track
-    );
+    return SCROLLBAR_PAD + (Math.max(0, Math.min(scrollY, maxScroll)) / maxScroll) * track;
   }
 
   /**
@@ -87,21 +84,11 @@ export class ScrollBar extends Entity {
     const tx = this.width - SCROLLBAR_W - SCROLLBAR_PAD;
     // Track
     r.beginPath();
-    r.roundRect(
-      tx,
-      SCROLLBAR_PAD,
-      SCROLLBAR_W,
-      this.height - SCROLLBAR_PAD * 2,
-      SCROLLBAR_W / 2,
-    );
-    r.fill("rgba(120,110,95,0.10)");
+    r.roundRect(tx, SCROLLBAR_PAD, SCROLLBAR_W, this.height - SCROLLBAR_PAD * 2, SCROLLBAR_W / 2);
+    r.fill('rgba(120,110,95,0.10)');
     // Thumb
     r.beginPath();
     r.roundRect(tx, this.thumbY(), SCROLLBAR_W, th, SCROLLBAR_W / 2);
-    r.fill(
-      this.dragging || this.hover
-        ? "rgba(120,110,95,0.60)"
-        : "rgba(120,110,95,0.34)",
-    );
+    r.fill(this.dragging || this.hover ? 'rgba(120,110,95,0.60)' : 'rgba(120,110,95,0.34)');
   }
 }

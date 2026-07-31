@@ -14,10 +14,10 @@
  * `prepareWithSegments`/`layoutNextLine`. Three columns are painted directly
  * via `IRenderer` inside a `ScrollView`.
  */
-import { Entity, type IRenderer } from "@vectojs/core";
-import { WARM, FONT as UIFONT } from "../shared/theme";
-import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from "../shared/chrome";
-import { ScrollColumn } from "../shared/ScrollColumn";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { WARM, FONT as UIFONT } from '../shared/theme';
+import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from '../shared/chrome';
+import { ScrollColumn } from '../shared/ScrollColumn';
 import {
   PARAGRAPHS,
   FONT,
@@ -28,22 +28,22 @@ import {
   HYPHEN_EXCEPTIONS,
   PREFIXES,
   SUFFIXES,
-} from "./justification-data";
+} from './justification-data';
 
 const HUGE_BADNESS = 1e8;
-const SOFT_HYPHEN = "\u00ad";
+const SOFT_HYPHEN = '\u00ad';
 const SHORT_LINE_RATIO = 0.6;
 const RIVER_THRESHOLD = 1.5;
 const INFEASIBLE_SPACE_RATIO = 0.4;
 const OVERFLOW_SPACE_RATIO = 0.2;
 const TIGHT_SPACE_RATIO = 0.65;
 
-type TrailingMarker = "none" | "soft-hyphen";
-type LineEnding = "paragraph-end" | "wrap";
-type BreakCandidateKind = "start" | "space" | "soft-hyphen" | "end";
+type TrailingMarker = 'none' | 'soft-hyphen';
+type LineEnding = 'paragraph-end' | 'wrap';
+type BreakCandidateKind = 'start' | 'space' | 'soft-hyphen' | 'end';
 
 interface LineSegment {
-  kind: "text" | "space";
+  kind: 'text' | 'space';
   text: string;
   width: number;
 }
@@ -57,9 +57,9 @@ interface MeasuredLine {
   trailingMarker: TrailingMarker;
 }
 type LineSpacing =
-  | { kind: "ragged" }
-  | { kind: "overflow" }
-  | { kind: "justified"; width: number; isRiver: boolean };
+  | { kind: 'ragged' }
+  | { kind: 'overflow' }
+  | { kind: 'justified'; width: number; isRiver: boolean };
 type PositionedLine = MeasuredLine & { y: number; spacing: LineSpacing };
 interface QualityMetrics {
   avgDeviation: number;
@@ -98,9 +98,7 @@ function isSpaceText(t: string): boolean {
 
 function makeMeasurer(): (t: string) => number {
   const ctx =
-    typeof document !== "undefined"
-      ? document.createElement("canvas").getContext("2d")
-      : null;
+    typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
   const cache = new Map<string, number>();
   if (ctx) ctx.font = FONT;
   return (t: string): number => {
@@ -114,18 +112,15 @@ function makeMeasurer(): (t: string) => number {
 }
 
 /** Split into alternating word / space segments, keeping SHY as its own segment. */
-function prepareParagraph(
-  text: string,
-  measure: (t: string) => number,
-): PreparedParagraph {
+function prepareParagraph(text: string, measure: (t: string) => number): PreparedParagraph {
   const segments: string[] = [];
   const widths: number[] = [];
   const raw = text.split(/(\s+)/);
   for (const token of raw) {
     if (token.length === 0) continue;
     if (isSpaceText(token)) {
-      segments.push(" ");
-      widths.push(measure(" "));
+      segments.push(' ');
+      widths.push(measure(' '));
       continue;
     }
     // Split the word around soft hyphens so each SHY is its own segment.
@@ -147,7 +142,7 @@ function prepareParagraph(
 // --- hyphenation (original, generic English morphology) --------------------
 
 function hyphenateWord(word: string): string[] {
-  const lower = word.toLowerCase().replace(/[.,;:!?"'—–-]/g, "");
+  const lower = word.toLowerCase().replace(/[.,;:!?"'—–-]/g, '');
   if (lower.length < 5) return [word];
   const exact = HYPHEN_EXCEPTIONS[lower];
   if (exact !== undefined) {
@@ -176,7 +171,7 @@ function hyphenateWord(word: string): string[] {
 
 function hyphenateParagraphText(paragraph: string): string {
   const tokens = paragraph.split(/(\s+)/);
-  let out = "";
+  let out = '';
   for (const token of tokens) {
     if (/^\s+$/.test(token)) {
       out += token;
@@ -201,8 +196,7 @@ function greedyLineEnd(
   const n = segments.length;
   let i = startSeg;
   // Skip leading spaces / SHY at line start.
-  while (i < n && (isSpaceText(segments[i]) || segments[i] === SOFT_HYPHEN))
-    i++;
+  while (i < n && (isSpaceText(segments[i]) || segments[i] === SOFT_HYPHEN)) i++;
   if (i >= n) return n;
 
   let used = 0;
@@ -235,28 +229,27 @@ function buildLineFromRange(
   hyphenWidth: number,
   endingKind: BreakCandidateKind,
 ): MeasuredLine {
-  const ending: LineEnding =
-    to >= prepared.segments.length ? "paragraph-end" : "wrap";
-  let trailingMarker: TrailingMarker = "none";
+  const ending: LineEnding = to >= prepared.segments.length ? 'paragraph-end' : 'wrap';
+  let trailingMarker: TrailingMarker = 'none';
   const segments: LineSegment[] = [];
 
   for (let s = from; s < to; s++) {
     const text = prepared.segments[s];
     if (text === SOFT_HYPHEN) {
-      if (s === to - 1) trailingMarker = "soft-hyphen";
+      if (s === to - 1) trailingMarker = 'soft-hyphen';
       continue;
     }
     segments.push(toLineSegment(text, prepared.widths[s]));
   }
   if (
-    trailingMarker === "none" &&
-    (endingKind === "soft-hyphen" ||
+    trailingMarker === 'none' &&
+    (endingKind === 'soft-hyphen' ||
       (to < prepared.segments.length && prepared.segments[to] === SOFT_HYPHEN))
   ) {
-    trailingMarker = "soft-hyphen";
+    trailingMarker = 'soft-hyphen';
   }
-  if (trailingMarker === "soft-hyphen" && ending === "wrap") {
-    segments.push({ kind: "text", text: "-", width: hyphenWidth });
+  if (trailingMarker === 'soft-hyphen' && ending === 'wrap') {
+    segments.push({ kind: 'text', text: '-', width: hyphenWidth });
   }
   trimTrailingSpaces(segments);
   return finalizeMeasuredLine(segments, maxWidth, ending, trailingMarker);
@@ -275,12 +268,8 @@ function layoutParagraphGreedy(
   while (start < n) {
     const end = greedyLineEnd(prepared, start, maxWidth, hyphenWidth);
     const kind: BreakCandidateKind =
-      end < n && prepared.segments[end - 1] === SOFT_HYPHEN
-        ? "soft-hyphen"
-        : "space";
-    lines.push(
-      buildLineFromRange(prepared, start, end, maxWidth, hyphenWidth, kind),
-    );
+      end < n && prepared.segments[end - 1] === SOFT_HYPHEN ? 'soft-hyphen' : 'space';
+    lines.push(buildLineFromRange(prepared, start, end, maxWidth, hyphenWidth, kind));
     if (end <= start) break;
     start = end;
   }
@@ -299,19 +288,18 @@ function layoutParagraphOptimal(
   const segmentCount = segments.length;
   if (segmentCount === 0) return [];
 
-  const breakCandidates: BreakCandidate[] = [{ segIndex: 0, kind: "start" }];
+  const breakCandidates: BreakCandidate[] = [{ segIndex: 0, kind: 'start' }];
   for (let s = 0; s < segmentCount; s++) {
     const text = segments[s];
     if (text === SOFT_HYPHEN) {
-      if (s + 1 < segmentCount)
-        breakCandidates.push({ segIndex: s + 1, kind: "soft-hyphen" });
+      if (s + 1 < segmentCount) breakCandidates.push({ segIndex: s + 1, kind: 'soft-hyphen' });
       continue;
     }
     if (isSpaceText(text) && s + 1 < segmentCount) {
-      breakCandidates.push({ segIndex: s + 1, kind: "space" });
+      breakCandidates.push({ segIndex: s + 1, kind: 'space' });
     }
   }
-  breakCandidates.push({ segIndex: segmentCount, kind: "end" });
+  breakCandidates.push({ segIndex: segmentCount, kind: 'end' });
 
   const candidateCount = breakCandidates.length;
   const dp: number[] = Array.from({ length: candidateCount }, () => Infinity);
@@ -319,7 +307,7 @@ function layoutParagraphOptimal(
   dp[0] = 0;
 
   for (let to = 1; to < candidateCount; to++) {
-    const isLastLine = breakCandidates[to].kind === "end";
+    const isLastLine = breakCandidates[to].kind === 'end';
     for (let from = to - 1; from >= 0; from--) {
       if (dp[from] === Infinity) continue;
       const stats = lineStatsFromCandidates(
@@ -332,8 +320,7 @@ function layoutParagraphOptimal(
         normalSpaceWidth,
       );
       if (stats.naturalWidth > maxWidth * 2) break;
-      const total =
-        dp[from] + lineBadness(stats, maxWidth, normalSpaceWidth, isLastLine);
+      const total = dp[from] + lineBadness(stats, maxWidth, normalSpaceWidth, isLastLine);
       if (total < dp[to]) {
         dp[to] = total;
         previous[to] = from;
@@ -359,14 +346,7 @@ function layoutParagraphOptimal(
     const fromSeg = breakCandidates[from].segIndex;
     const toSeg = breakCandidates[to].segIndex;
     lines.push(
-      buildLineFromRange(
-        prepared,
-        fromSeg,
-        toSeg,
-        maxWidth,
-        hyphenWidth,
-        breakCandidates[to].kind,
-      ),
+      buildLineFromRange(prepared, fromSeg, toSeg, maxWidth, hyphenWidth, breakCandidates[to].kind),
     );
     from = to;
   }
@@ -385,9 +365,7 @@ function lineStatsFromCandidates(
   const from = breakCandidates[fromCandidate].segIndex;
   const to = breakCandidates[toCandidate].segIndex;
   const trailingMarker: TrailingMarker =
-    breakCandidates[toCandidate].kind === "soft-hyphen"
-      ? "soft-hyphen"
-      : "none";
+    breakCandidates[toCandidate].kind === 'soft-hyphen' ? 'soft-hyphen' : 'none';
 
   let wordWidth = 0;
   let spaceCount = 0;
@@ -401,7 +379,7 @@ function lineStatsFromCandidates(
     wordWidth += widths[s];
   }
   if (to > from && isSpaceText(segments[to - 1])) spaceCount--;
-  if (trailingMarker === "soft-hyphen") wordWidth += hyphenWidth;
+  if (trailingMarker === 'soft-hyphen') wordWidth += hyphenWidth;
 
   return {
     wordWidth,
@@ -428,41 +406,33 @@ function lineBadness(
   }
   const justifiedSpace = (maxWidth - stats.wordWidth) / stats.spaceCount;
   if (justifiedSpace < 0) return HUGE_BADNESS;
-  if (justifiedSpace < normalSpaceWidth * INFEASIBLE_SPACE_RATIO)
-    return HUGE_BADNESS;
+  if (justifiedSpace < normalSpaceWidth * INFEASIBLE_SPACE_RATIO) return HUGE_BADNESS;
 
   const ratio = (justifiedSpace - normalSpaceWidth) / normalSpaceWidth;
   const absRatio = Math.abs(ratio);
   const badness = absRatio * absRatio * absRatio * 1000;
 
   const riverExcess = justifiedSpace / normalSpaceWidth - RIVER_THRESHOLD;
-  const riverPenalty =
-    riverExcess > 0 ? 5000 + riverExcess * riverExcess * 10000 : 0;
+  const riverPenalty = riverExcess > 0 ? 5000 + riverExcess * riverExcess * 10000 : 0;
 
   const tightThreshold = normalSpaceWidth * TIGHT_SPACE_RATIO;
   const tightPenalty =
     justifiedSpace < tightThreshold
-      ? 3000 +
-        (tightThreshold - justifiedSpace) *
-          (tightThreshold - justifiedSpace) *
-          10000
+      ? 3000 + (tightThreshold - justifiedSpace) * (tightThreshold - justifiedSpace) * 10000
       : 0;
 
-  const hyphenPenalty = stats.trailingMarker === "soft-hyphen" ? 50 : 0;
+  const hyphenPenalty = stats.trailingMarker === 'soft-hyphen' ? 50 : 0;
   return badness + riverPenalty + tightPenalty + hyphenPenalty;
 }
 
 // --- shared line finalization + metrics ------------------------------------
 
 function toLineSegment(text: string, width: number): LineSegment {
-  if (isSpaceText(text)) return { kind: "space", text, width };
-  return { kind: "text", text, width };
+  if (isSpaceText(text)) return { kind: 'space', text, width };
+  return { kind: 'text', text, width };
 }
 function trimTrailingSpaces(segments: LineSegment[]): void {
-  while (
-    segments.length > 0 &&
-    segments[segments.length - 1].kind === "space"
-  ) {
+  while (segments.length > 0 && segments[segments.length - 1].kind === 'space') {
     segments.pop();
   }
 }
@@ -477,7 +447,7 @@ function finalizeMeasuredLine(
   let naturalWidth = 0;
   for (const seg of segments) {
     naturalWidth += seg.width;
-    if (seg.kind === "space") spaceCount++;
+    if (seg.kind === 'space') spaceCount++;
     else wordWidth += seg.width;
   }
   return {
@@ -491,10 +461,7 @@ function finalizeMeasuredLine(
   };
 }
 
-function computeMetrics(
-  paragraphs: MeasuredLine[][],
-  normalSpaceWidth: number,
-): QualityMetrics {
+function computeMetrics(paragraphs: MeasuredLine[][], normalSpaceWidth: number): QualityMetrics {
   let totalDeviation = 0;
   let maxDeviation = 0;
   let deviationCount = 0;
@@ -520,7 +487,7 @@ function computeMetrics(
   };
 }
 function metricSpaceWidth(line: MeasuredLine): number | null {
-  if (line.ending === "paragraph-end" || line.spaceCount <= 0) return null;
+  if (line.ending === 'paragraph-end' || line.spaceCount <= 0) return null;
   return (line.maxWidth - line.wordWidth) / line.spaceCount;
 }
 
@@ -552,19 +519,14 @@ function positionColumn(
   };
 }
 
-function displaySpacing(
-  line: MeasuredLine,
-  normalSpaceWidth: number,
-): LineSpacing {
-  if (line.ending === "paragraph-end") return { kind: "ragged" };
-  if (line.naturalWidth < line.maxWidth * SHORT_LINE_RATIO)
-    return { kind: "ragged" };
-  if (line.spaceCount <= 0) return { kind: "ragged" };
+function displaySpacing(line: MeasuredLine, normalSpaceWidth: number): LineSpacing {
+  if (line.ending === 'paragraph-end') return { kind: 'ragged' };
+  if (line.naturalWidth < line.maxWidth * SHORT_LINE_RATIO) return { kind: 'ragged' };
+  if (line.spaceCount <= 0) return { kind: 'ragged' };
   const raw = (line.maxWidth - line.wordWidth) / line.spaceCount;
-  if (raw < normalSpaceWidth * OVERFLOW_SPACE_RATIO)
-    return { kind: "overflow" };
+  if (raw < normalSpaceWidth * OVERFLOW_SPACE_RATIO) return { kind: 'overflow' };
   return {
-    kind: "justified",
+    kind: 'justified',
     width: raw,
     isRiver: raw > normalSpaceWidth * RIVER_THRESHOLD,
   };
@@ -576,15 +538,9 @@ interface RiverIndicator {
   b: number;
   a: number;
 }
-function riverIndicator(
-  spaceWidth: number,
-  normal: number,
-): RiverIndicator | null {
+function riverIndicator(spaceWidth: number, normal: number): RiverIndicator | null {
   if (spaceWidth <= normal * RIVER_THRESHOLD) return null;
-  const intensity = Math.min(
-    1,
-    (spaceWidth / normal - RIVER_THRESHOLD) / RIVER_THRESHOLD,
-  );
+  const intensity = Math.min(1, (spaceWidth / normal - RIVER_THRESHOLD) / RIVER_THRESHOLD);
   return {
     r: Math.round(220 + intensity * 35),
     g: Math.round(180 - intensity * 80),
@@ -611,11 +567,7 @@ class JustificationColumn extends Entity {
   private showRivers: () => boolean;
   private normalSpaceWidth: () => number;
 
-  constructor(
-    title: string,
-    showRivers: () => boolean,
-    normalSpaceWidth: () => number,
-  ) {
+  constructor(title: string, showRivers: () => boolean, normalSpaceWidth: () => number) {
     super();
     this.title = title;
     this.showRivers = showRivers;
@@ -633,7 +585,7 @@ class JustificationColumn extends Entity {
     // panel background
     r.beginPath();
     r.roundRect(0, 0, w, this.height, 14);
-    r.fill("#ffffff");
+    r.fill('#ffffff');
     r.stroke(WARM.rule, 1);
 
     // header: title + metrics
@@ -652,7 +604,7 @@ class JustificationColumn extends Entity {
       PAD,
       78,
       UIFONT.mono(11),
-      m.riverCount > 0 ? "#c0392b" : "#2e7d32",
+      m.riverCount > 0 ? '#c0392b' : '#2e7d32',
     );
 
     // text body
@@ -663,8 +615,7 @@ class JustificationColumn extends Entity {
     const normal = this.normalSpaceWidth();
     const show = this.showRivers();
     for (const paragraph of f.paragraphs) {
-      for (const line of paragraph)
-        this.paintLine(r, line, HEADER_H, show, normal);
+      for (const line of paragraph) this.paintLine(r, line, HEADER_H, show, normal);
     }
     r.restore();
   }
@@ -678,38 +629,32 @@ class JustificationColumn extends Entity {
   ): void {
     let x = PAD;
     const baseline = yOffset + line.y + FONT_SIZE;
-    if (line.spacing.kind === "justified") {
+    if (line.spacing.kind === 'justified') {
       for (const seg of line.segments) {
-        if (seg.kind === "space") {
+        if (seg.kind === 'space') {
           if (showRivers && line.spacing.isRiver) {
             const ind = riverIndicator(line.spacing.width, normal);
             if (ind) {
               r.beginPath();
-              r.roundRect(
-                x + 1,
-                yOffset + line.y,
-                line.spacing.width - 2,
-                LINE_HEIGHT,
-                0,
-              );
+              r.roundRect(x + 1, yOffset + line.y, line.spacing.width - 2, LINE_HEIGHT, 0);
               r.fill(`rgba(${ind.r},${ind.g},${ind.b},${ind.a})`);
             }
           }
           x += line.spacing.width;
           continue;
         }
-        r.fillText(seg.text, x, baseline, FONT, "#2a2520");
+        r.fillText(seg.text, x, baseline, FONT, '#2a2520');
         x += seg.width;
       }
       return;
     }
     // ragged / overflow: natural spacing
     for (const seg of line.segments) {
-      if (seg.kind === "space") {
+      if (seg.kind === 'space') {
         x += seg.width;
         continue;
       }
-      r.fillText(seg.text, x, baseline, FONT, "#2a2520");
+      r.fillText(seg.text, x, baseline, FONT, '#2a2520');
       x += seg.width;
     }
   }
@@ -737,31 +682,27 @@ class JustificationDemo extends Entity {
   private hyphenPrepared: PreparedParagraph[];
 
   constructor() {
-    super("JustificationDemo");
+    super('JustificationDemo');
     this.measure = makeMeasurer();
-    this.normalSpaceWidth = this.measure(" ");
-    this.hyphenWidth = this.measure("-");
-    this.basePrepared = PARAGRAPHS.map((p) =>
-      prepareParagraph(p, this.measure),
-    );
+    this.normalSpaceWidth = this.measure(' ');
+    this.hyphenWidth = this.measure('-');
+    this.basePrepared = PARAGRAPHS.map((p) => prepareParagraph(p, this.measure));
     this.hyphenPrepared = PARAGRAPHS.map((p) =>
       prepareParagraph(hyphenateParagraphText(p), this.measure),
     );
 
     this.colSpecs = [
       {
-        title: "CSS greedy (justify)",
+        title: 'CSS greedy (justify)',
         build: (cw) =>
           positionColumn(
             cw,
-            this.basePrepared.map((p) =>
-              layoutParagraphGreedy(p, cw - PAD * 2, this.hyphenWidth),
-            ),
+            this.basePrepared.map((p) => layoutParagraphGreedy(p, cw - PAD * 2, this.hyphenWidth)),
             this.normalSpaceWidth,
           ),
       },
       {
-        title: "Greedy + hyphenation",
+        title: 'Greedy + hyphenation',
         build: (cw) =>
           positionColumn(
             cw,
@@ -772,24 +713,19 @@ class JustificationDemo extends Entity {
           ),
       },
       {
-        title: "Knuth-Plass optimal",
+        title: 'Knuth-Plass optimal',
         build: (cw) =>
           positionColumn(
             cw,
             this.hyphenPrepared.map((p) =>
-              layoutParagraphOptimal(
-                p,
-                cw - PAD * 2,
-                this.hyphenWidth,
-                this.normalSpaceWidth,
-              ),
+              layoutParagraphOptimal(p, cw - PAD * 2, this.hyphenWidth, this.normalSpaceWidth),
             ),
             this.normalSpaceWidth,
           ),
       },
     ];
 
-    this.scrollCol = new ScrollColumn(0, 0, "JustifyScroll");
+    this.scrollCol = new ScrollColumn(0, 0, 'JustifyScroll');
     this.add(this.scrollCol);
     for (const spec of this.colSpecs) {
       const col = new JustificationColumn(
@@ -802,7 +738,7 @@ class JustificationDemo extends Entity {
     }
 
     this.interactive = true;
-    this.on("pointerdown", (e: { localX?: number; localY?: number }) => {
+    this.on('pointerdown', (e: { localX?: number; localY?: number }) => {
       if (this.inToggle(e.localX, e.localY)) {
         this.showRivers = !this.showRivers;
         this.rebuild();
@@ -813,13 +749,13 @@ class JustificationDemo extends Entity {
         this.updateSlider(e.localX);
       }
     });
-    this.on("pointermove", (e: { localX?: number }) => {
+    this.on('pointermove', (e: { localX?: number }) => {
       if (this.dragging) this.updateSlider(e.localX);
     });
-    this.on("pointerup", () => {
+    this.on('pointerup', () => {
       this.dragging = false;
     });
-    this.on("pointerleave", () => {
+    this.on('pointerleave', () => {
       this.dragging = false;
     });
   }
@@ -870,8 +806,7 @@ class JustificationDemo extends Entity {
       col.setPosition(i * (cw + COL_GAP), 0);
       if (col.height > maxH) maxH = col.height;
     }
-    const totalW =
-      this.columns.length * cw + (this.columns.length - 1) * COL_GAP;
+    const totalW = this.columns.length * cw + (this.columns.length - 1) * COL_GAP;
     const left = Math.max(0, (this.W - totalW) / 2);
     for (let i = 0; i < this.columns.length; i++) {
       this.columns[i].setPosition(left + i * (cw + COL_GAP), 0);
@@ -905,8 +840,8 @@ class JustificationDemo extends Entity {
     drawDemoHeader(
       r,
       32,
-      "Rivers of white",
-      "Greedy justification vs. a Knuth-Plass optimal pass — watch the rivers close.",
+      'Rivers of white',
+      'Greedy justification vs. a Knuth-Plass optimal pass — watch the rivers close.',
     );
 
     // width slider
@@ -928,12 +863,12 @@ class JustificationDemo extends Entity {
     const tb = this.toggleBox;
     r.beginPath();
     r.roundRect(tb.x, tb.y, 18, 18, 4);
-    r.fill(this.showRivers ? WARM.accent : "#ffffff");
+    r.fill(this.showRivers ? WARM.accent : '#ffffff');
     r.stroke(WARM.accentSoft, 1);
     if (this.showRivers) {
-      r.fillText("✓", tb.x + 3.5, tb.y + 14, UIFONT.sans(13, 700), "#ffffff");
+      r.fillText('✓', tb.x + 3.5, tb.y + 14, UIFONT.sans(13, 700), '#ffffff');
     }
-    r.fillText("Show rivers", tb.x + 26, tb.y + 14, UIFONT.sans(13), WARM.ink);
+    r.fillText('Show rivers', tb.x + 26, tb.y + 14, UIFONT.sans(13), WARM.ink);
   }
 }
 

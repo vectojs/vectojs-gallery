@@ -5,23 +5,23 @@
  * places is what lets the worker's `marked.lexer()` output be handed
  * straight to `MathMarkdown.updateTokens()` without a mismatch.
  */
-import { marked } from "marked";
+import { marked } from 'marked';
 
 export function registerMathExtensions(): void {
   marked.use({
     extensions: [
       {
-        name: "displayMath",
-        level: "block",
+        name: 'displayMath',
+        level: 'block',
         start(src: string) {
-          return src.indexOf("$$");
+          return src.indexOf('$$');
         },
         tokenizer(src: string) {
           // match $$ ... $$ (display math blocks) even if indented
           const match = /^[ \t]*\$\$([\s\S]+?)\$\$/.exec(src);
           if (match) {
             return {
-              type: "displayMath",
+              type: 'displayMath',
               raw: match[0],
               text: match[1].trim(),
             };
@@ -33,17 +33,17 @@ export function registerMathExtensions(): void {
         },
       },
       {
-        name: "inlineMath",
-        level: "inline",
+        name: 'inlineMath',
+        level: 'inline',
         start(src: string) {
-          return src.indexOf("$");
+          return src.indexOf('$');
         },
         tokenizer(src: string) {
           // Match $formula$ or $$formula$$ (inline)
           const match = /^(\$\$?)([^$]+)\1/.exec(src);
           if (match) {
             return {
-              type: "inlineMath",
+              type: 'inlineMath',
               raw: match[0],
               text: match[2].trim(),
             };

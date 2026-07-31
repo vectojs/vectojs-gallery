@@ -5,9 +5,9 @@
  * button. Hidden once a file is loaded.
  */
 
-import { Entity } from "@vectojs/core";
-import { isInsideBox } from "./hitTest";
-import type { RawRenderer } from "./raw-renderer";
+import { Entity } from '@vectojs/core';
+import { isInsideBox } from './hitTest';
+import type { RawRenderer } from './raw-renderer';
 
 export class DropZone extends Entity {
   private _visible = true;
@@ -25,15 +25,15 @@ export class DropZone extends Entity {
   private _time = 0;
 
   constructor(onClick: () => void) {
-    super("DropZone");
+    super('DropZone');
     this._onClick = onClick;
     this.interactive = true;
 
-    this.on("click", () => this._onClick());
-    this.on("hover", () => {
+    this.on('click', () => this._onClick());
+    this.on('hover', () => {
       this._hovered = true;
     });
-    this.on("pointerleave", () => {
+    this.on('pointerleave', () => {
       this._hovered = false;
     });
   }
@@ -55,11 +55,11 @@ export class DropZone extends Entity {
     const h = this.height;
 
     // Warm parchment background
-    ctx.fillStyle = "#f7f2e8";
+    ctx.fillStyle = '#f7f2e8';
     ctx.fillRect(0, 0, w, h);
 
     // Subtle grid
-    ctx.strokeStyle = "rgba(0,0,0,0.04)";
+    ctx.strokeStyle = 'rgba(0,0,0,0.04)';
     ctx.lineWidth = 1;
     const step = 40;
     for (let x = 0; x < w; x += step) {
@@ -89,32 +89,28 @@ export class DropZone extends Entity {
 
     ctx.beginPath();
     ctx.roundRect(0, 0, cw, ch, 16);
-    ctx.fillStyle = this._hovered
-      ? "rgba(255,255,255,0.9)"
-      : "rgba(255,255,255,0.75)";
+    ctx.fillStyle = this._hovered ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.75)';
     ctx.fill();
-    ctx.strokeStyle = this._hovered
-      ? "rgba(180,130,60,0.5)"
-      : "rgba(0,0,0,0.08)";
+    ctx.strokeStyle = this._hovered ? 'rgba(180,130,60,0.5)' : 'rgba(0,0,0,0.08)';
     ctx.lineWidth = this._hovered ? 1.5 : 1;
     ctx.stroke();
 
     // Icon
     const iconAnim = 4 * Math.sin(this._time * 0.003);
-    ctx.font = "48px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("📄", cw / 2, 72 + iconAnim);
+    ctx.font = '48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('📄', cw / 2, 72 + iconAnim);
 
     // Title
-    ctx.font = "900 24px sans-serif";
-    ctx.fillStyle = "#3d2e1a";
-    ctx.fillText("Drop a file to stream", cw / 2, 140);
+    ctx.font = '900 24px sans-serif';
+    ctx.fillStyle = '#3d2e1a';
+    ctx.fillText('Drop a file to stream', cw / 2, 140);
 
     // Sub
-    ctx.font = "14px sans-serif";
-    ctx.fillStyle = "#8c7a65";
-    ctx.fillText("TXT · Markdown · EPUB · any text file", cw / 2, 172);
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#8c7a65';
+    ctx.fillText('TXT · Markdown · EPUB · any text file', cw / 2, 172);
 
     // Button
     const bw = 180,
@@ -123,29 +119,23 @@ export class DropZone extends Entity {
       by = 210;
     ctx.beginPath();
     ctx.roundRect(bx, by, bw, bh, 20);
-    ctx.fillStyle = this._hovered
-      ? "rgba(180,130,60,0.2)"
-      : "rgba(180,130,60,0.08)";
+    ctx.fillStyle = this._hovered ? 'rgba(180,130,60,0.2)' : 'rgba(180,130,60,0.08)';
     ctx.fill();
-    ctx.strokeStyle = "rgba(180,130,60,0.4)";
+    ctx.strokeStyle = 'rgba(180,130,60,0.4)';
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.font = "bold 14px sans-serif";
-    ctx.fillStyle = "#9a6d30";
-    ctx.fillText("Click to open file", cw / 2, by + bh / 2);
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillStyle = '#9a6d30';
+    ctx.fillText('Click to open file', cw / 2, by + bh / 2);
 
     ctx.restore();
 
     // Hint
-    ctx.font = "11px monospace";
-    ctx.fillStyle = "rgba(120,100,75,0.5)";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.fillText(
-      "Supports drag & drop · EPUB chapters extracted automatically",
-      w / 2,
-      h - 20,
-    );
+    ctx.font = '11px monospace';
+    ctx.fillStyle = 'rgba(120,100,75,0.5)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('Supports drag & drop · EPUB chapters extracted automatically', w / 2, h - 20);
   }
 
   hasPendingAnimations(): boolean {

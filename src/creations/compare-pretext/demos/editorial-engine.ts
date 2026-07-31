@@ -13,45 +13,45 @@
  * own manifesto here); the structure and length match so the layout stress is
  * equivalent.
  */
-import { Entity, type IRenderer } from "@vectojs/core";
-import { DARK } from "../shared/theme";
-import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
-import { LinePool, type PooledLine } from "../shared/LinePool";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { DARK } from '../shared/theme';
+import { CONTENT_TOP, drawDemoHeader } from '../shared/chrome';
+import { LinePool, type PooledLine } from '../shared/LinePool';
 import {
   makeFlowMeasurer,
   prepareFlow,
   layoutNextFlowLine,
   type PreparedFlow,
-} from "../shared/text-flow";
+} from '../shared/text-flow';
 import {
   carveTextLineSlots,
   circleIntervalForBand,
   rectIntervalsForBand,
   type Interval,
   type Rect,
-} from "../shared/wrap-geometry";
+} from '../shared/wrap-geometry';
 
 const BODY_FONT = '17px Georgia, "Times New Roman", serif';
 const BODY_LINE_HEIGHT = 27;
 const HEADLINE_FAMILY = 'Georgia, "Times New Roman", serif';
-const HEADLINE_TEXT = "THE FUTURE OF TEXT LAYOUT IS CANVAS";
+const HEADLINE_TEXT = 'THE FUTURE OF TEXT LAYOUT IS CANVAS';
 const PQ_FONT = 'italic 18px Georgia, "Times New Roman", serif';
 const PQ_LINE_HEIGHT = 26;
 const MIN_SLOT = 60;
 
 const BODY_TEXT =
-  "For thirty years the browser has been the gatekeeper of everything text knows about itself. If you wanted a width, a height, a line count, you asked the layout tree, and the layout tree answered only after a synchronous reflow that could freeze the main thread. That toll was invisible for a paragraph in an article and ruinous for an application, where knowing the size of text is the first step of nearly every interesting layout. " +
-  "A chat window needs the exact height of a bubble before it can virtualize a list. A masonry wall needs the height of a card before it can place it. An editorial page needs text to move around images and quotations. A dashboard needs to reflow the instant a panel is dragged. Every one of these is a text measurement, and on the traditional web every text measurement is a reflow. Measure five hundred blocks and you have paid for five hundred full layout passes. " +
-  "VectoJS starts from a different place. There is no document to reflow, because nothing is laid out in the DOM at all. Text is measured once on the canvas, and from then on a line is arithmetic: walk the cached widths, track the running total, break when it overflows, sum the heights. The answer costs microseconds and it costs the same whether the page holds ten elements or ten thousand. " +
-  "Once measurement is free, a whole category of interface that used to be too expensive becomes ordinary. Text can wrap around any shape, because you control the width of every line directly: compute which horizontal spans an obstacle blocks on this band, subtract them, and hand the engine what remains. The obstacles can be rectangles, circles, or arbitrary polygons, and they can move, because a reflow that costs nothing can happen on every frame. " +
+  'For thirty years the browser has been the gatekeeper of everything text knows about itself. If you wanted a width, a height, a line count, you asked the layout tree, and the layout tree answered only after a synchronous reflow that could freeze the main thread. That toll was invisible for a paragraph in an article and ruinous for an application, where knowing the size of text is the first step of nearly every interesting layout. ' +
+  'A chat window needs the exact height of a bubble before it can virtualize a list. A masonry wall needs the height of a card before it can place it. An editorial page needs text to move around images and quotations. A dashboard needs to reflow the instant a panel is dragged. Every one of these is a text measurement, and on the traditional web every text measurement is a reflow. Measure five hundred blocks and you have paid for five hundred full layout passes. ' +
+  'VectoJS starts from a different place. There is no document to reflow, because nothing is laid out in the DOM at all. Text is measured once on the canvas, and from then on a line is arithmetic: walk the cached widths, track the running total, break when it overflows, sum the heights. The answer costs microseconds and it costs the same whether the page holds ten elements or ten thousand. ' +
+  'Once measurement is free, a whole category of interface that used to be too expensive becomes ordinary. Text can wrap around any shape, because you control the width of every line directly: compute which horizontal spans an obstacle blocks on this band, subtract them, and hand the engine what remains. The obstacles can be rectangles, circles, or arbitrary polygons, and they can move, because a reflow that costs nothing can happen on every frame. ' +
   "The glowing orbs drifting through this article are not decoration; they are the demonstration. Each one is a circular obstacle. For every line, the engine asks whether the line's band crosses the orb, and if it does it removes the blocked span and flows the remaining text on both sides at once — something the old CSS shape features could never do. Grab an orb and drag it, and the paragraphs part around your cursor in real time. " +
-  "Shrinkwrap is the same idea pointed inward: given a block of text, what is the narrowest width that keeps the current number of lines? A binary search over widths finds it, and the result is the tightest honest bounding box — exactly what a message bubble or a caption wants. Virtualization becomes exact rather than estimated, because the height of a row is known before the row is ever built, so nothing jumps as you scroll. " +
-  "Multi-column flow with a handoff cursor is the most quietly satisfying of all. The first column fills until it runs out of room and passes its cursor to the second, which resumes at the precise grapheme where the first stopped. No duplicated words, no gap, no hidden overflow hacks — just the way a newspaper has always worked, finally cheap enough for the web. " +
-  "None of this needs a new browser feature or a standards process. It needs measurement that does not cost a reflow, cached metrics, and the willingness to stop asking the DOM. The open web deserves typography as ambitious as everything else it does. This is what changes when text measurement is free: not a little better, but a different kind of thing entirely — the text that sat in boxes begins to flow.";
+  'Shrinkwrap is the same idea pointed inward: given a block of text, what is the narrowest width that keeps the current number of lines? A binary search over widths finds it, and the result is the tightest honest bounding box — exactly what a message bubble or a caption wants. Virtualization becomes exact rather than estimated, because the height of a row is known before the row is ever built, so nothing jumps as you scroll. ' +
+  'Multi-column flow with a handoff cursor is the most quietly satisfying of all. The first column fills until it runs out of room and passes its cursor to the second, which resumes at the precise grapheme where the first stopped. No duplicated words, no gap, no hidden overflow hacks — just the way a newspaper has always worked, finally cheap enough for the web. ' +
+  'None of this needs a new browser feature or a standards process. It needs measurement that does not cost a reflow, cached metrics, and the willingness to stop asking the DOM. The open web deserves typography as ambitious as everything else it does. This is what changes when text measurement is free: not a little better, but a different kind of thing entirely — the text that sat in boxes begins to flow.';
 
 const PULLQUOTES = [
-  "\u201cMeasurement that costs a microsecond changes what an interface can be, not just how fast it runs.\u201d",
-  "\u201cThe obstacles can move, because a reflow that costs nothing can happen on every single frame.\u201d",
+  '\u201cMeasurement that costs a microsecond changes what an interface can be, not just how fast it runs.\u201d',
+  '\u201cThe obstacles can move, because a reflow that costs nothing can happen on every single frame.\u201d',
 ];
 
 interface OrbDef {
@@ -98,7 +98,7 @@ class EditorialEngineDemo extends Entity {
   private headlineLines: PositionedLine[] = [];
   private headlineFontSize = 40;
   private pullquotes: PullquoteBox[] = [];
-  private dropCap = "";
+  private dropCap = '';
   private dropCapFontSize = 0;
   private dropCapX = 0;
   private dropCapY = 0;
@@ -109,10 +109,10 @@ class EditorialEngineDemo extends Entity {
   // Selectable text pool (raw fillText projects nothing selectable). Reflows
   // every frame as orbs drift, but Text.setText only re-measures a line whose
   // string actually changed, so unchanged lines are just repositioned.
-  private textPool = new LinePool("EditorialText");
+  private textPool = new LinePool('EditorialText');
 
   constructor() {
-    super("EditorialEngineDemo");
+    super('EditorialEngineDemo');
     this.add(this.textPool);
     this.measure = makeFlowMeasurer(BODY_FONT);
     this.dropCap = BODY_TEXT[0];
@@ -121,7 +121,7 @@ class EditorialEngineDemo extends Entity {
     this.preparedPQ = PULLQUOTES.map((t) => prepareFlow(t, pqMeasure));
 
     this.interactive = true;
-    this.on("pointerdown", (e: { localX?: number; localY?: number }) => {
+    this.on('pointerdown', (e: { localX?: number; localY?: number }) => {
       if (e.localX === undefined || e.localY === undefined) return;
       for (let i = 0; i < this.orbs.length; i++) {
         const o = this.orbs[i];
@@ -133,9 +133,8 @@ class EditorialEngineDemo extends Entity {
         }
       }
     });
-    this.on("pointermove", (e: { localX?: number; localY?: number }) => {
-      if (this.dragOrb < 0 || e.localX === undefined || e.localY === undefined)
-        return;
+    this.on('pointermove', (e: { localX?: number; localY?: number }) => {
+      if (this.dragOrb < 0 || e.localX === undefined || e.localY === undefined) return;
       const o = this.orbs[this.dragOrb];
       o.x = e.localX + this.dragDX;
       o.y = e.localY + this.dragDY;
@@ -158,8 +157,8 @@ class EditorialEngineDemo extends Entity {
       }
       this.dragOrb = -1;
     };
-    this.on("pointerup", end);
-    this.on("pointerleave", end);
+    this.on('pointerup', end);
+    this.on('pointerleave', end);
   }
 
   isPointInside(): boolean {
@@ -181,10 +180,7 @@ class EditorialEngineDemo extends Entity {
 
   update(dt: number, time: number): void {
     super.update(dt, time);
-    const dtSec =
-      this.lastTime === 0
-        ? 0.016
-        : Math.min(0.05, (time - this.lastTime) / 1000);
+    const dtSec = this.lastTime === 0 ? 0.016 : Math.min(0.05, (time - this.lastTime) / 1000);
     this.lastTime = time;
     const top = CONTENT_TOP + 4;
     const bottom = this.H - 12;
@@ -217,15 +213,7 @@ class EditorialEngineDemo extends Entity {
   private orbIntervals(bandTop: number, bandBottom: number): Interval[] {
     const blocked: Interval[] = [];
     for (const o of this.orbs) {
-      const iv = circleIntervalForBand(
-        o.x,
-        o.y,
-        o.r,
-        bandTop,
-        bandBottom,
-        16,
-        6,
-      );
+      const iv = circleIntervalForBand(o.x, o.y, o.r, bandTop, bandBottom, 16, 6);
       if (iv) blocked.push(iv);
     }
     return blocked;
@@ -264,9 +252,7 @@ class EditorialEngineDemo extends Entity {
         : pageTop) + 18;
 
     // pull-quote boxes (rect obstacles), placed relative to columns
-    const colWidth = narrow
-      ? this.W - gutter * 2
-      : (this.W - gutter * 2 - colGap) / 2;
+    const colWidth = narrow ? this.W - gutter * 2 : (this.W - gutter * 2 - colGap) / 2;
     this.pullquotes = [];
     const pqPlacements = narrow
       ? [{ x: gutter, yFrac: 0.5, w: colWidth }]
@@ -274,11 +260,7 @@ class EditorialEngineDemo extends Entity {
           { x: gutter + colWidth * 0.42, yFrac: 0.5, w: colWidth * 0.62 },
           { x: gutter + colWidth + colGap, yFrac: 0.34, w: colWidth * 0.6 },
         ];
-    for (
-      let i = 0;
-      i < pqPlacements.length && i < this.preparedPQ.length;
-      i++
-    ) {
+    for (let i = 0; i < pqPlacements.length && i < this.preparedPQ.length; i++) {
       const pl = pqPlacements[i];
       const y = bodyTop + pl.yFrac * (pageBottom - bodyTop);
       const box = this.layoutPullquote(this.preparedPQ[i], pl.x, y, pl.w);
@@ -290,9 +272,7 @@ class EditorialEngineDemo extends Entity {
     // drawn where its obstacle rect actually reserves space — not at the
     // indented first body line.
     this.dropCapFontSize = BODY_LINE_HEIGHT * 3 - 6;
-    const dropCapMeasure = makeFlowMeasurer(
-      `700 ${this.dropCapFontSize}px ${HEADLINE_FAMILY}`,
-    );
+    const dropCapMeasure = makeFlowMeasurer(`700 ${this.dropCapFontSize}px ${HEADLINE_FAMILY}`);
     const dropCapW = dropCapMeasure(this.dropCap) + 10;
     this.dropCapX = gutter;
     this.dropCapY = bodyTop;
@@ -371,12 +351,7 @@ class EditorialEngineDemo extends Entity {
     this.textPool.setLines(pooled);
   }
 
-  private layoutPullquote(
-    prepared: PreparedFlow,
-    x: number,
-    y: number,
-    w: number,
-  ): PullquoteBox {
+  private layoutPullquote(prepared: PreparedFlow, x: number, y: number, w: number): PullquoteBox {
     const lines: PositionedLine[] = [];
     let seg = 0;
     let top = y;
@@ -398,24 +373,14 @@ class EditorialEngineDemo extends Entity {
     };
   }
 
-  private flowColumn(
-    region: Rect,
-    startSeg: number,
-    extraRects: Rect[],
-  ): number {
+  private flowColumn(region: Rect, startSeg: number, extraRects: Rect[]): number {
     let seg = startSeg;
     let top = region.y;
     while (top + BODY_LINE_HEIGHT <= region.y + region.height) {
       const bandTop = top;
       const bandBottom = top + BODY_LINE_HEIGHT;
       const blocked = this.orbIntervals(bandTop, bandBottom);
-      for (const iv of rectIntervalsForBand(
-        extraRects,
-        bandTop,
-        bandBottom,
-        14,
-        4,
-      )) {
+      for (const iv of rectIntervalsForBand(extraRects, bandTop, bandBottom, 14, 4)) {
         blocked.push(iv);
       }
       const slots = carveTextLineSlots(
@@ -429,14 +394,9 @@ class EditorialEngineDemo extends Entity {
       }
       let slot = slots[0];
       for (let i = 1; i < slots.length; i++) {
-        if (slots[i].right - slots[i].left > slot.right - slot.left)
-          slot = slots[i];
+        if (slots[i].right - slots[i].left > slot.right - slot.left) slot = slots[i];
       }
-      const line = layoutNextFlowLine(
-        this.preparedBody,
-        seg,
-        slot.right - slot.left,
-      );
+      const line = layoutNextFlowLine(this.preparedBody, seg, slot.right - slot.left);
       if (!line) break;
       this.lines.push({
         x: Math.round(slot.left),
@@ -494,8 +454,8 @@ class EditorialEngineDemo extends Entity {
     drawDemoHeader(
       r,
       32,
-      "Editorial engine",
-      "Body text reflows around drifting orbs every frame — drag one and the columns part live.",
+      'Editorial engine',
+      'Body text reflows around drifting orbs every frame — drag one and the columns part live.',
       true,
     );
 

@@ -1,7 +1,7 @@
-import { Entity, type IRenderer } from "@vectojs/core";
-import { measureText } from "@vectojs/ui";
-import pkg from "../../package.json";
-import { COLOR, FONT, BRAND_GRADIENT } from "./tokens";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { measureText } from '@vectojs/ui';
+import pkg from '../../package.json';
+import { COLOR, FONT, BRAND_GRADIENT } from './tokens';
 
 const TITLE_SIZE = 46;
 const BADGE_H = 24;
@@ -18,14 +18,14 @@ export class Masthead extends Entity {
   private readonly badges: string[];
 
   constructor(width: number, creationCount: number, appCount: number) {
-    super("Masthead");
+    super('Masthead');
     this.width = width;
     this.height = 178;
 
     const deps = (pkg as { dependencies: Record<string, string> }).dependencies;
     this.badges = [
-      `core ${deps["@vectojs/core"]}`,
-      `ui ${deps["@vectojs/ui"]}`,
+      `core ${deps['@vectojs/core']}`,
+      `ui ${deps['@vectojs/ui']}`,
       `${creationCount} creations`,
       `${appCount} apps`,
     ];
@@ -38,18 +38,18 @@ export class Masthead extends Entity {
   override render(r: IRenderer): void {
     const titleFont = FONT.display(TITLE_SIZE);
     const baseline = 58;
-    const prefix = "Made with ";
+    const prefix = 'Made with ';
     r.fillText(prefix, 0, baseline, titleFont, COLOR.ink);
     const wordX = measureText(prefix, titleFont);
-    const wordW = measureText("VectoJS", titleFont);
+    const wordW = measureText('VectoJS', titleFont);
     const wordGrad = r.createLinearGradient(wordX, 0, wordX + wordW, 0, [
       { stop: 0, color: BRAND_GRADIENT.a },
       { stop: 1, color: BRAND_GRADIENT.b },
     ]);
-    r.fillText("VectoJS", wordX, baseline, titleFont, wordGrad);
+    r.fillText('VectoJS', wordX, baseline, titleFont, wordGrad);
 
     r.fillText(
-      "Interactive pieces and full applications rendered entirely on canvas — no DOM, no reflow.",
+      'Interactive pieces and full applications rendered entirely on canvas — no DOM, no reflow.',
       0,
       baseline + 34,
       FONT.body(15),

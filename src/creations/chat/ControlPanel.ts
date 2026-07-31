@@ -15,10 +15,10 @@
  * Everything else is pure Canvas2D Entity rendering.
  */
 
-import { Entity } from "@vectojs/core";
-import type { StreamState } from "./state";
-import { isInsideBox } from "./hitTest";
-import type { RawRenderer } from "./raw-renderer";
+import { Entity } from '@vectojs/core';
+import type { StreamState } from './state';
+import { isInsideBox } from './hitTest';
+import type { RawRenderer } from './raw-renderer';
 
 type Callback = () => void;
 
@@ -78,44 +78,44 @@ export class ControlPanel extends Entity {
   }
 
   constructor(cbs: ControlCallbacks) {
-    super("ControlPanel");
+    super('ControlPanel');
     this.cbs = cbs;
     this.interactive = true;
     this.height = this.panelHeight;
 
     // Real <input> for rate — positioned via CSS, synced with canvas state
-    this._rateInput = document.createElement("input");
-    this._rateInput.type = "number";
-    this._rateInput.min = "0";
-    this._rateInput.max = "10000";
-    this._rateInput.step = "10";
-    this._rateInput.value = "100";
+    this._rateInput = document.createElement('input');
+    this._rateInput.type = 'number';
+    this._rateInput.min = '0';
+    this._rateInput.max = '10000';
+    this._rateInput.step = '10';
+    this._rateInput.value = '100';
     Object.assign(this._rateInput.style, {
-      position: "fixed",
-      background: "rgba(255,255,255,0.9)",
-      color: "#3d2e1a",
-      border: "1px solid rgba(0,0,0,0.12)",
-      borderRadius: "6px",
-      padding: "4px 8px",
-      fontFamily: "monospace",
-      fontSize: "13px",
-      width: "80px",
-      outline: "none",
-      zIndex: "100",
-      display: "none",
+      position: 'fixed',
+      background: 'rgba(255,255,255,0.9)',
+      color: '#3d2e1a',
+      border: '1px solid rgba(0,0,0,0.12)',
+      borderRadius: '6px',
+      padding: '4px 8px',
+      fontFamily: 'monospace',
+      fontSize: '13px',
+      width: '80px',
+      outline: 'none',
+      zIndex: '100',
+      display: 'none',
     });
     document.body.appendChild(this._rateInput);
 
-    this._rateInput.addEventListener("input", () => {
+    this._rateInput.addEventListener('input', () => {
       const v = Math.max(0, Math.min(10000, Number(this._rateInput.value)));
       cbs.onRateChange(v);
     });
-    this._rateInput.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowUp") {
+    this._rateInput.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp') {
         cbs.onRateChange(Math.min(10000, (this.state?.tokenRate ?? 100) + 10));
         e.preventDefault();
       }
-      if (e.key === "ArrowDown") {
+      if (e.key === 'ArrowDown') {
         cbs.onRateChange(Math.max(0, (this.state?.tokenRate ?? 100) - 10));
         e.preventDefault();
       }
@@ -124,13 +124,13 @@ export class ControlPanel extends Entity {
     // Buttons: use 'click' which is the most reliable VectoJS event from the a11y overlay.
     // Slider drag: use pointerdown/pointermove/pointerup.
     // Do NOT bind both 'click' AND 'pointerdown' to handleDown — that causes double-triggers.
-    this.on("click", (e) => this.handleClick(e));
-    this.on("pointermove", (e) => this.handleMove(e));
-    this.on("pointerdown", (e) => this.handleSliderDown(e));
-    this.on("pointerup", () => {
+    this.on('click', (e) => this.handleClick(e));
+    this.on('pointermove', (e) => this.handleMove(e));
+    this.on('pointerdown', (e) => this.handleSliderDown(e));
+    this.on('pointerup', () => {
       this._sliderDragging = false;
     });
-    this.on("pointerleave", () => {
+    this.on('pointerleave', () => {
       this._sliderDragging = false;
       this.btns.forEach((b) => (b.hovered = false));
     });
@@ -162,13 +162,13 @@ export class ControlPanel extends Entity {
     Object.assign(this._rateInput.style, {
       left: `${cssLeft}px`,
       top: `${cssTop}px`,
-      display: "block",
+      display: 'block',
     });
   }
 
   /** Hide the DOM rate input (e.g. while another creation is mounted). */
   hideInput(): void {
-    this._rateInput.style.display = "none";
+    this._rateInput.style.display = 'none';
   }
 
   /** Sync input value from state */
@@ -184,38 +184,38 @@ export class ControlPanel extends Entity {
     const gap = isMob ? 6 : GAP;
     this.btns = [
       {
-        id: "file",
-        label: isMob ? "📂" : "📂 File",
+        id: 'file',
+        label: isMob ? '📂' : '📂 File',
         x: PAD,
-        color: "#1e293b",
-        hoverColor: "#334155",
+        color: '#1e293b',
+        hoverColor: '#334155',
         action: this.cbs.onFileOpen,
         hovered: false,
       },
       {
-        id: "play",
-        label: isMob ? "▶" : "▶ Play",
+        id: 'play',
+        label: isMob ? '▶' : '▶ Play',
         x: PAD + 1 * (bw + gap),
-        color: "#064e3b",
-        hoverColor: "#065f46",
+        color: '#064e3b',
+        hoverColor: '#065f46',
         action: this.cbs.onPlay,
         hovered: false,
       },
       {
-        id: "pause",
-        label: isMob ? "⏸" : "⏸ Pause",
+        id: 'pause',
+        label: isMob ? '⏸' : '⏸ Pause',
         x: PAD + 2 * (bw + gap),
-        color: "#1e3a5f",
-        hoverColor: "#1e40af",
+        color: '#1e3a5f',
+        hoverColor: '#1e40af',
         action: this.cbs.onPause,
         hovered: false,
       },
       {
-        id: "stop",
-        label: isMob ? "🧹" : "🧹 Clean",
+        id: 'stop',
+        label: isMob ? '🧹' : '🧹 Clean',
         x: PAD + 3 * (bw + gap),
-        color: "#475569",
-        hoverColor: "#64748b",
+        color: '#475569',
+        hoverColor: '#64748b',
         action: this.cbs.onStop,
         hovered: false,
       },
@@ -282,10 +282,10 @@ export class ControlPanel extends Entity {
     ctx.save();
     ctx.beginPath();
     ctx.roundRect(0, 0, w, h, 0);
-    ctx.fillStyle = "#f7f2e8";
+    ctx.fillStyle = '#f7f2e8';
     ctx.fill();
     // Subtle top border
-    ctx.strokeStyle = "rgba(0,0,0,0.06)";
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, 0.5);
@@ -293,7 +293,7 @@ export class ControlPanel extends Entity {
     ctx.stroke();
 
     if (isMob) {
-      ctx.strokeStyle = "rgba(0,0,0,0.04)";
+      ctx.strokeStyle = 'rgba(0,0,0,0.04)';
       ctx.beginPath();
       ctx.moveTo(PAD, 45);
       ctx.lineTo(w - PAD, 45);
@@ -311,14 +311,14 @@ export class ControlPanel extends Entity {
       ctx.roundRect(b.x, btnY, bw, BTN_H, 8);
       ctx.fillStyle = b.hovered ? b.hoverColor : b.color;
       ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.1)";
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      ctx.font = isMob ? "bold 14px sans-serif" : "bold 12px sans-serif";
-      ctx.fillStyle = "#e2e8f0";
-      ctx.textBaseline = "middle";
-      ctx.textAlign = "center";
+      ctx.font = isMob ? 'bold 14px sans-serif' : 'bold 12px sans-serif';
+      ctx.fillStyle = '#e2e8f0';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
       ctx.fillText(b.label, b.x + bw / 2, btnY + BTN_H / 2);
       ctx.restore();
     }
@@ -331,7 +331,7 @@ export class ControlPanel extends Entity {
     // Track
     ctx.beginPath();
     ctx.roundRect(sliderLeft, sliderY - 3, sliderW, 6, 3);
-    ctx.fillStyle = "rgba(0,0,0,0.08)";
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
     ctx.fill();
 
     // Fill
@@ -339,35 +339,35 @@ export class ControlPanel extends Entity {
     const t = rate / 10000;
     ctx.beginPath();
     ctx.roundRect(sliderLeft, sliderY - 3, sliderW * t, 6, 3);
-    ctx.fillStyle = "#b4823c";
+    ctx.fillStyle = '#b4823c';
     ctx.fill();
 
     // Thumb
     ctx.beginPath();
     ctx.arc(sliderLeft + sliderW * t, sliderY, 8, 0, Math.PI * 2);
-    ctx.fillStyle = "#c49a54";
+    ctx.fillStyle = '#c49a54';
     ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.15)";
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
     ctx.lineWidth = 1;
     ctx.stroke();
 
     // Label
-    ctx.font = "11px monospace";
-    ctx.fillStyle = "#9e8e78";
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "center";
-    ctx.fillText("0", sliderLeft - 14, sliderY);
-    ctx.fillText("10k", sliderLeft + sliderW + 14, sliderY);
+    ctx.font = '11px monospace';
+    ctx.fillStyle = '#9e8e78';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    ctx.fillText('0', sliderLeft - 14, sliderY);
+    ctx.fillText('10k', sliderLeft + sliderW + 14, sliderY);
 
     ctx.restore();
 
     // tok/s label (right of input: input width is 80px, spaced by 40px + 80px + 8px)
     const inputRight = sliderLeft + sliderW + 40 + 80 + 8;
-    ctx.font = "11px monospace";
-    ctx.fillStyle = "#9e8e78";
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "left";
-    ctx.fillText("tok/s", inputRight, sliderY);
+    ctx.font = '11px monospace';
+    ctx.fillStyle = '#9e8e78';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText('tok/s', inputRight, sliderY);
 
     // File name + progress
     if (this.state?.fileName) {
@@ -375,10 +375,10 @@ export class ControlPanel extends Entity {
         this.state.tokens.length > 0
           ? Math.round((this.state.cursor / this.state.tokens.length) * 100)
           : 0;
-      const label = `${this.state.fileName}  ${pct}%  [${this.state.status.toUpperCase()}]${this.state.loop ? "  🔁" : ""}`;
-      ctx.font = "11px monospace";
-      ctx.fillStyle = "#8c7a65";
-      ctx.textAlign = "right";
+      const label = `${this.state.fileName}  ${pct}%  [${this.state.status.toUpperCase()}]${this.state.loop ? '  🔁' : ''}`;
+      ctx.font = '11px monospace';
+      ctx.fillStyle = '#8c7a65';
+      ctx.textAlign = 'right';
       ctx.fillText(label, w - PAD, isMob ? 45 / 2 : h / 2);
     }
   }

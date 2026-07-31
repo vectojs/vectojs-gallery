@@ -1,8 +1,8 @@
-import { Entity, type IRenderer } from "@vectojs/core";
-import { Button, Stack, Text } from "@vectojs/ui";
-import type { Creation } from "../registry";
-import type { ForgeApp } from "../apps";
-import { COLOR, FONT, BRAND_GRADIENT } from "./tokens";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { Button, Stack, Text } from '@vectojs/ui';
+import type { Creation } from '../registry';
+import type { ForgeApp } from '../apps';
+import { COLOR, FONT, BRAND_GRADIENT } from './tokens';
 
 const TILE = 40;
 const TILE_X = 20;
@@ -33,12 +33,12 @@ export class Rail extends Entity {
     private readonly onOpen: (creation: Creation) => void,
     private readonly onToggleCollapse: (collapsed: boolean) => void,
   ) {
-    super("Rail");
+    super('Rail');
     this.width = width;
     this.height = height;
     this.fullWidth = width;
 
-    const root = new Stack({ direction: "vertical", gap: 16 });
+    const root = new Stack({ direction: 'vertical', gap: 16 });
     root.setPosition(20, CONTENT_TOP);
     this.add(root);
     this.root = root;
@@ -46,13 +46,13 @@ export class Rail extends Entity {
     // Creations — the catalog is intentionally small, so the list is shown in
     // full with no search field or tag filter (removed 2026-07-21): both were
     // dead weight for a handful of entries.
-    root.add(groupLabel("Creations"));
-    const listStack = new Stack({ direction: "vertical", gap: 4 });
+    root.add(groupLabel('Creations'));
+    const listStack = new Stack({ direction: 'vertical', gap: 4 });
     for (const creation of creations) {
       listStack.add(
         new Button(creation.title, {
           font: FONT.body(13),
-          bg: "transparent",
+          bg: 'transparent',
           color: COLOR.textPrimary,
           padding: 8,
           radius: 8,
@@ -62,17 +62,17 @@ export class Rail extends Entity {
     }
     root.add(listStack);
 
-    root.add(groupLabel("Built on VectoJS"));
-    const appsStack = new Stack({ direction: "vertical", gap: 4 });
+    root.add(groupLabel('Built on VectoJS'));
+    const appsStack = new Stack({ direction: 'vertical', gap: 4 });
     for (const app of apps) {
       appsStack.add(
         new Button(`${app.name} ↗`, {
           font: FONT.body(13),
-          bg: "transparent",
+          bg: 'transparent',
           color: COLOR.textPrimary,
           padding: 8,
           radius: 8,
-          onClick: () => window.open(app.url, "_blank", "noopener,noreferrer"),
+          onClick: () => window.open(app.url, '_blank', 'noopener,noreferrer'),
         }),
       );
     }
@@ -81,7 +81,7 @@ export class Rail extends Entity {
 
     // Collapse / expand toggle. Added directly (not in the scrolling list) so
     // it stays pinned; its label + position flip with the collapsed state.
-    this.toggleBtn = new Button("«", {
+    this.toggleBtn = new Button('«', {
       font: FONT.display(15),
       bg: COLOR.groundSunk,
       color: COLOR.textMuted,
@@ -115,7 +115,7 @@ export class Rail extends Entity {
     this.width = collapsed ? COLLAPSED_RAIL_WIDTH : this.fullWidth;
     if (collapsed) this.remove(this.root);
     else this.add(this.root);
-    this.toggleBtn.label = collapsed ? "»" : "«";
+    this.toggleBtn.label = collapsed ? '»' : '«';
     this.positionToggle();
     this.scene?.markDirty();
   }
@@ -130,37 +130,19 @@ export class Rail extends Entity {
     r.fill(COLOR.groundRaised);
     r.stroke(COLOR.rule, 1);
 
-    const tileGrad = r.createLinearGradient(
-      TILE_X,
-      TILE_Y,
-      TILE_X + TILE,
-      TILE_Y + TILE,
-      [
-        { stop: 0, color: BRAND_GRADIENT.a },
-        { stop: 1, color: BRAND_GRADIENT.b },
-      ],
-    );
+    const tileGrad = r.createLinearGradient(TILE_X, TILE_Y, TILE_X + TILE, TILE_Y + TILE, [
+      { stop: 0, color: BRAND_GRADIENT.a },
+      { stop: 1, color: BRAND_GRADIENT.b },
+    ]);
     r.beginPath();
     r.roundRect(TILE_X, TILE_Y, TILE, TILE, 11);
     r.fill(tileGrad);
-    r.fillText("V", TILE_X + 12, TILE_Y + 29, FONT.display(22), COLOR.void);
+    r.fillText('V', TILE_X + 12, TILE_Y + 29, FONT.display(22), COLOR.void);
 
     // The brand word-mark is only drawn when there's room for it.
     if (this.collapsed) return;
     const textX = TILE_X + TILE + 14;
-    r.fillText(
-      "Gallery",
-      textX,
-      TILE_Y + 18,
-      FONT.display(18),
-      COLOR.textPrimary,
-    );
-    r.fillText(
-      "VECTOJS · CANVAS-NATIVE",
-      textX,
-      TILE_Y + 35,
-      FONT.mono(9),
-      COLOR.textFaint,
-    );
+    r.fillText('Gallery', textX, TILE_Y + 18, FONT.display(18), COLOR.textPrimary);
+    r.fillText('VECTOJS · CANVAS-NATIVE', textX, TILE_Y + 35, FONT.mono(9), COLOR.textFaint);
   }
 }

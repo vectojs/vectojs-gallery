@@ -13,34 +13,29 @@
  * `window`/`document`-level listener registered here is explicitly removed
  * in `destroy()` so switching creations doesn't leak them.
  */
-import { Entity } from "@vectojs/core";
-import type { MarkdownTheme } from "@vectojs/markdown";
-import {
-  createStreamState,
-  tickStream,
-  tokenize,
-  type StreamState,
-} from "./state";
-import { parseFile } from "./parser";
-import { PerfMonitor } from "./perf";
-import { StreamTextEntity } from "./StreamTextEntity";
-import { ControlPanel } from "./ControlPanel";
-import { PerfPanel } from "./PerfPanel";
-import { DropZone } from "./DropZone";
-import { ScrollBar, SCROLLBAR_HIT_BAND } from "./ScrollBar";
-import { MathMarkdown } from "./MathMarkdown";
+import { Entity } from '@vectojs/core';
+import type { MarkdownTheme } from '@vectojs/markdown';
+import { createStreamState, tickStream, tokenize, type StreamState } from './state';
+import { parseFile } from './parser';
+import { PerfMonitor } from './perf';
+import { StreamTextEntity } from './StreamTextEntity';
+import { ControlPanel } from './ControlPanel';
+import { PerfPanel } from './PerfPanel';
+import { DropZone } from './DropZone';
+import { ScrollBar, SCROLLBAR_HIT_BAND } from './ScrollBar';
+import { MathMarkdown } from './MathMarkdown';
 
 const MD_THEME: MarkdownTheme = {
-  textColor: "#2d2015",
-  headingColor: "#1d130a",
-  codeColor: "#0f172a",
-  codeBgColor: "rgba(0,0,0,0.04)",
-  quoteBorderColor: "#b4823c",
-  quoteTextColor: "#8c7a65",
-  tableBgColor: "rgba(0, 0, 0, 0.02)",
-  tableHeaderBgColor: "rgba(0, 0, 0, 0.06)",
-  bodyFont: "system-ui, sans-serif",
-  codeFont: "monospace",
+  textColor: '#2d2015',
+  headingColor: '#1d130a',
+  codeColor: '#0f172a',
+  codeBgColor: 'rgba(0,0,0,0.04)',
+  quoteBorderColor: '#b4823c',
+  quoteTextColor: '#8c7a65',
+  tableBgColor: 'rgba(0, 0, 0, 0.02)',
+  tableHeaderBgColor: 'rgba(0, 0, 0, 0.06)',
+  bodyFont: 'system-ui, sans-serif',
+  codeFont: 'monospace',
   fontSize: 15,
 };
 
@@ -56,8 +51,8 @@ const PERF_TOP = 16;
 // narrowing the caller's control flow had applied — needed below because
 // `tickStream()` can flip `state.status` to "done" from inside a block
 // where TS had already narrowed it to the literal "streaming".
-function isDone(status: StreamState["status"]): boolean {
-  return status === "done";
+function isDone(status: StreamState['status']): boolean {
+  return status === 'done';
 }
 
 class StreamReader extends Entity {
@@ -73,7 +68,7 @@ class StreamReader extends Entity {
 
   private mdScrollY = 0;
   private mdAutoScroll = true;
-  private mdPushedText = "";
+  private mdPushedText = '';
   // Set once the post-stream calibration `setContent` rebuild has run for the
   // current document — distinct from `mdPushedText`, which already equals
   // `state.visible` by the time `finished` goes true on the same tick (see
@@ -88,15 +83,13 @@ class StreamReader extends Entity {
   private thumbStartScroll = 0;
 
   constructor() {
-    super("StreamReader");
+    super('StreamReader');
     this.state = createStreamState();
-    this.canvasEl = document.getElementById(
-      "gallery-canvas",
-    ) as HTMLCanvasElement | null;
+    this.canvasEl = document.getElementById('gallery-canvas') as HTMLCanvasElement | null;
 
     this.streamText = new StreamTextEntity({
       font: '15px/1.7 "JetBrains Mono", "Fira Mono", "Consolas", monospace',
-      color: "#2d2015",
+      color: '#2d2015',
       lineHeight: 26,
       padding: 40,
     });
@@ -104,15 +97,15 @@ class StreamReader extends Entity {
     this.controlPanel = new ControlPanel({
       onFileOpen: () => this.openFilePicker(),
       onPlay: () => {
-        if (this.state.content && this.state.status !== "streaming") {
-          this.state.status = "streaming";
+        if (this.state.content && this.state.status !== 'streaming') {
+          this.state.status = 'streaming';
           this.layout();
           this.scene?.markDirty();
         }
       },
       onPause: () => {
-        if (this.state.status === "streaming") {
-          this.state.status = "paused";
+        if (this.state.status === 'streaming') {
+          this.state.status = 'paused';
           this.scene?.markDirty();
         }
       },
@@ -145,10 +138,10 @@ class StreamReader extends Entity {
     // shell's first resizeTo() call; layout() sets the real value (and only
     // then populates content) once it's known, same fix as the portfolio
     // hub's chat-column bug (2026-07-18-gallery-hub-polish).
-    this.markdownView = new MathMarkdown("", {
+    this.markdownView = new MathMarkdown('', {
       maxWidth: 800,
       theme: MD_THEME,
-      onLinkClick: (url) => window.open(url, "_blank"),
+      onLinkClick: (url) => window.open(url, '_blank'),
     });
     this.setMarkdownShown(false);
 
@@ -164,13 +157,13 @@ class StreamReader extends Entity {
     this.add(this.controlPanel);
     this.add(this.perfPanel);
 
-    document.addEventListener("dragover", this.onDragOver);
-    document.addEventListener("drop", this.onDrop);
-    window.addEventListener("wheel", this.onWheel, { passive: true });
-    window.addEventListener("pointerdown", this.onWindowPointerDown);
-    window.addEventListener("pointermove", this.onWindowPointerMove);
-    window.addEventListener("pointerup", this.onWindowPointerUp);
-    window.addEventListener("keydown", this.onKeyDown);
+    document.addEventListener('dragover', this.onDragOver);
+    document.addEventListener('drop', this.onDrop);
+    window.addEventListener('wheel', this.onWheel, { passive: true });
+    window.addEventListener('pointerdown', this.onWindowPointerDown);
+    window.addEventListener('pointermove', this.onWindowPointerMove);
+    window.addEventListener('pointerup', this.onWindowPointerUp);
+    window.addEventListener('keydown', this.onKeyDown);
   }
 
   resizeTo(width: number, height: number): void {
@@ -189,7 +182,7 @@ class StreamReader extends Entity {
    * and moves the view. No-op when the offset is unchanged.
    */
   private scrollMarkdownTo(y: number): void {
-    if (this.state.kind !== "markdown") return;
+    if (this.state.kind !== 'markdown') return;
     const h = this.height - this.controlPanel.panelHeight;
     const maxScroll = this.markdownMaxScroll(h);
     const clamped = Math.max(0, Math.min(maxScroll, y));
@@ -225,9 +218,7 @@ class StreamReader extends Entity {
     if (!band || band.trackTravel <= 0) return this.thumbStartScroll;
     const h = this.height - this.controlPanel.panelHeight;
     const maxScroll = this.markdownMaxScroll(h);
-    return (
-      this.thumbStartScroll + (deltaClientY / band.trackTravel) * maxScroll
-    );
+    return this.thumbStartScroll + (deltaClientY / band.trackTravel) * maxScroll;
   }
 
   /**
@@ -260,8 +251,7 @@ class StreamReader extends Entity {
     this.streamText.height = h - ctrlH;
 
     // Idle always uses StreamText for the hint; markdown only while playing/paused/done.
-    const useMarkdown =
-      this.state.kind === "markdown" && this.state.status !== "idle";
+    const useMarkdown = this.state.kind === 'markdown' && this.state.status !== 'idle';
     if (useMarkdown) {
       this.streamText.visible = false;
       this.setMarkdownShown(true);
@@ -319,9 +309,9 @@ class StreamReader extends Entity {
   }
 
   private openFilePicker(): void {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".txt,.md,.markdown,.epub,.html,.htm,.csv,.json,.log";
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,.md,.markdown,.epub,.html,.htm,.csv,.json,.log';
     input.onchange = () => {
       const file = input.files?.[0];
       if (file) void this.loadFile(file);
@@ -332,7 +322,7 @@ class StreamReader extends Entity {
   private async loadFile(file: File): Promise<void> {
     this.streamText.visible = true;
     this.streamText.idleHint = `⏳ Parsing ${file.name} …`;
-    this.streamText.visibleText = "";
+    this.streamText.visibleText = '';
     this.streamText.resetScroll();
     this.setMarkdownShown(false);
     this.scene?.markDirty();
@@ -344,19 +334,19 @@ class StreamReader extends Entity {
     this.state.tokens = tokenize(parsed.plainText);
     this.state.fileName = file.name;
     this.state.cursor = 0;
-    this.state.visible = "";
+    this.state.visible = '';
     this.state.accumulator = 0;
 
     this.mdScrollY = 0;
     this.mdAutoScroll = true;
-    this.mdPushedText = "";
+    this.mdPushedText = '';
     this.mdCalibrated = false;
-    this.markdownView.setContent("");
+    this.markdownView.setContent('');
 
-    this.state.status = "streaming"; // auto-start
+    this.state.status = 'streaming'; // auto-start
 
-    this.streamText.visibleText = "";
-    this.streamText.idleHint = "";
+    this.streamText.visibleText = '';
+    this.streamText.idleHint = '';
     this.streamText.resetScroll();
     this.dropZone.visible = false;
 
@@ -365,21 +355,21 @@ class StreamReader extends Entity {
   }
 
   private stopAndClear(): void {
-    this.state.status = "idle";
+    this.state.status = 'idle';
     this.state.cursor = 0;
-    this.state.visible = "";
+    this.state.visible = '';
     this.state.accumulator = 0;
-    this.streamText.visibleText = "";
+    this.streamText.visibleText = '';
     this.streamText.resetScroll();
     this.streamText.idleHint = this.state.fileName
       ? `${this.state.fileName} — Press ▶ Play to start`
-      : "";
+      : '';
 
     this.mdScrollY = 0;
     this.mdAutoScroll = true;
-    this.mdPushedText = "";
+    this.mdPushedText = '';
     this.mdCalibrated = false;
-    this.markdownView.setContent("");
+    this.markdownView.setContent('');
 
     this.layout();
     this.scene?.markDirty();
@@ -405,7 +395,7 @@ class StreamReader extends Entity {
   // ("FPS drops lower and lower as more EPUBs are loaded" — the real
   // cause was streaming silently stalling, not the frame rate itself).
   override hasPendingAnimations(): boolean {
-    return this.state.status === "streaming";
+    return this.state.status === 'streaming';
   }
 
   override render(): void {
@@ -421,7 +411,7 @@ class StreamReader extends Entity {
       this.scene?.markDirty();
     }
 
-    if (this.state.status !== "streaming") {
+    if (this.state.status !== 'streaming') {
       this.controlPanel.state = this.state;
       this.controlPanel.syncRate(this.state.tokenRate);
       return;
@@ -429,13 +419,11 @@ class StreamReader extends Entity {
 
     const addedCount = tickStream(this.state, _dt);
 
-    if (this.state.kind === "markdown") {
-      this.streamText.visibleText = ""; // clear raw text to avoid overlap
+    if (this.state.kind === 'markdown') {
+      this.streamText.visibleText = ''; // clear raw text to avoid overlap
 
       const newlyAdded = this.state.visible.slice(this.mdPushedText.length);
-      const finished =
-        isDone(this.state.status) ||
-        this.state.cursor >= this.state.tokens.length;
+      const finished = isDone(this.state.status) || this.state.cursor >= this.state.tokens.length;
 
       // No time-merge throttle — appends whenever a frame has new
       // characters, so the text "types out" smoothly at any frame rate.
@@ -480,13 +468,13 @@ class StreamReader extends Entity {
   }
 
   override destroy(): void {
-    document.removeEventListener("dragover", this.onDragOver);
-    document.removeEventListener("drop", this.onDrop);
-    window.removeEventListener("wheel", this.onWheel);
-    window.removeEventListener("pointerdown", this.onWindowPointerDown);
-    window.removeEventListener("pointermove", this.onWindowPointerMove);
-    window.removeEventListener("pointerup", this.onWindowPointerUp);
-    window.removeEventListener("keydown", this.onKeyDown);
+    document.removeEventListener('dragover', this.onDragOver);
+    document.removeEventListener('drop', this.onDrop);
+    window.removeEventListener('wheel', this.onWheel);
+    window.removeEventListener('pointerdown', this.onWindowPointerDown);
+    window.removeEventListener('pointermove', this.onWindowPointerMove);
+    window.removeEventListener('pointerup', this.onWindowPointerUp);
+    window.removeEventListener('keydown', this.onKeyDown);
     // ControlPanel owns a real DOM <input> — its own destroy() removes it.
     // Entity.destroy() doesn't cascade to children (see Nexus/Dimension for
     // the same reasoning), so this has to happen explicitly.
@@ -509,12 +497,12 @@ class StreamReader extends Entity {
   // ── Markdown scroll (wheel + touch drag) ────────────────────────────────────
 
   private readonly onWheel = (e: WheelEvent): void => {
-    if (this.state.kind !== "markdown") return;
+    if (this.state.kind !== 'markdown') return;
     this.scrollMarkdownTo(this.mdScrollY + e.deltaY);
   };
 
   private readonly onWindowPointerDown = (e: PointerEvent): void => {
-    if (this.state.kind !== "markdown") return;
+    if (this.state.kind !== 'markdown') return;
     // Scrollbar-thumb grab (mouse or touch) takes priority over body drag.
     if (this.pointerOnThumb(e.clientX, e.clientY)) {
       this.thumbDragging = true;
@@ -524,18 +512,16 @@ class StreamReader extends Entity {
       this.scene?.markDirty();
       return;
     }
-    if (e.pointerType === "touch") {
+    if (e.pointerType === 'touch') {
       this.mdDragging = true;
       this.mdDragY = e.clientY;
     }
   };
 
   private readonly onWindowPointerMove = (e: PointerEvent): void => {
-    if (this.state.kind !== "markdown") return;
+    if (this.state.kind !== 'markdown') return;
     if (this.thumbDragging) {
-      this.scrollMarkdownTo(
-        this.thumbDragToScroll(e.clientY - this.thumbStartClientY),
-      );
+      this.scrollMarkdownTo(this.thumbDragToScroll(e.clientY - this.thumbStartClientY));
       return;
     }
     // Hover highlight when the pointer is over the thumb (not dragging).
@@ -562,21 +548,21 @@ class StreamReader extends Entity {
   // ── Keyboard shortcuts: Space = play/pause, Esc = stop, L = toggle loop ────
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    if ((e.target as HTMLElement).tagName === "INPUT") return;
-    if (e.code === "Space") {
+    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+    if (e.code === 'Space') {
       e.preventDefault();
-      if (this.state.status === "streaming") {
-        this.state.status = "paused";
+      if (this.state.status === 'streaming') {
+        this.state.status = 'paused';
       } else if (this.state.content) {
-        this.state.status = "streaming";
+        this.state.status = 'streaming';
         this.layout();
       }
       this.scene?.markDirty();
     }
-    if (e.code === "Escape") {
+    if (e.code === 'Escape') {
       this.stopAndClear();
     }
-    if (e.code === "KeyL") {
+    if (e.code === 'KeyL') {
       this.state.loop = !this.state.loop;
       this.scene?.markDirty();
     }

@@ -3,7 +3,7 @@
  * All mutations go through this; the UI reads from it on each frame.
  */
 
-export type StreamStatus = "idle" | "streaming" | "paused" | "done";
+export type StreamStatus = 'idle' | 'streaming' | 'paused' | 'done';
 
 export interface StreamState {
   /** All characters extracted from the loaded file */
@@ -11,7 +11,7 @@ export interface StreamState {
   /** Tokenized array for streaming */
   tokens: string[];
   /** File format hint */
-  kind: "text" | "markdown" | "epub";
+  kind: 'text' | 'markdown' | 'epub';
   /** Display name of the loaded file */
   fileName: string;
   /** Index of the next token to stream */
@@ -30,13 +30,13 @@ export interface StreamState {
 
 export function createStreamState(): StreamState {
   return {
-    content: "",
+    content: '',
     tokens: [],
-    kind: "text",
-    fileName: "",
+    kind: 'text',
+    fileName: '',
     cursor: 0,
-    visible: "",
-    status: "idle",
+    visible: '',
+    status: 'idle',
     tokenRate: 100,
     accumulator: 0,
     loop: false,
@@ -48,14 +48,14 @@ export function createStreamState(): StreamState {
  * Returns the number of new characters appended.
  */
 export function tickStream(state: StreamState, dt: number): number {
-  if (state.status !== "streaming") return 0;
+  if (state.status !== 'streaming') return 0;
   if (state.cursor >= state.tokens.length) {
     if (state.loop) {
       state.cursor = 0;
-      state.visible = "";
+      state.visible = '';
       state.accumulator = 0;
     } else {
-      state.status = "done";
+      state.status = 'done';
     }
     return 0;
   }
@@ -68,7 +68,7 @@ export function tickStream(state: StreamState, dt: number): number {
   if (toAdd === 0) return 0;
 
   const end = Math.min(state.cursor + toAdd, state.tokens.length);
-  let chunk = "";
+  let chunk = '';
   for (let i = state.cursor; i < end; i++) {
     chunk += state.tokens[i];
   }
@@ -78,10 +78,10 @@ export function tickStream(state: StreamState, dt: number): number {
   if (state.cursor >= state.tokens.length) {
     if (state.loop) {
       state.cursor = 0;
-      state.visible = "";
+      state.visible = '';
       state.accumulator = 0;
     } else {
-      state.status = "done";
+      state.status = 'done';
     }
   }
   return chunk.length;

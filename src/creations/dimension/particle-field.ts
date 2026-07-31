@@ -4,10 +4,7 @@
  * a THREE.BufferAttribute. Pure and GPU-free so it can be unit-tested; the demo
  * wraps the result in a THREE.Points and rebuilds it when the +/- stepper is clicked.
  */
-export function buildParticlePositions(
-  count: number,
-  radius: number,
-): Float32Array {
+export function buildParticlePositions(count: number, radius: number): Float32Array {
   const out = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
     // Rejection-free uniform-in-sphere: direction on the unit sphere, radius by cube-root.

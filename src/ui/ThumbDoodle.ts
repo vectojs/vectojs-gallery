@@ -1,5 +1,5 @@
-import { Entity, type IRenderer } from "@vectojs/core";
-import type { Accent } from "./tokens";
+import { Entity, type IRenderer } from '@vectojs/core';
+import type { Accent } from './tokens';
 
 const PANEL_RADIUS = 10;
 const MOTIF_INSET = 18;
@@ -17,7 +17,7 @@ export class ThumbDoodle extends Entity {
     private readonly seed: number,
     private readonly accent: Accent,
   ) {
-    super("ThumbDoodle");
+    super('ThumbDoodle');
     this.width = width;
     this.height = height;
   }
@@ -50,7 +50,7 @@ export class ThumbDoodle extends Entity {
       const radius = MOTIF_INSET + i * (this.height / (rings * 2));
       r.beginPath();
       r.arc(cx, cy, radius, 0, Math.PI * 2);
-      r.stroke("#ffffff", 1.5);
+      r.stroke('#ffffff', 1.5);
     }
 
     const spokes = 3 + (this.seed % 4);
@@ -61,7 +61,7 @@ export class ThumbDoodle extends Entity {
       r.beginPath();
       r.moveTo(cx, cy);
       r.lineTo(cx + Math.cos(angle) * spread, cy + Math.sin(angle) * spread);
-      r.stroke("#ffffff", 1);
+      r.stroke('#ffffff', 1);
     }
     r.setGlobalAlpha(1);
     r.restore();

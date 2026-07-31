@@ -4,7 +4,7 @@
  * at a width) — used by demos that need per-line geometry rather than just
  * the final positioned glyphs `@vectojs/ui`'s `Text` already exposes.
  */
-import { LayoutEngine, type PreparedText } from "@vectojs/core";
+import { LayoutEngine, type PreparedText } from '@vectojs/core';
 
 export interface LineMetrics {
   lineCount: number;
@@ -59,24 +59,12 @@ export function findTightWrapMetrics(
   lineHeight: number,
   fontSize: number,
 ): LineMetrics {
-  const initial = layoutMetrics(
-    engine,
-    prepared,
-    atWidth,
-    lineHeight,
-    fontSize,
-  );
+  const initial = layoutMetrics(engine, prepared, atWidth, lineHeight, fontSize);
   let lo = 1;
   let hi = Math.max(1, Math.ceil(atWidth));
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
-    const midLineCount = layoutMetrics(
-      engine,
-      prepared,
-      mid,
-      lineHeight,
-      fontSize,
-    ).lineCount;
+    const midLineCount = layoutMetrics(engine, prepared, mid, lineHeight, fontSize).lineCount;
     if (midLineCount <= initial.lineCount) hi = mid;
     else lo = mid + 1;
   }

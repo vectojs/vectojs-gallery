@@ -1,4 +1,4 @@
-import type { Entity } from "@vectojs/core";
+import type { Entity } from '@vectojs/core';
 
 /** One showcased creation: a lazily-loaded root `Entity` plus its catalog metadata. */
 export interface Creation {
@@ -48,62 +48,62 @@ export interface Creation {
 // render CREATIONS in array order, so sorting here sorts both surfaces.
 export const CREATIONS: Creation[] = [
   {
-    id: "studio",
-    title: "Canvas Studio — a Fabric.js-style editor",
+    id: 'studio',
+    title: 'Canvas Studio — a Fabric.js-style editor',
     description:
       "Fabric.js's interactive object model, rebuilt from first principles on VectoJS: drag, scale from 8 oriented handles, rotate, band-select and group-move, reorder z-depth, and serialize the whole scene to JSON and back — every shape a plain numeric record, every handle computed geometry.",
-    tags: ["Editor", "Interaction", "Serialization"],
-    stage: "#f2efe8",
+    tags: ['Editor', 'Interaction', 'Serialization'],
+    stage: '#f2efe8',
     // Every mutation here happens inside a raw pointer/keyboard handler that
     // doesn't call scene.markDirty(), so it relies on the forced-redraw pump
     // (same as `catch`) — leave continuousRedraw at its default (true).
-    load: () => import("./creations/studio"),
+    load: () => import('./creations/studio'),
   },
   {
-    id: "dimension",
-    title: "Dimension",
+    id: 'dimension',
+    title: 'Dimension',
     description:
-      "A VectoJS control panel floating in real 3D space — drag to orbit, and every click is raycast through the plane into a fully interactive 2D UI underneath.",
-    tags: ["WebGL", "Three.js", "3D"],
-    load: () => import("./creations/dimension"),
+      'A VectoJS control panel floating in real 3D space — drag to orbit, and every click is raycast through the plane into a fully interactive 2D UI underneath.',
+    tags: ['WebGL', 'Three.js', '3D'],
+    load: () => import('./creations/dimension'),
   },
   {
-    id: "catch",
-    title: "Fruit Catch",
+    id: 'catch',
+    title: 'Fruit Catch',
     description:
-      "A falling-fruit catcher, osu!Catch-style: move the plate with your mouse or arrow keys to grab the fruit the goal asks for.",
-    tags: ["Interaction", "Game"],
-    load: () => import("./creations/catch"),
+      'A falling-fruit catcher, osu!Catch-style: move the plate with your mouse or arrow keys to grab the fruit the goal asks for.',
+    tags: ['Interaction', 'Game'],
+    load: () => import('./creations/catch'),
   },
   {
-    id: "nexus",
-    title: "Nexus — a WebGPU particle field",
+    id: 'nexus',
+    title: 'Nexus — a WebGPU particle field',
     description:
       'Tens of thousands of particles simulated on a WebGPU compute pass — springing into the word "VectoJS" and flowing away from your cursor, with a transparent CPU fallback.',
-    tags: ["WebGPU", "Compute", "particles"],
-    load: () => import("./creations/nexus"),
+    tags: ['WebGPU', 'Compute', 'particles'],
+    load: () => import('./creations/nexus'),
   },
   {
-    id: "compare-pretext",
-    title: "Pretext, Rebuilt on VectoJS",
+    id: 'compare-pretext',
+    title: 'Pretext, Rebuilt on VectoJS',
     description:
       "Nine public demos from the pretext text-layout library, reimplemented on VectoJS's canvas-native layout engine — plus a measured head-to-head that runs pretext itself alongside VectoJS and reports where each one wins.",
-    tags: ["Text Layout", "Comparison", "Typography"],
-    stage: "#f5f1ea",
+    tags: ['Text Layout', 'Comparison', 'Typography'],
+    stage: '#f5f1ea',
     // Every interaction here (opening a demo, dragging a slider, toggling
     // an accordion row) already calls scene.markDirty() itself through the
     // normal @vectojs/ui component event handlers — like `chat`, it never
     // needs the blanket forced-redraw pump once idle.
     continuousRedraw: false,
-    load: () => import("./creations/compare-pretext"),
+    load: () => import('./creations/compare-pretext'),
   },
   {
-    id: "chat",
-    title: "Stream Reader — Markdown & EPUB",
+    id: 'chat',
+    title: 'Stream Reader — Markdown & EPUB',
     description:
-      "Drop a .txt/.md/.epub file and it streams character-by-character at an adjustable rate: incremental plain-text layout, or @vectojs/ui Markdown with math, tables, and code, all off the main thread.",
-    tags: ["Streaming", "Markdown", "EPUB"],
-    stage: "#f7f2e8",
+      'Drop a .txt/.md/.epub file and it streams character-by-character at an adjustable rate: incremental plain-text layout, or @vectojs/ui Markdown with math, tables, and code, all off the main thread.',
+    tags: ['Streaming', 'Markdown', 'EPUB'],
+    stage: '#f7f2e8',
     // Reserve space above the control bar (56px desktop / 90px mobile, see
     // ControlPanel.panelHeight) plus a clear gap.
     bottomInset: 106,
@@ -113,6 +113,6 @@ export const CREATIONS: Creation[] = [
     // per-frame content-repaint cost for nothing once a long document
     // finished loading and sat idle.
     continuousRedraw: false,
-    load: () => import("./creations/chat"),
+    load: () => import('./creations/chat'),
   },
 ];

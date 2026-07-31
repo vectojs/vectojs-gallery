@@ -8,8 +8,8 @@
  * lines every layout without allocating/GC-ing a `Text` per frame: unused
  * lines are parked off-screen and reused on the next pass.
  */
-import { Entity } from "@vectojs/core";
-import { Text } from "@vectojs/ui";
+import { Entity } from '@vectojs/core';
+import { Text } from '@vectojs/ui';
 
 export interface PooledLine {
   x: number;
@@ -25,7 +25,7 @@ export class LinePool extends Entity {
   private pool: Text[] = [];
   private mounted = 0;
 
-  constructor(name = "LinePool") {
+  constructor(name = 'LinePool') {
     super(name);
   }
 

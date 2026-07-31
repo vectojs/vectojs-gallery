@@ -1,11 +1,11 @@
-import { Entity, type IRenderer } from "@vectojs/core";
-import { measureText } from "@vectojs/ui";
-import { COLOR, FONT } from "./tokens";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { measureText } from '@vectojs/ui';
+import { COLOR, FONT } from './tokens';
 
 const CARD_RADIUS = 14;
 const DASH = 6;
 const GAP = 5;
-const REPO_URL = "https://github.com/vectojs/vectojs-gallery";
+const REPO_URL = 'https://github.com/vectojs/vectojs-gallery';
 
 /**
  * The last cell of the creations grid: a dashed "Submit your creation" invite
@@ -16,31 +16,26 @@ export class SubmitCard extends Entity {
   private hovered = false;
 
   constructor(width: number, height: number) {
-    super("SubmitCard");
+    super('SubmitCard');
     this.width = width;
     this.height = height;
     this.interactive = true;
 
-    this.on("hover", () => {
+    this.on('hover', () => {
       this.hovered = true;
     });
-    this.on("pointerleave", () => {
+    this.on('pointerleave', () => {
       this.hovered = false;
     });
-    this.on("click", () => {
-      window.open(REPO_URL, "_blank", "noopener,noreferrer");
+    this.on('click', () => {
+      window.open(REPO_URL, '_blank', 'noopener,noreferrer');
     });
   }
 
   override isPointInside(globalX: number, globalY: number): boolean {
     const local = this.worldToLocal(globalX, globalY);
     if (!local) return false;
-    return (
-      local.x >= 0 &&
-      local.x <= this.width &&
-      local.y >= 0 &&
-      local.y <= this.height
-    );
+    return local.x >= 0 && local.x <= this.width && local.y >= 0 && local.y <= this.height;
   }
 
   /** Dashed line from (x1,y1) toward (x2,y2) — the renderer has no dash API. */
@@ -73,28 +68,14 @@ export class SubmitCard extends Entity {
     const edge = this.hovered ? COLOR.inkDim : COLOR.ruleBright;
     const inset = CARD_RADIUS;
     this.dashedLine(r, inset, 0, this.width - inset, 0, edge);
-    this.dashedLine(
-      r,
-      inset,
-      this.height,
-      this.width - inset,
-      this.height,
-      edge,
-    );
+    this.dashedLine(r, inset, this.height, this.width - inset, this.height, edge);
     this.dashedLine(r, 0, inset, 0, this.height - inset, edge);
-    this.dashedLine(
-      r,
-      this.width,
-      inset,
-      this.width,
-      this.height - inset,
-      edge,
-    );
+    this.dashedLine(r, this.width, inset, this.width, this.height - inset, edge);
 
     const cx = this.width / 2;
     const cy = this.height / 2;
-    r.fillText("+", cx - 11, cy - 18, FONT.display(34), COLOR.ink);
-    const title = "Submit your creation";
+    r.fillText('+', cx - 11, cy - 18, FONT.display(34), COLOR.ink);
+    const title = 'Submit your creation';
     r.fillText(
       title,
       cx - measureText(title, FONT.display(14)) / 2,
@@ -102,7 +83,7 @@ export class SubmitCard extends Entity {
       FONT.display(14),
       COLOR.textPrimary,
     );
-    const sub = "One Entity per file, PR-based — read the guide ↗";
+    const sub = 'One Entity per file, PR-based — read the guide ↗';
     r.fillText(
       sub,
       cx - measureText(sub, FONT.body(11)) / 2,

@@ -1,9 +1,9 @@
-import { Entity, type IRenderer } from "@vectojs/core";
-import { Image, Text } from "@vectojs/ui";
-import type { ForgeApp } from "../apps";
-import { displayUrl } from "../apps";
-import { clampTextToLines } from "./clamp";
-import { COLOR, FONT } from "./tokens";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { Image, Text } from '@vectojs/ui';
+import type { ForgeApp } from '../apps';
+import { displayUrl } from '../apps';
+import { clampTextToLines } from './clamp';
+import { COLOR, FONT } from './tokens';
 
 const PADDING = 14;
 const CARD_RADIUS = 14;
@@ -76,16 +76,16 @@ export class AppCard extends Entity {
 
     this.height = nameY + name.height + 8 + tagline.height + PADDING + 4;
 
-    this.on("hover", () => {
+    this.on('hover', () => {
       this.hovered = true;
       this.springTo({ y: this.baseY - LIFT });
     });
-    this.on("pointerleave", () => {
+    this.on('pointerleave', () => {
       this.hovered = false;
       this.springTo({ y: this.baseY });
     });
-    this.on("click", () => {
-      window.open(this.app.url, "_blank", "noopener,noreferrer");
+    this.on('click', () => {
+      window.open(this.app.url, '_blank', 'noopener,noreferrer');
     });
   }
 
@@ -103,12 +103,7 @@ export class AppCard extends Entity {
   override isPointInside(globalX: number, globalY: number): boolean {
     const local = this.worldToLocal(globalX, globalY);
     if (!local) return false;
-    return (
-      local.x >= 0 &&
-      local.x <= this.width &&
-      local.y >= 0 &&
-      local.y <= this.height
-    );
+    return local.x >= 0 && local.x <= this.width && local.y >= 0 && local.y <= this.height;
   }
 
   override render(r: IRenderer): void {
@@ -145,16 +140,10 @@ export class AppCard extends Entity {
     r.stroke(COLOR.rule, 1);
 
     const barY = PADDING + this.shotH + 6;
-    const barGrad = r.createLinearGradient(
-      PADDING,
-      barY,
-      this.width - PADDING,
-      barY,
-      [
-        { stop: 0, color: this.app.accent.a },
-        { stop: 1, color: this.app.accent.b },
-      ],
-    );
+    const barGrad = r.createLinearGradient(PADDING, barY, this.width - PADDING, barY, [
+      { stop: 0, color: this.app.accent.a },
+      { stop: 1, color: this.app.accent.b },
+    ]);
     r.beginPath();
     r.roundRect(PADDING, barY, this.width - PADDING * 2, 3, 1.5);
     r.fill(barGrad);

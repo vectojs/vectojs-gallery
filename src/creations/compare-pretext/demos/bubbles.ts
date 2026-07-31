@@ -13,17 +13,12 @@
  * naive approach), the right "Pretext shrinkwrap" column sizes to the tight
  * width — visibly less wasted padding on short trailing lines.
  */
-import {
-  Entity,
-  LayoutEngine,
-  type IRenderer,
-  type PreparedText,
-} from "@vectojs/core";
-import { Slider, Text } from "@vectojs/ui";
-import { WARM, FONT } from "../shared/theme";
-import { fontMeasurer } from "../shared/measure";
-import { layoutMetrics, findTightWrapMetrics } from "../shared/layoutMetrics";
-import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
+import { Entity, LayoutEngine, type IRenderer, type PreparedText } from '@vectojs/core';
+import { Slider, Text } from '@vectojs/ui';
+import { WARM, FONT } from '../shared/theme';
+import { fontMeasurer } from '../shared/measure';
+import { layoutMetrics, findTightWrapMetrics } from '../shared/layoutMetrics';
+import { CONTENT_TOP, drawDemoHeader } from '../shared/chrome';
 
 // Same 7 messages as the pretext original (dev-culture chat, CJK+emoji,
 // Arabic bidi, one long English line — the exact mixed-script stress set).
@@ -32,20 +27,20 @@ interface Msg {
   text: string;
 }
 const MESSAGES: Msg[] = [
-  { sent: false, text: "Yo did you see the new Pretext library?" },
+  { sent: false, text: 'Yo did you see the new Pretext library?' },
   {
     sent: true,
-    text: "yeah! It measures text without the DOM. Pure JavaScript arithmetic",
+    text: 'yeah! It measures text without the DOM. Pure JavaScript arithmetic',
   },
   {
     sent: false,
     text: "That shrinkwrap demo is wild it finds the exact minimum width for multiline text. CSS can't do that.",
   },
-  { sent: true, text: "성능 최적화가 정말 많이 되었더라고요 🎉" },
-  { sent: false, text: "Oh wow it handles CJK and emoji too??" },
+  { sent: true, text: '성능 최적화가 정말 많이 되었더라고요 🎉' },
+  { sent: false, text: 'Oh wow it handles CJK and emoji too??' },
   {
     sent: true,
-    text: "كل شيء! Mixed bidi, grapheme clusters, whatever you want. Try resizing",
+    text: 'كل شيء! Mixed bidi, grapheme clusters, whatever you want. Try resizing',
   },
   {
     sent: true,
@@ -65,9 +60,9 @@ const PANEL_GAP = 24;
 const PANEL_HEADER_H = 92;
 const BUBBLE_GAP = 8;
 
-const SENT_BG = "#0a84ff";
-const RECV_BG = "#2c2c2e";
-const CHAT_BG = "#1c1c1e";
+const SENT_BG = '#0a84ff';
+const RECV_BG = '#2c2c2e';
+const CHAT_BG = '#1c1c1e';
 
 interface BubbleGeom {
   cssWidth: number;
@@ -91,13 +86,11 @@ class BubbleColumn extends Entity {
     this.tight = tight;
     this.title = title;
     this.engine = new LayoutEngine(1e9, 1e9, fontMeasurer(BUBBLE_FONT));
-    this.prepared = MESSAGES.map((m) =>
-      this.engine.prepare(m.text, {}, FONT_SIZE),
-    );
+    this.prepared = MESSAGES.map((m) => this.engine.prepare(m.text, {}, FONT_SIZE));
     for (const m of MESSAGES) {
       const t = new Text(m.text, {
         font: BUBBLE_FONT,
-        color: "#f5f5f7",
+        color: '#f5f5f7',
         lineHeight: LINE_HEIGHT,
       });
       this.add(t);
@@ -174,13 +167,13 @@ class BubbleColumn extends Entity {
     r.beginPath();
     r.roundRect(0, 0, this.width, this.height, 16);
     r.fill(CHAT_BG);
-    r.fillText(this.title, 16, 30, FONT.sans(13, 700), "#8e8e93");
+    r.fillText(this.title, 16, 30, FONT.sans(13, 700), '#8e8e93');
     r.fillText(
       `wasted: ${Math.round(this.wasted()).toLocaleString()} px²`,
       16,
       52,
       FONT.mono(12),
-      this.tight ? "#34c759" : "#ff9f0a",
+      this.tight ? '#34c759' : '#ff9f0a',
     );
 
     let y = PANEL_HEADER_H;
@@ -205,12 +198,12 @@ class BubblesDemo extends Entity {
   private cssColumn: BubbleColumn;
   private tightColumn: BubbleColumn;
   private slider: Slider;
-  private valueLabel = "";
+  private valueLabel = '';
 
   constructor() {
-    super("BubblesDemo");
-    this.cssColumn = new BubbleColumn(false, "CSS fit-content");
-    this.tightColumn = new BubbleColumn(true, "Pretext shrinkwrap");
+    super('BubblesDemo');
+    this.cssColumn = new BubbleColumn(false, 'CSS fit-content');
+    this.tightColumn = new BubbleColumn(true, 'Pretext shrinkwrap');
     this.add(this.cssColumn, this.tightColumn);
 
     this.slider = new Slider({
@@ -220,9 +213,9 @@ class BubblesDemo extends Entity {
       step: 1,
       width: 260,
       height: 20,
-      trackColor: "rgba(0,0,0,0.08)",
+      trackColor: 'rgba(0,0,0,0.08)',
       progressColor: WARM.accent,
-      handleColor: "#ffffff",
+      handleColor: '#ffffff',
       onChange: (v: number) => this.applyWidth(v),
     });
     this.add(this.slider);
@@ -260,19 +253,13 @@ class BubblesDemo extends Entity {
     this.tightColumn.width = colWidth;
     if (stacked) {
       this.cssColumn.setPosition(left, colsTop);
-      this.tightColumn.setPosition(
-        left,
-        colsTop + this.cssColumn.height + PANEL_GAP,
-      );
+      this.tightColumn.setPosition(left, colsTop + this.cssColumn.height + PANEL_GAP);
     } else {
       this.cssColumn.setPosition(left, colsTop);
       this.tightColumn.setPosition(left + colWidth + PANEL_GAP, colsTop);
     }
 
-    const maxChatWidth = Math.max(
-      SLIDER_MIN,
-      Math.min(SLIDER_MAX, colWidth - 40),
-    );
+    const maxChatWidth = Math.max(SLIDER_MIN, Math.min(SLIDER_MAX, colWidth - 40));
     this.slider.max = maxChatWidth;
     this.applyWidth(Math.min(this.slider.value, maxChatWidth));
   }
@@ -286,8 +273,8 @@ class BubblesDemo extends Entity {
     drawDemoHeader(
       r,
       left,
-      "Shrinkwrap showdown",
-      "fit-content sizes a bubble to its widest line; pretext finds the tightest width that still wraps to the same line count.",
+      'Shrinkwrap showdown',
+      'fit-content sizes a bubble to its widest line; pretext finds the tightest width that still wraps to the same line count.',
     );
     r.fillText(
       `Container width: ${this.valueLabel}`,

@@ -11,10 +11,10 @@
  * from its layout engine and VectoJS gets from the same canvas `measureText`
  * path its own `LayoutEngine` uses. Both grids are painted via `IRenderer`.
  */
-import { Entity, type IRenderer } from "@vectojs/core";
-import { DARK, FONT as UIFONT } from "../shared/theme";
-import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
-import { LinePool, type PooledLine } from "../shared/LinePool";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { DARK, FONT as UIFONT } from '../shared/theme';
+import { CONTENT_TOP, drawDemoHeader } from '../shared/chrome';
+import { LinePool, type PooledLine } from '../shared/LinePool';
 
 const COLS = 44;
 const ROWS = 26;
@@ -36,11 +36,10 @@ const ATTRACTOR_FORCE_1 = 0.22;
 const ATTRACTOR_FORCE_2 = 0.05;
 const FIELD_DECAY = 0.82;
 const PROP_FAMILY = 'Georgia, Palatino, "Times New Roman", serif';
-const CHARSET =
-  ".,:;!+-=*#@%&abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const CHARSET = '.,:;!+-=*#@%&abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const WEIGHTS = [300, 500, 800] as const;
-const STYLES = ["normal", "italic"] as const;
-const MONO_RAMP = " .`-_:,;^=+/|)\\!?0oOQ#%@";
+const STYLES = ['normal', 'italic'] as const;
+const MONO_RAMP = ' .`-_:,;^=+/|)\\!?0oOQ#%@';
 
 interface PaletteEntry {
   char: string;
@@ -84,21 +83,18 @@ class VariableTypographicAsciiDemo extends Entity {
   private smallStamp!: FieldStamp;
   private time = 0;
   // reusable per-frame cell buffers (avoid per-frame allocation)
-  private monoGrid: string[] = Array.from({ length: COLS * ROWS }, () => " ");
-  private propGrid: (PaletteEntry | null)[] = Array.from(
-    { length: COLS * ROWS },
-    () => null,
-  );
+  private monoGrid: string[] = Array.from({ length: COLS * ROWS }, () => ' ');
+  private propGrid: (PaletteEntry | null)[] = Array.from({ length: COLS * ROWS }, () => null);
   private gridLeftSource = 0;
   private gridLeftMono = 0;
   private gridLeftProp = 0;
   private gridTop = 0;
   // Selectable copy target for the monospace ASCII (raw fillText copies
   // nothing); one pooled Text line per grid row, refreshed each frame.
-  private monoPool = new LinePool("AsciiMonoText");
+  private monoPool = new LinePool('AsciiMonoText');
 
   constructor() {
-    super("VariableTypographicAsciiDemo");
+    super('VariableTypographicAsciiDemo');
     this.add(this.monoPool);
     this.buildPalette();
     this.buildLookup();
@@ -118,24 +114,22 @@ class VariableTypographicAsciiDemo extends Entity {
   }
 
   private buildPalette(): void {
-    const c =
-      typeof document !== "undefined" ? document.createElement("canvas") : null;
-    const mctx = c?.getContext("2d") ?? null;
+    const c = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+    const mctx = c?.getContext('2d') ?? null;
     // brightness sampler
-    const bc =
-      typeof document !== "undefined" ? document.createElement("canvas") : null;
+    const bc = typeof document !== 'undefined' ? document.createElement('canvas') : null;
     if (bc) {
       bc.width = 24;
       bc.height = 24;
     }
-    const bctx = bc?.getContext("2d", { willReadFrequently: true }) ?? null;
+    const bctx = bc?.getContext('2d', { willReadFrequently: true }) ?? null;
 
     const estimateBrightness = (ch: string, font: string): number => {
       if (!bctx) return 0.5;
       bctx.clearRect(0, 0, 24, 24);
       bctx.font = font;
-      bctx.fillStyle = "#fff";
-      bctx.textBaseline = "middle";
+      bctx.fillStyle = '#fff';
+      bctx.textBaseline = 'middle';
       bctx.fillText(ch, 1, 12);
       const data = bctx.getImageData(0, 0, 24, 24).data;
       let sum = 0;
@@ -150,7 +144,7 @@ class VariableTypographicAsciiDemo extends Entity {
 
     for (const style of STYLES) {
       for (const weight of WEIGHTS) {
-        const font = `${style === "italic" ? "italic " : ""}${weight} ${GLYPH_FONT_SIZE}px ${PROP_FAMILY}`;
+        const font = `${style === 'italic' ? 'italic ' : ''}${weight} ${GLYPH_FONT_SIZE}px ${PROP_FAMILY}`;
         for (const ch of CHARSET) {
           const width = measureWidth(ch, font);
           if (width <= 0) continue;
@@ -207,9 +201,7 @@ class VariableTypographicAsciiDemo extends Entity {
     for (let byte = 0; byte < 256; byte++) {
       const brightness = byte / 255;
       const monoChar =
-        MONO_RAMP[
-          Math.min(MONO_RAMP.length - 1, (brightness * MONO_RAMP.length) | 0)
-        ];
+        MONO_RAMP[Math.min(MONO_RAMP.length - 1, (brightness * MONO_RAMP.length) | 0)];
       if (brightness < 0.03) {
         this.lookup.push({ monoChar, prop: null });
         continue;
@@ -307,13 +299,9 @@ class VariableTypographicAsciiDemo extends Entity {
         let b = 0;
         for (let sy = 0; sy < FIELD_OVERSAMPLE; sy++) {
           const off = fieldRowStart + sy * FIELD_COLS + fieldColStart;
-          for (let sx = 0; sx < FIELD_OVERSAMPLE; sx++)
-            b += this.field[off + sx];
+          for (let sx = 0; sx < FIELD_OVERSAMPLE; sx++) b += this.field[off + sx];
         }
-        const byte = Math.min(
-          255,
-          ((b / (FIELD_OVERSAMPLE * FIELD_OVERSAMPLE)) * 255) | 0,
-        );
+        const byte = Math.min(255, ((b / (FIELD_OVERSAMPLE * FIELD_OVERSAMPLE)) * 255) | 0);
         const entry = this.lookup[byte];
         const cell = row * COLS + col;
         this.monoGrid[cell] = entry.monoChar;
@@ -347,28 +335,16 @@ class VariableTypographicAsciiDemo extends Entity {
     drawDemoHeader(
       r,
       32,
-      "Typographic halftone",
-      "A particle swarm rendered twice — a fixed monospace ramp, and glyphs chosen by measured brightness and width.",
+      'Typographic halftone',
+      'A particle swarm rendered twice — a fixed monospace ramp, and glyphs chosen by measured brightness and width.',
       true,
     );
 
     // column labels
+    r.fillText('SOURCE FIELD', this.gridLeftSource, this.gridTop - 12, UIFONT.mono(11), DARK.faint);
+    r.fillText('MONOSPACE RAMP', this.gridLeftMono, this.gridTop - 12, UIFONT.mono(11), DARK.faint);
     r.fillText(
-      "SOURCE FIELD",
-      this.gridLeftSource,
-      this.gridTop - 12,
-      UIFONT.mono(11),
-      DARK.faint,
-    );
-    r.fillText(
-      "MONOSPACE RAMP",
-      this.gridLeftMono,
-      this.gridTop - 12,
-      UIFONT.mono(11),
-      DARK.faint,
-    );
-    r.fillText(
-      "PROPORTIONAL (measured)",
+      'PROPORTIONAL (measured)',
       this.gridLeftProp,
       this.gridTop - 12,
       UIFONT.mono(11),
@@ -403,15 +379,14 @@ class VariableTypographicAsciiDemo extends Entity {
     const monoFont = UIFONT.mono(GLYPH_FONT_SIZE);
     const monoLines: PooledLine[] = [];
     for (let row = 0; row < ROWS; row++) {
-      let line = "";
-      for (let col = 0; col < COLS; col++)
-        line += this.monoGrid[row * COLS + col];
+      let line = '';
+      for (let col = 0; col < COLS; col++) line += this.monoGrid[row * COLS + col];
       monoLines.push({
         x: this.gridLeftMono,
         y: this.gridTop + row * CELL_H,
         text: line,
         font: monoFont,
-        color: "#d7d4cd",
+        color: '#d7d4cd',
         lineHeight: CELL_H,
       });
     }
@@ -423,13 +398,7 @@ class VariableTypographicAsciiDemo extends Entity {
       for (let col = 0; col < COLS; col++) {
         const e = this.propGrid[row * COLS + col];
         if (!e) continue;
-        r.fillText(
-          e.char,
-          this.gridLeftProp + col * CELL_W,
-          y,
-          e.font,
-          e.color,
-        );
+        r.fillText(e.char, this.gridLeftProp + col * CELL_W, y, e.font, e.color);
       }
     }
   }

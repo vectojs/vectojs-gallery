@@ -26,11 +26,7 @@ export interface Point {
  * out the remaining usable text slots for one line band, discarding slivers
  * narrower than `minSlot`.
  */
-export function carveTextLineSlots(
-  base: Interval,
-  blocked: Interval[],
-  minSlot = 24,
-): Interval[] {
+export function carveTextLineSlots(base: Interval, blocked: Interval[], minSlot = 24): Interval[] {
   let slots: Interval[] = [base];
   for (const interval of blocked) {
     const next: Interval[] = [];
@@ -39,10 +35,8 @@ export function carveTextLineSlots(
         next.push(slot);
         continue;
       }
-      if (interval.left > slot.left)
-        next.push({ left: slot.left, right: interval.left });
-      if (interval.right < slot.right)
-        next.push({ left: interval.right, right: slot.right });
+      if (interval.left > slot.left) next.push({ left: slot.left, right: interval.left });
+      if (interval.right < slot.right) next.push({ left: interval.right, right: slot.right });
     }
     slots = next;
   }
@@ -62,8 +56,7 @@ export function circleIntervalForBand(
   const top = bandTop - vPad;
   const bottom = bandBottom + vPad;
   if (top >= cy + r || bottom <= cy - r) return null;
-  const minDy =
-    cy >= top && cy <= bottom ? 0 : cy < top ? top - cy : cy - bottom;
+  const minDy = cy >= top && cy <= bottom ? 0 : cy < top ? top - cy : cy - bottom;
   if (minDy >= r) return null;
   const maxDx = Math.sqrt(r * r - minDy * minDy);
   return { left: cx - maxDx - hPad, right: cx + maxDx + hPad };
@@ -79,8 +72,7 @@ export function rectIntervalsForBand(
 ): Interval[] {
   const intervals: Interval[] = [];
   for (const rect of rects) {
-    if (bandBottom <= rect.y - vPad || bandTop >= rect.y + rect.height + vPad)
-      continue;
+    if (bandBottom <= rect.y - vPad || bandTop >= rect.y + rect.height + vPad) continue;
     intervals.push({ left: rect.x - hPad, right: rect.x + rect.width + hPad });
   }
   return intervals;
@@ -109,28 +101,19 @@ export function polygonIntervalForBand(
   return { left: left - hPad, right: right + hPad };
 }
 
-export function isPointInPolygon(
-  points: Point[],
-  x: number,
-  y: number,
-): boolean {
+export function isPointInPolygon(points: Point[], x: number, y: number): boolean {
   let inside = false;
   for (let i = 0, prev = points.length - 1; i < points.length; prev = i++) {
     const a = points[i];
     const b = points[prev];
-    const intersects =
-      a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x;
+    const intersects = a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x;
     if (intersects) inside = !inside;
   }
   return inside;
 }
 
 /** Transform a normalized [0,1] hull into a rect, rotated by `angle` about its center. */
-export function transformWrapPoints(
-  points: Point[],
-  rect: Rect,
-  angle: number,
-): Point[] {
+export function transformWrapPoints(points: Point[], rect: Rect, angle: number): Point[] {
   if (angle === 0) {
     return points.map((p) => ({
       x: rect.x + p.x * rect.width,

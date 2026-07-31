@@ -6,26 +6,39 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "format:check": "prettier --check .",
+    "format:check": "oxfmt --check \"src/**/*.{js,ts,jsx,tsx,mjs,cjs,json}\"",
     "lint": "oxlint --deny-warnings src",
-    "test": "bun test"
+    "test": "bun test",
+    "format": "oxfmt --write \"src/**/*.{js,ts,jsx,tsx,mjs,cjs,json}\"",
+    "lint:biome": "biome lint",
+    "lint:md": "markdownlint-cli2 \"**/*.md\"",
+    "check": "bun run format:check && bun run lint && bun run lint:md",
+    "prepare": "lefthook install"
   },
   "dependencies": {
-    "@vectojs/core": "1.16.1",
-    "@vectojs/three": "0.1.7",
-    "@vectojs/ui": "2.1.0",
+    "@vectojs/core": "1.24.0",
+    "@vectojs/three": "0.1.8",
+    "@vectojs/ui": "2.5.0",
     "jszip": "^3.10.1",
     "marked": "^18.0.6",
     "three": "^0.160.0",
-    "@vectojs/markdown": "0.1.1"
+    "@vectojs/markdown": "0.5.0"
   },
   "devDependencies": {
     "@types/three": "^0.160.0",
-    "oxlint": "^1.71.0",
+    "oxlint": "^1.76.0",
     "prettier": "^3.9.1",
-    "typescript": "^5.4.5",
+    "typescript": "^7.0.2",
     "vite": "^5.2.11",
     "wrangler": "^4.110.0",
-    "@chenglou/pretext": "^0.0.8"
+    "@chenglou/pretext": "^0.0.8",
+    "@biomejs/biome": "^2.5.6",
+    "@commitlint/cli": "^21.2.1",
+    "@commitlint/config-conventional": "^21.2.0",
+    "carryctx": "0.4.4",
+    "knip": "^6.29.0",
+    "lefthook": "^2.1.10",
+    "markdownlint-cli2": "^0.23.2",
+    "oxfmt": "^0.61.0"
   }
 }

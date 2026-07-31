@@ -15,16 +15,16 @@
  * `MathMarkdown.renderMixedParagraph` already uses in this repo for
  * mixed text+block content.
  */
-import { Entity, type IRenderer } from "@vectojs/core";
-import { Card, Flow, Text } from "@vectojs/ui";
-import { WARM, FONT } from "../shared/theme";
-import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from "../shared/chrome";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { Card, Flow, Text } from '@vectojs/ui';
+import { WARM, FONT } from '../shared/theme';
+import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from '../shared/chrome';
 
-type TextStyleName = "body" | "link" | "code";
-type ChipTone = "mention" | "status" | "priority" | "time" | "count";
+type TextStyleName = 'body' | 'link' | 'code';
+type ChipTone = 'mention' | 'status' | 'priority' | 'time' | 'count';
 type Spec =
-  | { kind: "text"; text: string; style: TextStyleName }
-  | { kind: "chip"; label: string; tone: ChipTone };
+  | { kind: 'text'; text: string; style: TextStyleName }
+  | { kind: 'chip'; label: string; tone: ChipTone };
 
 /** True if the string contains any Arabic/Hebrew (RTL) characters. */
 function hasRTL(s: string): boolean {
@@ -35,39 +35,39 @@ function hasRTL(s: string): boolean {
 // sentence deliberately mixing English, Chinese, Arabic, emoji, and five
 // chip pills of varying tone/width.
 const SPECS: Spec[] = [
-  { kind: "text", text: "Ship ", style: "body" },
-  { kind: "chip", label: "@maya", tone: "mention" },
-  { kind: "text", text: "'s ", style: "body" },
-  { kind: "text", text: "rich-note", style: "code" },
-  { kind: "text", text: " card once ", style: "body" },
-  { kind: "text", text: "pre-wrap", style: "code" },
-  { kind: "text", text: " lands. Status ", style: "body" },
-  { kind: "chip", label: "blocked", tone: "status" },
-  { kind: "text", text: " by ", style: "body" },
-  { kind: "text", text: "vertical text", style: "link" },
+  { kind: 'text', text: 'Ship ', style: 'body' },
+  { kind: 'chip', label: '@maya', tone: 'mention' },
+  { kind: 'text', text: "'s ", style: 'body' },
+  { kind: 'text', text: 'rich-note', style: 'code' },
+  { kind: 'text', text: ' card once ', style: 'body' },
+  { kind: 'text', text: 'pre-wrap', style: 'code' },
+  { kind: 'text', text: ' lands. Status ', style: 'body' },
+  { kind: 'chip', label: 'blocked', tone: 'status' },
+  { kind: 'text', text: ' by ', style: 'body' },
+  { kind: 'text', text: 'vertical text', style: 'link' },
   {
-    kind: "text",
-    text: " research, but 北京 copy and Arabic QA are both green ✅. Keep ",
-    style: "body",
+    kind: 'text',
+    text: ' research, but 北京 copy and Arabic QA are both green ✅. Keep ',
+    style: 'body',
   },
-  { kind: "chip", label: "جاهز", tone: "status" },
-  { kind: "text", text: " for ", style: "body" },
-  { kind: "text", text: "Cmd+K", style: "code" },
+  { kind: 'chip', label: 'جاهز', tone: 'status' },
+  { kind: 'text', text: ' for ', style: 'body' },
+  { kind: 'text', text: 'Cmd+K', style: 'code' },
   {
-    kind: "text",
-    text: " docs; the review bundle now includes 中文 labels, عربي fallback, and one more launch pass 🚀 for ",
-    style: "body",
+    kind: 'text',
+    text: ' docs; the review bundle now includes 中文 labels, عربي fallback, and one more launch pass 🚀 for ',
+    style: 'body',
   },
-  { kind: "chip", label: "Fri 2:30 PM", tone: "time" },
-  { kind: "text", text: ". Keep ", style: "body" },
-  { kind: "text", text: "layoutNextLine()", style: "code" },
-  { kind: "text", text: " public, tag this ", style: "body" },
-  { kind: "chip", label: "P1", tone: "priority" },
-  { kind: "text", text: ", keep ", style: "body" },
-  { kind: "chip", label: "3 reviewers", tone: "count" },
-  { kind: "text", text: ", and route feedback to ", style: "body" },
-  { kind: "text", text: "design sync", style: "link" },
-  { kind: "text", text: ".", style: "body" },
+  { kind: 'chip', label: 'Fri 2:30 PM', tone: 'time' },
+  { kind: 'text', text: '. Keep ', style: 'body' },
+  { kind: 'text', text: 'layoutNextLine()', style: 'code' },
+  { kind: 'text', text: ' public, tag this ', style: 'body' },
+  { kind: 'chip', label: 'P1', tone: 'priority' },
+  { kind: 'text', text: ', keep ', style: 'body' },
+  { kind: 'chip', label: '3 reviewers', tone: 'count' },
+  { kind: 'text', text: ', and route feedback to ', style: 'body' },
+  { kind: 'text', text: 'design sync', style: 'link' },
+  { kind: 'text', text: '.', style: 'body' },
 ];
 
 const BODY_FONT = FONT.sans(17, 500);
@@ -78,15 +78,15 @@ const CHIP_FONT = FONT.sans(12, 700);
 const TEXT_STYLE: Record<TextStyleName, { font: string; color: string }> = {
   body: { font: BODY_FONT, color: WARM.ink },
   link: { font: LINK_FONT, color: WARM.accent },
-  code: { font: CODE_FONT, color: "#8a4b1f" },
+  code: { font: CODE_FONT, color: '#8a4b1f' },
 };
 
 const CHIP_TONE: Record<ChipTone, { bg: string; fg: string }> = {
-  mention: { bg: "#dbeafe", fg: "#1d4ed8" },
-  status: { bg: "#fde8d8", fg: "#b45309" },
-  priority: { bg: "#fee2e2", fg: "#b91c1c" },
-  time: { bg: "#dcfce7", fg: "#15803d" },
-  count: { bg: "#ede9fe", fg: "#6d28d9" },
+  mention: { bg: '#dbeafe', fg: '#1d4ed8' },
+  status: { bg: '#fde8d8', fg: '#b45309' },
+  priority: { bg: '#fee2e2', fg: '#b91c1c' },
+  time: { bg: '#dcfce7', fg: '#15803d' },
+  count: { bg: '#ede9fe', fg: '#6d28d9' },
 };
 
 const BODY_MIN_WIDTH = 260;
@@ -139,7 +139,7 @@ class RichNoteDemo extends Entity {
   private sliderTrackW = 260;
 
   constructor() {
-    super("RichNoteDemo");
+    super('RichNoteDemo');
     // The note shell is a real Card, and the flow is its child, so they are
     // positioned together (setting the card's position moves the flow with
     // it) — the previous split (card drawn in render(), flow positioned in
@@ -155,7 +155,7 @@ class RichNoteDemo extends Entity {
     });
     this.flow = new Flow({
       gap: 5,
-      align: "center",
+      align: 'center',
       maxWidth: BODY_DEFAULT_WIDTH,
     });
     this.flow.setPosition(NOTE_PAD, NOTE_PAD);
@@ -164,26 +164,26 @@ class RichNoteDemo extends Entity {
     this.add(this.noteCard);
 
     this.interactive = true;
-    this.on("pointerdown", (e: { localX?: number; localY?: number }) => {
+    this.on('pointerdown', (e: { localX?: number; localY?: number }) => {
       if (this.pointInSlider(e.localX, e.localY)) {
         this.dragging = true;
         this.updateFromPointer(e.localX);
       }
     });
-    this.on("pointermove", (e: { localX?: number }) => {
+    this.on('pointermove', (e: { localX?: number }) => {
       if (this.dragging) this.updateFromPointer(e.localX);
     });
-    this.on("pointerup", () => {
+    this.on('pointerup', () => {
       this.dragging = false;
     });
-    this.on("pointerleave", () => {
+    this.on('pointerleave', () => {
       this.dragging = false;
     });
   }
 
   private buildFlowChildren(): void {
     for (const spec of SPECS) {
-      if (spec.kind === "chip") {
+      if (spec.kind === 'chip') {
         this.flow.add(new Pill(spec.label, spec.tone));
         continue;
       }
@@ -194,9 +194,7 @@ class RichNoteDemo extends Entity {
       // Text atom so the LayoutEngine's own bidi ordering (Intl.Segmenter)
       // stays correct; only pure-LTR runs are split for natural wrapping.
       if (hasRTL(spec.text)) {
-        this.flow.add(
-          new Text(spec.text.trim(), { font: style.font, color: style.color }),
-        );
+        this.flow.add(new Text(spec.text.trim(), { font: style.font, color: style.color }));
         continue;
       }
       const words = spec.text.split(/(\s+)/).filter((w) => w.length > 0);
@@ -218,10 +216,7 @@ class RichNoteDemo extends Entity {
 
   private updateFromPointer(x?: number): void {
     if (x === undefined) return;
-    const t = Math.max(
-      0,
-      Math.min(1, (x - this.sliderTrackX) / this.sliderTrackW),
-    );
+    const t = Math.max(0, Math.min(1, (x - this.sliderTrackX) / this.sliderTrackW));
     const maxBodyWidth = this.maxBodyWidthFor(this.W);
     this.requestedWidth = BODY_MIN_WIDTH + t * (maxBodyWidth - BODY_MIN_WIDTH);
     this.applyWidth();
@@ -238,10 +233,7 @@ class RichNoteDemo extends Entity {
   /** Relayout the flow and resize/reposition the note card to match. */
   private applyWidth(): void {
     const maxBodyWidth = this.maxBodyWidthFor(this.W);
-    this.bodyWidth = Math.max(
-      BODY_MIN_WIDTH,
-      Math.min(maxBodyWidth, this.requestedWidth),
-    );
+    this.bodyWidth = Math.max(BODY_MIN_WIDTH, Math.min(maxBodyWidth, this.requestedWidth));
     this.flow.maxWidth = this.bodyWidth;
     this.flow.layout();
     this.noteCard.width = this.bodyWidth + NOTE_PAD * 2;
@@ -266,10 +258,7 @@ class RichNoteDemo extends Entity {
     this.width = width;
     this.height = height;
     this.sliderTrackX = PAGE_MARGIN + 320;
-    this.sliderTrackW = Math.min(
-      260,
-      Math.max(140, width - this.sliderTrackX - 40),
-    );
+    this.sliderTrackW = Math.min(260, Math.max(140, width - this.sliderTrackX - 40));
     this.applyWidth();
   }
 
@@ -280,8 +269,8 @@ class RichNoteDemo extends Entity {
     drawDemoHeader(
       r,
       PAGE_MARGIN,
-      "Rich Text",
-      "Text runs, links, code spans, and atomic chips — adjust the width and the chips stay whole while text keeps wrapping.",
+      'Rich Text',
+      'Text runs, links, code spans, and atomic chips — adjust the width and the chips stay whole while text keeps wrapping.',
     );
 
     // Width slider (drawn in the header band, right of the title)
@@ -290,8 +279,7 @@ class RichNoteDemo extends Entity {
     r.roundRect(this.sliderTrackX, trackY - 2, this.sliderTrackW, 4, 2);
     r.fill(WARM.rule);
     const t =
-      (this.bodyWidth - BODY_MIN_WIDTH) /
-      (this.maxBodyWidthFor(this.W) - BODY_MIN_WIDTH || 1);
+      (this.bodyWidth - BODY_MIN_WIDTH) / (this.maxBodyWidthFor(this.W) - BODY_MIN_WIDTH || 1);
     const handleX = this.sliderTrackX + t * this.sliderTrackW;
     r.fillCircle(handleX, trackY, 8, WARM.accent);
     r.fillText(

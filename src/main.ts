@@ -1,16 +1,16 @@
-import { Scene, Entity } from "@vectojs/core";
-import { CREATIONS, type Creation } from "./registry";
-import { APPS } from "./apps";
-import { Bed } from "./ui/Bed";
-import { Rail, COLLAPSED_RAIL_WIDTH } from "./ui/Rail";
-import { CaptionPlate } from "./ui/CaptionPlate";
-import { Stage } from "./ui/Stage";
-import { BackChip } from "./ui/BackChip";
-import { keepSceneLive } from "./keep-live";
+import { Scene, Entity } from '@vectojs/core';
+import { CREATIONS, type Creation } from './registry';
+import { APPS } from './apps';
+import { Bed } from './ui/Bed';
+import { Rail, COLLAPSED_RAIL_WIDTH } from './ui/Rail';
+import { CaptionPlate } from './ui/CaptionPlate';
+import { Stage } from './ui/Stage';
+import { BackChip } from './ui/BackChip';
+import { keepSceneLive } from './keep-live';
 
 const RAIL_WIDTH = 280;
 
-const HASH_PREFIX = "#/creation/";
+const HASH_PREFIX = '#/creation/';
 
 function creationIdFromHash(): string | null {
   const hash = window.location.hash;
@@ -29,7 +29,7 @@ interface ResizableEntity {
 }
 
 function hasResizeTo(entity: Entity): entity is Entity & ResizableEntity {
-  return typeof (entity as Partial<ResizableEntity>).resizeTo === "function";
+  return typeof (entity as Partial<ResizableEntity>).resizeTo === 'function';
 }
 
 function applySize(entity: Entity, width: number, height: number): void {
@@ -41,9 +41,7 @@ function applySize(entity: Entity, width: number, height: number): void {
 }
 
 function initGallery(): void {
-  const canvas = document.getElementById(
-    "gallery-canvas",
-  ) as HTMLCanvasElement | null;
+  const canvas = document.getElementById('gallery-canvas') as HTMLCanvasElement | null;
   if (!canvas) return;
 
   // Must stay 2D-only. A `pointBackend: 'webgl'` scene composites its GL canvas
@@ -87,10 +85,8 @@ function initGallery(): void {
   // so it can't double as "nothing has loaded yet".
   let activeId: string | null | undefined = undefined;
 
-  const bed = new Bed(
-    window.innerWidth - RAIL_WIDTH,
-    window.innerHeight,
-    (creation) => navigateTo(creation),
+  const bed = new Bed(window.innerWidth - RAIL_WIDTH, window.innerHeight, (creation) =>
+    navigateTo(creation),
   );
   scene.add(bed);
   // Every ported creation before Chat happened to paint an opaque full-bleed
@@ -119,8 +115,7 @@ function initGallery(): void {
   // that don't override it.
   // Workspace origin/width depend on whether the rail is collapsed to its thin
   // brand strip.
-  const railWidth = (): number =>
-    railCollapsed ? COLLAPSED_RAIL_WIDTH : RAIL_WIDTH;
+  const railWidth = (): number => (railCollapsed ? COLLAPSED_RAIL_WIDTH : RAIL_WIDTH);
   const workspaceX = (): number => railWidth();
   const workspaceW = (): number => window.innerWidth - railWidth();
 
@@ -146,7 +141,7 @@ function initGallery(): void {
     // Restore the default every creation but `chat` relies on (see the
     // `renderMode = 'onDemand'` assignment in `loadCreation` below) before
     // whatever mounts next gets a chance to run.
-    scene.renderMode = "always";
+    scene.renderMode = 'always';
   };
 
   /**
@@ -159,14 +154,14 @@ function initGallery(): void {
    */
   const clipStackedCanvases = (): void => {
     const host = canvas.parentElement ?? document.body;
-    for (const c of host.querySelectorAll("canvas")) {
+    for (const c of host.querySelectorAll('canvas')) {
       if (c === canvas) continue;
       const el = c as HTMLCanvasElement;
       // Clip only the portion that actually overlaps the rail: a creation-
       // owned canvas already positioned at the workspace offset (e.g.
       // Dimension's Three.js canvas) must NOT lose its left edge.
       const overlap = railWidth() - el.getBoundingClientRect().left;
-      el.style.clipPath = overlap > 0 ? `inset(0 0 0 ${overlap}px)` : "";
+      el.style.clipPath = overlap > 0 ? `inset(0 0 0 ${overlap}px)` : '';
     }
   };
 
@@ -245,13 +240,10 @@ function initGallery(): void {
         // its own visuals change (`continuousRedraw: false`); every other
         // creation keeps the default `always` mode set in `teardownCurrent`.
         // See forge/findings.md 2026-07-19.
-        scene.renderMode =
-          creation.continuousRedraw === false ? "onDemand" : "always";
+        scene.renderMode = creation.continuousRedraw === false ? 'onDemand' : 'always';
         currentPlate = new CaptionPlate(creation);
         currentPlate.x = workspaceX() + 16;
-        currentPlate.setBottomAnchor(
-          window.innerHeight - 16 - (creation.bottomInset ?? 0),
-        );
+        currentPlate.setBottomAnchor(window.innerHeight - 16 - (creation.bottomInset ?? 0));
         scene.add(currentPlate);
 
         currentBackChip = new BackChip(() => navigateTo(null));
@@ -289,15 +281,10 @@ function initGallery(): void {
   }
 
   const setHash = (id: string | null): void => {
-    const next = id ? `${HASH_PREFIX}${id}` : "";
+    const next = id ? `${HASH_PREFIX}${id}` : '';
     if (window.location.hash !== next) {
       if (next) window.location.hash = next;
-      else
-        history.replaceState(
-          null,
-          "",
-          window.location.pathname + window.location.search,
-        );
+      else history.replaceState(null, '', window.location.pathname + window.location.search);
     }
   };
 
@@ -324,18 +311,16 @@ function initGallery(): void {
       applySize(currentEntity, workspaceW(), H);
     }
     if (currentPlate) {
-      currentPlate.setBottomAnchor(
-        H - 16 - (currentCreation?.bottomInset ?? 0),
-      );
+      currentPlate.setBottomAnchor(H - 16 - (currentCreation?.bottomInset ?? 0));
     }
     clipStackedCanvases();
 
     scene.markDirty();
   };
 
-  window.addEventListener("resize", resize);
+  window.addEventListener('resize', resize);
 
-  window.addEventListener("hashchange", () => {
+  window.addEventListener('hashchange', () => {
     const id = creationIdFromHash();
     const match = id ? (CREATIONS.find((c) => c.id === id) ?? null) : null;
     loadCreation(match);
@@ -343,9 +328,7 @@ function initGallery(): void {
 
   resize();
   const initialId = creationIdFromHash();
-  const initialCreation = initialId
-    ? (CREATIONS.find((c) => c.id === initialId) ?? null)
-    : null;
+  const initialCreation = initialId ? (CREATIONS.find((c) => c.id === initialId) ?? null) : null;
   loadCreation(initialCreation);
 
   // Some ported entries animate purely by mutating their own state in
@@ -377,7 +360,7 @@ function whenFontsReady(): Promise<void> {
   if (!fonts) return Promise.resolve();
   try {
     void fonts.load('400 16px "Archivo Black"');
-    void fonts.load("400 16px Inter");
+    void fonts.load('400 16px Inter');
   } catch {
     // `load()` throws on malformed descriptors only; ignore and fall through.
   }
@@ -387,6 +370,6 @@ function whenFontsReady(): Promise<void> {
   ]);
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener('DOMContentLoaded', () => {
   void whenFontsReady().then(initGallery);
 });

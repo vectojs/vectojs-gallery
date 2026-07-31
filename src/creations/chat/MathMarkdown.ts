@@ -20,13 +20,13 @@
  *    selection and preventing accidental clicks into SVG source.
  */
 
-import { Image, Stack, Flow } from "@vectojs/ui";
+import { Image, Stack, Flow } from '@vectojs/ui';
 // Markdown/CodeBlock moved to @vectojs/markdown in ui 2.0.0.
-import { Markdown } from "@vectojs/markdown";
-import { marked, type Token } from "marked";
-import { Entity } from "@vectojs/core";
-import { registerMathExtensions } from "./marked-extensions";
-import type { LexRequest, LexResponse } from "./mathMarkdownWorker";
+import { Markdown } from '@vectojs/markdown';
+import { marked, type Token } from 'marked';
+import { Entity } from '@vectojs/core';
+import { registerMathExtensions } from './marked-extensions';
+import type { LexRequest, LexResponse } from './mathMarkdownWorker';
 
 registerMathExtensions(); // main thread: only exercised by the sync fallback below
 
@@ -59,36 +59,30 @@ let workerIdCounter = 0;
 // still valid and only `tail` is new — see the matching comment in
 // mathMarkdownWorker.ts for why the worker sends a diff instead of the full
 // re-lexed tree on every call.
-const workerCallbacks = new Map<
-  number,
-  (matchLen: number, tail: Token[]) => void
->();
+const workerCallbacks = new Map<number, (matchLen: number, tail: Token[]) => void>();
 
-if (typeof Worker !== "undefined") {
+if (typeof Worker !== 'undefined') {
   try {
-    lexWorker = new Worker(
-      new URL("./mathMarkdownWorker.ts", import.meta.url),
-      {
-        type: "module",
-      },
-    );
+    lexWorker = new Worker(new URL('./mathMarkdownWorker.ts', import.meta.url), {
+      type: 'module',
+    });
     lexWorker.onmessage = (e: MessageEvent<LexResponse>) => {
       const { id, matchLen, tail, error } = e.data;
       const cb = workerCallbacks.get(id);
       if (!cb) return;
       workerCallbacks.delete(id);
       if (error || !tail) {
-        console.warn("MathMarkdown worker lex failed, falling back", error);
+        console.warn('MathMarkdown worker lex failed, falling back', error);
         return;
       }
       cb(matchLen ?? 0, tail);
     };
     lexWorker.onerror = (err) => {
-      console.warn("MathMarkdown worker crashed; using sync fallback", err);
+      console.warn('MathMarkdown worker crashed; using sync fallback', err);
       lexWorker = null;
     };
   } catch (err) {
-    console.warn("Failed to start MathMarkdown worker", err);
+    console.warn('Failed to start MathMarkdown worker', err);
   }
 }
 
@@ -102,7 +96,7 @@ export class MathMarkdown extends Markdown {
   // text-selection drag across the entire panel — see forge/findings.md
   // 2026-07-18 (structural-interactive container blocking native selection).
   override getA11yAttributes() {
-    return { pointerEvents: "none" as const };
+    return { pointerEvents: 'none' as const };
   }
 
   // Bumped on every `setContent` (a brand-new document); lets a lex
@@ -211,11 +205,9 @@ export class MathMarkdown extends Markdown {
    */
   private reconcileLastMixedParagraph(tokens: Token[]): void {
     const last = tokens[tokens.length - 1];
-    if (!last || last.type !== "paragraph") return;
+    if (!last || last.type !== 'paragraph') return;
     const pToken = last as unknown as { tokens?: Token[] };
-    const needsFlow = pToken.tokens?.some(
-      (t) => t.type === "inlineMath" || t.type === "image",
-    );
+    const needsFlow = pToken.tokens?.some((t) => t.type === 'inlineMath' || t.type === 'image');
     if (!needsFlow) return;
 
     const children = this.content.children;
@@ -246,9 +238,9 @@ export class MathMarkdown extends Markdown {
   public needsCalibration(): boolean {
     const tokens = (this as unknown as MarkdownInternals).tokens;
     for (const tok of tokens) {
-      if (tok.type === "displayMath" || tok.type === "image") return true;
+      if (tok.type === 'displayMath' || tok.type === 'image') return true;
       const inner = (tok as unknown as { tokens?: Token[] }).tokens;
-      if (inner?.some((t) => t.type === "inlineMath" || t.type === "image")) {
+      if (inner?.some((t) => t.type === 'inlineMath' || t.type === 'image')) {
         return true;
       }
     }
@@ -284,14 +276,13 @@ export class MathMarkdown extends Markdown {
     if (!cached) {
       // Trick the library into generating a MathJax SVG by pretending it's a code block
       const fakeToken = {
-        type: "code",
-        lang: "math",
+        type: 'code',
+        lang: 'math',
         text: mathText,
         raw,
       };
       wrapper = super.renderToken(fakeToken as unknown as Token);
-      const children = (wrapper as unknown as { children?: Entity[] })
-        ?.children;
+      const children = (wrapper as unknown as { children?: Entity[] })?.children;
       if (wrapper && children && children.length > 0) {
         img = children[0] as Image;
         const rawImg = img as unknown as {
@@ -323,7 +314,7 @@ export class MathMarkdown extends Markdown {
         if (cached.bitmap.complete) {
           rawImg.loaded = true;
         } else {
-          cached.bitmap.addEventListener("load", () => {
+          cached.bitmap.addEventListener('load', () => {
             rawImg.loaded = true;
             img?.scene?.markDirty();
           });
@@ -358,10 +349,10 @@ export class MathMarkdown extends Markdown {
         x: 0,
         y: i * 20,
         baseline: i * 20 + 15,
-        font: "16px monospace",
+        font: '16px monospace',
         lineHeight: 20,
       })),
-      ligatures: "none",
+      ligatures: 'none',
     });
 
     return { wrapper, img };
@@ -406,7 +397,7 @@ export class MathMarkdown extends Markdown {
           let node: Entity | null = img.parent;
           while (node) {
             const maybeStack = node as unknown as { layout?: () => void };
-            if (typeof maybeStack.layout === "function") maybeStack.layout();
+            if (typeof maybeStack.layout === 'function') maybeStack.layout();
             if (node === (this.content as unknown as Entity)) break;
             node = node.parent;
           }
@@ -445,66 +436,57 @@ export class MathMarkdown extends Markdown {
    * they're typically short phrases, not the long runs that caused the
    * one-per-line bug.
    */
-  private renderMixedParagraph(pToken: {
-    tokens?: Token[];
-    text: string;
-  }): Entity {
-    const flow = new Flow({ gap: 5, align: "center", maxWidth: this.maxWidth });
+  private renderMixedParagraph(pToken: { tokens?: Token[]; text: string }): Entity {
+    const flow = new Flow({ gap: 5, align: 'center', maxWidth: this.maxWidth });
 
     const addAtomicToken = (t: { type: string; raw: string; text: string }) => {
       const el = super.renderToken({
-        type: "paragraph",
-        text: "",
-        raw: "",
+        type: 'paragraph',
+        text: '',
+        raw: '',
         tokens: [t],
       } as unknown as Token);
       if (el) flow.add(el);
     };
 
     for (const child of pToken.tokens ?? []) {
-      if (child.type === "inlineMath") {
+      if (child.type === 'inlineMath') {
         const mathText = (child as unknown as { text: string }).text;
         const raw = (child as unknown as { raw: string }).raw;
         const built = this.buildMathImage(mathText, raw, { inline: true });
         if (built) flow.add(built.wrapper);
-      } else if (child.type === "image") {
+      } else if (child.type === 'image') {
         const imgToken = child as unknown as { href: string; text: string };
         flow.add(this.buildContentImage(imgToken));
-      } else if (child.type === "text") {
+      } else if (child.type === 'text') {
         const text = (child as unknown as { text: string }).text;
         for (const word of text.split(/\s+/)) {
           if (word.length > 0) {
-            addAtomicToken({ type: "text", raw: word, text: word });
+            addAtomicToken({ type: 'text', raw: word, text: word });
           }
         }
       } else {
-        addAtomicToken(
-          child as unknown as { type: string; raw: string; text: string },
-        );
+        addAtomicToken(child as unknown as { type: string; raw: string; text: string });
       }
     }
     return flow;
   }
 
   protected override renderToken(token: Token): Entity | null {
-    if (token.type === "displayMath") {
+    if (token.type === 'displayMath') {
       const mathText = (token as unknown as { text: string }).text;
       const built = this.buildMathImage(mathText, token.raw);
       return built?.wrapper ?? null;
     }
 
-    if (token.type === "paragraph") {
+    if (token.type === 'paragraph') {
       const pToken = token as unknown as { tokens?: Token[]; text: string };
-      if (
-        pToken.tokens?.some(
-          (t) => t.type === "inlineMath" || t.type === "image",
-        )
-      ) {
+      if (pToken.tokens?.some((t) => t.type === 'inlineMath' || t.type === 'image')) {
         return this.renderMixedParagraph(pToken);
       }
     }
 
-    if (token.type === "list") {
+    if (token.type === 'list') {
       const listToken = token as unknown as {
         items: {
           tokens?: {
@@ -522,29 +504,27 @@ export class MathMarkdown extends Markdown {
       // base "list" case can't nest block-level tokens (math/code/blockquote)
       // inside a list item, only flat inline spans, so this composes each
       // item as its own vertical Stack instead.
-      const listStack = new Stack({ direction: "vertical", gap: 6 });
+      const listStack = new Stack({ direction: 'vertical', gap: 6 });
 
       for (let i = 0; i < listToken.items.length; i++) {
         const item = listToken.items[i];
-        const bullet = listToken.ordered
-          ? `${Number(listToken.start ?? 1) + i}. `
-          : "• ";
+        const bullet = listToken.ordered ? `${Number(listToken.start ?? 1) + i}. ` : '• ';
 
-        const itemStack = new Stack({ direction: "vertical", gap: 4 });
+        const itemStack = new Stack({ direction: 'vertical', gap: 4 });
 
-        let currentInlineTokens: { type: string; raw: string; text: string }[] =
-          [{ type: "text", raw: bullet, text: bullet }];
+        let currentInlineTokens: { type: string; raw: string; text: string }[] = [
+          { type: 'text', raw: bullet, text: bullet },
+        ];
 
         const flushText = () => {
           if (
             currentInlineTokens.length > 1 ||
-            (currentInlineTokens.length === 1 &&
-              currentInlineTokens[0].text !== bullet)
+            (currentInlineTokens.length === 1 && currentInlineTokens[0].text !== bullet)
           ) {
             const pToken = {
-              type: "paragraph",
-              text: "",
-              raw: "",
+              type: 'paragraph',
+              text: '',
+              raw: '',
               tokens: currentInlineTokens,
             };
             // Through `this`, not `super` — so inline math/images nested in
@@ -561,10 +541,10 @@ export class MathMarkdown extends Markdown {
         if (item.tokens && item.tokens.length > 0) {
           for (const inner of item.tokens) {
             if (
-              inner.type === "displayMath" ||
-              inner.type === "code" ||
-              inner.type === "blockquote" ||
-              inner.type === "list"
+              inner.type === 'displayMath' ||
+              inner.type === 'code' ||
+              inner.type === 'blockquote' ||
+              inner.type === 'list'
             ) {
               flushText();
               const blockEl = this.renderToken(inner as unknown as Token);
@@ -572,7 +552,7 @@ export class MathMarkdown extends Markdown {
                 blockEl.x = 12; // Indent block elements inside the list item
                 itemStack.add(blockEl);
               }
-            } else if (inner.type === "text" && inner.tokens?.length) {
+            } else if (inner.type === 'text' && inner.tokens?.length) {
               // marked wraps a simple (non-loose) list item's single line in
               // one "text" token whose OWN nested `.tokens` holds the real
               // inline runs (inlineMath, image, ...). Pushing the wrapper
@@ -595,7 +575,7 @@ export class MathMarkdown extends Markdown {
           flushText();
         } else {
           currentInlineTokens.push({
-            type: "text",
+            type: 'text',
             raw: item.text,
             text: item.text,
           });

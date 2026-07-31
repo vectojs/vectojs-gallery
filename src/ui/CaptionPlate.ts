@@ -1,7 +1,7 @@
-import { Entity, type IRenderer } from "@vectojs/core";
-import { Text } from "@vectojs/ui";
-import type { Creation } from "../registry";
-import { COLOR, FONT } from "./tokens";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { Text } from '@vectojs/ui';
+import type { Creation } from '../registry';
+import { COLOR, FONT } from './tokens';
 
 const PADDING = 18;
 const MAX_WIDTH = 560;
@@ -28,7 +28,7 @@ export class CaptionPlate extends Entity {
   private readonly tagsText: Text;
 
   constructor(creation: Creation) {
-    super("CaptionPlate");
+    super('CaptionPlate');
     this.interactive = true;
     this.width = COLLAPSED_SIZE;
     this.height = COLLAPSED_SIZE;
@@ -46,22 +46,18 @@ export class CaptionPlate extends Entity {
     });
     this.descText.setPosition(PADDING, PADDING + 40);
 
-    this.tagsText = new Text(creation.tags.join("  ·  "), {
+    this.tagsText = new Text(creation.tags.join('  ·  '), {
       font: FONT.mono(11),
       color: COLOR.ink,
     });
-    this.tagsText.setPosition(
-      PADDING,
-      PADDING + 40 + this.descText.height + 12,
-    );
+    this.tagsText.setPosition(PADDING, PADDING + 40 + this.descText.height + 12);
 
-    this.expandedHeight =
-      PADDING + 40 + this.descText.height + 12 + 20 + PADDING;
+    this.expandedHeight = PADDING + 40 + this.descText.height + 12 + 20 + PADDING;
 
     // Hover the collapsed tab to peek; click routes to expand-or-close so the
     // "x" hit box can dismiss it (see onClick).
-    this.on("hover", () => this.expand());
-    this.on("click", (e: { localX?: number; localY?: number }) =>
+    this.on('hover', () => this.expand());
+    this.on('click', (e: { localX?: number; localY?: number }) =>
       this.onClick(e.localX ?? 0, e.localY ?? 0),
     );
   }
@@ -89,12 +85,7 @@ export class CaptionPlate extends Entity {
     if (this.collapsed) return false;
     const x0 = this.width - PADDING - CLOSE_SIZE;
     const y0 = PADDING - 4;
-    return (
-      localX >= x0 &&
-      localX <= x0 + CLOSE_SIZE &&
-      localY >= y0 &&
-      localY <= y0 + CLOSE_SIZE
-    );
+    return localX >= x0 && localX <= x0 + CLOSE_SIZE && localY >= y0 && localY <= y0 + CLOSE_SIZE;
   }
 
   private onClick(localX: number, localY: number): void {
@@ -125,34 +116,17 @@ export class CaptionPlate extends Entity {
   override isPointInside(globalX: number, globalY: number): boolean {
     const local = this.worldToLocal(globalX, globalY);
     if (!local) return false;
-    return (
-      local.x >= 0 &&
-      local.x <= this.width &&
-      local.y >= 0 &&
-      local.y <= this.height
-    );
+    return local.x >= 0 && local.x <= this.width && local.y >= 0 && local.y <= this.height;
   }
 
   override render(r: IRenderer): void {
     r.beginPath();
-    r.roundRect(
-      0,
-      0,
-      this.width,
-      this.height,
-      this.collapsed ? this.width / 2 : 0,
-    );
-    r.fill("rgba(253, 252, 250, 0.92)");
+    r.roundRect(0, 0, this.width, this.height, this.collapsed ? this.width / 2 : 0);
+    r.fill('rgba(253, 252, 250, 0.92)');
     r.stroke(COLOR.inkDim, 1);
 
     if (this.collapsed) {
-      r.fillText(
-        "i",
-        this.width / 2 - 3,
-        this.height / 2 + 5,
-        FONT.display(14),
-        COLOR.ink,
-      );
+      r.fillText('i', this.width / 2 - 3, this.height / 2 + 5, FONT.display(14), COLOR.ink);
       return;
     }
 

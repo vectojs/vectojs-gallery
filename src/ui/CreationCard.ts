@@ -1,9 +1,9 @@
-import { Entity, type IRenderer } from "@vectojs/core";
-import { Text } from "@vectojs/ui";
-import type { Creation } from "../registry";
-import { ThumbDoodle } from "./ThumbDoodle";
-import { clampTextToLines } from "./clamp";
-import { COLOR, FONT, accentFor, type Accent } from "./tokens";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { Text } from '@vectojs/ui';
+import type { Creation } from '../registry';
+import { ThumbDoodle } from './ThumbDoodle';
+import { clampTextToLines } from './clamp';
+import { COLOR, FONT, accentFor, type Accent } from './tokens';
 
 const PADDING = 16;
 const THUMB_RATIO = 0.625; // 16:10 — the thumbnail should dominate the card
@@ -23,7 +23,7 @@ function clamp01(v: number): number {
  */
 class PlayBadge extends Entity {
   constructor(private readonly liftFraction: () => number) {
-    super("PlayBadge");
+    super('PlayBadge');
   }
 
   override isPointInside(_globalX: number, _globalY: number): boolean {
@@ -67,12 +67,7 @@ export class CreationCard extends Entity {
     this.accent = accentFor(creation.id);
 
     this.thumbH = Math.round((width - PADDING * 2) * THUMB_RATIO);
-    const thumb = new ThumbDoodle(
-      width - PADDING * 2,
-      this.thumbH,
-      seed,
-      this.accent,
-    );
+    const thumb = new ThumbDoodle(width - PADDING * 2, this.thumbH, seed, this.accent);
     thumb.setPosition(PADDING, PADDING);
     this.add(thumb);
 
@@ -95,7 +90,7 @@ export class CreationCard extends Entity {
     descText.setPosition(PADDING, descY);
     this.add(descText);
 
-    this.tagsText = new Text(creation.tags.join("   ·   "), {
+    this.tagsText = new Text(creation.tags.join('   ·   '), {
       font: FONT.mono(11),
       color: COLOR.textFaint,
     });
@@ -108,15 +103,15 @@ export class CreationCard extends Entity {
     badge.setPosition(this.width / 2, PADDING + this.thumbH / 2);
     this.add(badge);
 
-    this.on("hover", () => {
+    this.on('hover', () => {
       this.hovered = true;
       this.springTo({ y: this.baseY - LIFT });
     });
-    this.on("pointerleave", () => {
+    this.on('pointerleave', () => {
       this.hovered = false;
       this.springTo({ y: this.baseY });
     });
-    this.on("click", () => this.onOpen(this.creation));
+    this.on('click', () => this.onOpen(this.creation));
   }
 
   /**
@@ -139,12 +134,7 @@ export class CreationCard extends Entity {
   override isPointInside(globalX: number, globalY: number): boolean {
     const local = this.worldToLocal(globalX, globalY);
     if (!local) return false;
-    return (
-      local.x >= 0 &&
-      local.x <= this.width &&
-      local.y >= 0 &&
-      local.y <= this.height
-    );
+    return local.x >= 0 && local.x <= this.width && local.y >= 0 && local.y <= this.height;
   }
 
   override render(r: IRenderer): void {
@@ -176,16 +166,10 @@ export class CreationCard extends Entity {
     r.stroke(t > 0.01 ? COLOR.ruleBright : COLOR.rule, 1);
 
     const barY = PADDING + this.thumbH + 8;
-    const barGrad = r.createLinearGradient(
-      PADDING,
-      barY,
-      this.width - PADDING,
-      barY,
-      [
-        { stop: 0, color: this.accent.a },
-        { stop: 1, color: this.accent.b },
-      ],
-    );
+    const barGrad = r.createLinearGradient(PADDING, barY, this.width - PADDING, barY, [
+      { stop: 0, color: this.accent.a },
+      { stop: 1, color: this.accent.b },
+    ]);
     r.beginPath();
     r.roundRect(PADDING, barY, this.width - PADDING * 2, 3, 1.5);
     r.fill(barGrad);

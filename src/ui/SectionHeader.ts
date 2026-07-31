@@ -1,5 +1,5 @@
-import { Entity, type IRenderer } from "@vectojs/core";
-import { COLOR, FONT } from "./tokens";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { COLOR, FONT } from './tokens';
 
 /**
  * A section title + one-line subtitle, used to separate the Creations and

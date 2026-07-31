@@ -17,14 +17,9 @@
  *     re-wrapped, so layout cost is O(1) per frame in practice.
  */
 
-import {
-  Entity,
-  LayoutEngine,
-  type Bounds,
-  type PreparedText,
-} from "@vectojs/core";
-import { isInsideBox } from "./hitTest";
-import type { RawRenderer } from "./raw-renderer";
+import { Entity, LayoutEngine, type Bounds, type PreparedText } from '@vectojs/core';
+import { isInsideBox } from './hitTest';
+import type { RawRenderer } from './raw-renderer';
 
 export interface ParagraphLayout {
   text: string;
@@ -47,8 +42,8 @@ function fontSizePx(font: string): number {
 }
 
 function fontMeasurer(font: string) {
-  if (typeof document === "undefined") return null;
-  const ctx = document.createElement("canvas").getContext("2d");
+  if (typeof document === 'undefined') return null;
+  const ctx = document.createElement('canvas').getContext('2d');
   if (!ctx) return null;
   const cache = new Map<string, number>();
   return {
@@ -66,7 +61,7 @@ function fontMeasurer(font: string) {
 
 const DEFAULTS: Required<StreamTextOptions> = {
   font: '16px/1.6 "JetBrains Mono", "Fira Code", monospace',
-  color: "#2d2015",
+  color: '#2d2015',
   lineHeight: 26,
   padding: 32,
   selectable: true,
@@ -86,7 +81,7 @@ export class StreamTextEntity extends Entity {
 
   // ── Paragraph Virtualization Cache ─────────────────────────────────────────
   private paragraphs: ParagraphLayout[] = [];
-  private _prevVisible = "";
+  private _prevVisible = '';
   private _prevWidth = 0;
   private _totalHeightCache = 0;
   private _shown = true;
@@ -113,14 +108,13 @@ export class StreamTextEntity extends Entity {
   }
 
   get visibleTextInViewport(): string {
-    let text = "";
+    let text = '';
     const pad = this.padding;
     const h = this.height || 600;
     let currentY = pad;
     for (const p of this.paragraphs) {
       const pHeight = p.height;
-      const isVisible =
-        currentY + pHeight > this.scrollY && currentY < this.scrollY + h;
+      const isVisible = currentY + pHeight > this.scrollY && currentY < this.scrollY + h;
       if (isVisible) {
         text += p.text;
       }
@@ -138,26 +132,22 @@ export class StreamTextEntity extends Entity {
   private _scrollOffset = 0;
 
   // ── Public state (written by StreamState tick) ─────────────────────────────
-  public visibleText = "";
+  public visibleText = '';
   /** When set, show this as idle hint (no stream active). */
-  public idleHint = "";
+  public idleHint = '';
 
   constructor(opts: StreamTextOptions = {}) {
-    super("StreamText");
+    super('StreamText');
     this.font = opts.font ?? DEFAULTS.font;
     this.color = opts.color ?? DEFAULTS.color;
     this.lineHeight = opts.lineHeight ?? DEFAULTS.lineHeight;
     this.padding = opts.padding ?? DEFAULTS.padding;
     this.fontSize = fontSizePx(this.font);
-    this.engine = new LayoutEngine(
-      800 - this.padding * 2,
-      1e9,
-      fontMeasurer(this.font),
-    );
+    this.engine = new LayoutEngine(800 - this.padding * 2, 1e9, fontMeasurer(this.font));
     this.interactive = true;
 
     // VectoJS dispatches VectoJSEvent — use localX/localY and deltaY
-    this.on("wheel", (e) => {
+    this.on('wheel', (e) => {
       const dy = e.deltaY ?? 0;
       const oldY = this.scrollY;
       this.scrollY += dy;
@@ -166,7 +156,7 @@ export class StreamTextEntity extends Entity {
       if (this.scrollY !== oldY) this.scene?.markDirty();
     });
 
-    this.on("pointerdown", (e) => {
+    this.on('pointerdown', (e) => {
       const x = e.localX ?? 0;
       const y = e.localY ?? 0;
       const w = this.width || 800;
@@ -189,13 +179,13 @@ export class StreamTextEntity extends Entity {
       }
 
       // Drag to scroll is touch-only (leaves mouse drag for text selection)
-      if (e.nativeEvent?.pointerType === "touch") {
+      if (e.nativeEvent?.pointerType === 'touch') {
         this._dragging = true;
         this._dragY = y;
       }
     });
 
-    this.on("pointermove", (e) => {
+    this.on('pointermove', (e) => {
       const y = e.localY ?? 0;
 
       if (this._scrollbarDragging) {
@@ -224,7 +214,7 @@ export class StreamTextEntity extends Entity {
       }
     });
 
-    this.on("pointerup", () => {
+    this.on('pointerup', () => {
       this._dragging = false;
       this._scrollbarDragging = false;
     });
@@ -281,13 +271,13 @@ export class StreamTextEntity extends Entity {
 
     for (const node of result.nodes) {
       const idx = Math.round(node.y / lineQuantum);
-      byLine.set(idx, (byLine.get(idx) ?? "") + node.char);
+      byLine.set(idx, (byLine.get(idx) ?? '') + node.char);
       if (idx > maxIdx) maxIdx = idx;
     }
 
     p.lines = [];
     for (let i = 0; i <= maxIdx; i++) {
-      p.lines.push(byLine.get(i) ?? "");
+      p.lines.push(byLine.get(i) ?? '');
     }
     p.height = Math.max(maxIdx + 1, 1) * this.lineHeight;
   }
@@ -302,10 +292,10 @@ export class StreamTextEntity extends Entity {
 
   private resetParagraphs(fullText: string) {
     this.paragraphs = [];
-    const parts = fullText.split("\n");
+    const parts = fullText.split('\n');
     for (let i = 0; i < parts.length; i++) {
       const isLast = i === parts.length - 1;
-      const text = parts[i] + (isLast ? "" : "\n");
+      const text = parts[i] + (isLast ? '' : '\n');
       this.paragraphs.push({
         text,
         prepared: null,
@@ -318,23 +308,23 @@ export class StreamTextEntity extends Entity {
 
   private appendTextToParagraphs(addedText: string) {
     if (this.paragraphs.length === 0) {
-      this.paragraphs.push({ text: "", prepared: null, lines: [], height: 0 });
+      this.paragraphs.push({ text: '', prepared: null, lines: [], height: 0 });
       this._totalHeightCache = 0;
     }
 
-    const parts = addedText.split("\n");
+    const parts = addedText.split('\n');
 
     // Append first part to current last paragraph
     const lastPara = this.paragraphs[this.paragraphs.length - 1];
     const prevHeight = lastPara.height;
-    lastPara.text += parts[0] + (parts.length > 1 ? "\n" : "");
+    lastPara.text += parts[0] + (parts.length > 1 ? '\n' : '');
     this.layoutParagraph(lastPara);
     this._totalHeightCache += lastPara.height - prevHeight;
 
     // Add remaining parts as new paragraphs
     for (let i = 1; i < parts.length; i++) {
       const isLast = i === parts.length - 1;
-      const text = parts[i] + (isLast ? "" : "\n");
+      const text = parts[i] + (isLast ? '' : '\n');
       const newPara: ParagraphLayout = {
         text,
         prepared: null,
@@ -385,7 +375,7 @@ export class StreamTextEntity extends Entity {
   // TextProjectionEntity underneath — see forge/findings.md 2026-07-18
   // (structural-interactive container blocking native text selection).
   override getA11yAttributes() {
-    return { pointerEvents: "none" as const };
+    return { pointerEvents: 'none' as const };
   }
 
   render(renderer: RawRenderer) {
@@ -397,7 +387,7 @@ export class StreamTextEntity extends Entity {
     const pad = this.padding;
 
     // Background
-    ctx.fillStyle = "#f7f2e8";
+    ctx.fillStyle = '#f7f2e8';
     ctx.fillRect(0, 0, w, h);
 
     // Clip to viewport
@@ -408,23 +398,22 @@ export class StreamTextEntity extends Entity {
 
     ctx.font = this.font;
     ctx.fillStyle = this.color;
-    ctx.textBaseline = "top";
+    ctx.textBaseline = 'top';
 
     if (this.paragraphs.length === 0 && this.idleHint) {
       // Show centered idle hint
-      ctx.font = "18px sans-serif";
-      ctx.fillStyle = "#9e8e78";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
+      ctx.font = '18px sans-serif';
+      ctx.fillStyle = '#9e8e78';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText(this.idleHint, w / 2, h / 2);
-      ctx.textAlign = "start";
+      ctx.textAlign = 'start';
     } else {
       let currentY = pad;
       for (const p of this.paragraphs) {
         const pHeight = p.height;
         // Intersect check: render only if paragraph intersects viewport
-        const isVisible =
-          currentY + pHeight > this.scrollY && currentY < this.scrollY + h;
+        const isVisible = currentY + pHeight > this.scrollY && currentY < this.scrollY + h;
         if (isVisible) {
           const baseY = currentY - this.scrollY;
           for (let i = 0; i < p.lines.length; i++) {
@@ -442,7 +431,7 @@ export class StreamTextEntity extends Entity {
     if (this.totalHeight() > h) {
       const sbH = Math.max(40, (h / this.totalHeight()) * h);
       const sbY = (this.scrollY / this.maxScrollY()) * (h - sbH);
-      ctx.fillStyle = "rgba(0,0,0,0.15)";
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
       ctx.beginPath();
       ctx.roundRect(w - 6, sbY, 4, sbH, 2);
       ctx.fill();
@@ -465,7 +454,7 @@ export class StreamTextEntity extends Entity {
     this.scrollY = 0;
     this.autoScroll = true;
     this.paragraphs = [];
-    this._prevVisible = "";
+    this._prevVisible = '';
     this._totalHeightCache = 0;
   }
 }
@@ -482,7 +471,7 @@ class TextProjectionEntity extends Entity {
   private parentText: StreamTextEntity;
 
   constructor(parentText: StreamTextEntity) {
-    super("TextProjection");
+    super('TextProjection');
     this.parentText = parentText;
     this.interactive = false;
   }
@@ -524,13 +513,13 @@ class TextProjectionEntity extends Entity {
       lineHeight: number;
     }[] = [];
     let currentY = pad;
-    let accumulatedText = "";
+    let accumulatedText = '';
 
-    const paragraphs = this.parentText["paragraphs"] as {
+    const paragraphs = this.parentText['paragraphs'] as {
       height: number;
       lines: string[];
     }[];
-    const scrollY = this.parentText["scrollY"] as number;
+    const scrollY = this.parentText['scrollY'] as number;
 
     for (const p of paragraphs) {
       const pHeight = p.height;

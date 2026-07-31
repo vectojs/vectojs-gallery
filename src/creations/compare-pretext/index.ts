@@ -17,11 +17,11 @@
  * this entity's only child; a small back chip un-mounts it and rebuilds the
  * grid.
  */
-import { Entity, Group } from "@vectojs/core";
-import type { IRenderer } from "@vectojs/core";
-import { Card, Text } from "@vectojs/ui";
-import { WARM, FONT, DEMO_CARDS } from "./shared/theme";
-import { BACK_CHIP_X, BACK_CHIP_Y } from "./shared/chrome";
+import { Entity, Group } from '@vectojs/core';
+import type { IRenderer } from '@vectojs/core';
+import { Card, Text } from '@vectojs/ui';
+import { WARM, FONT, DEMO_CARDS } from './shared/theme';
+import { BACK_CHIP_X, BACK_CHIP_Y } from './shared/chrome';
 
 const GRID_MAX_WIDTH = 940;
 const GRID_TOP = 148;
@@ -34,21 +34,20 @@ interface ResizableChild {
   resizeTo(width: number, height: number): void;
 }
 function hasResizeTo(e: Entity): e is Entity & ResizableChild {
-  return typeof (e as Partial<ResizableChild>).resizeTo === "function";
+  return typeof (e as Partial<ResizableChild>).resizeTo === 'function';
 }
 
 const LOADERS: Record<string, () => Promise<{ default: new () => Entity }>> = {
-  benchmark: () => import("./demos/benchmark"),
-  accordion: () => import("./demos/accordion"),
-  masonry: () => import("./demos/masonry"),
-  bubbles: () => import("./demos/bubbles"),
-  "rich-note": () => import("./demos/rich-note"),
-  "justification-comparison": () => import("./demos/justification-comparison"),
-  "variable-typographic-ascii": () =>
-    import("./demos/variable-typographic-ascii"),
-  "dynamic-layout": () => import("./demos/dynamic-layout"),
-  "editorial-engine": () => import("./demos/editorial-engine"),
-  "markdown-chat": () => import("./demos/markdown-chat"),
+  benchmark: () => import('./demos/benchmark'),
+  accordion: () => import('./demos/accordion'),
+  masonry: () => import('./demos/masonry'),
+  bubbles: () => import('./demos/bubbles'),
+  'rich-note': () => import('./demos/rich-note'),
+  'justification-comparison': () => import('./demos/justification-comparison'),
+  'variable-typographic-ascii': () => import('./demos/variable-typographic-ascii'),
+  'dynamic-layout': () => import('./demos/dynamic-layout'),
+  'editorial-engine': () => import('./demos/editorial-engine'),
+  'markdown-chat': () => import('./demos/markdown-chat'),
 };
 
 class ComparePretext extends Entity {
@@ -60,7 +59,7 @@ class ComparePretext extends Entity {
   private backChip: Card;
 
   constructor() {
-    super("ComparePretext");
+    super('ComparePretext');
     this.launcher = new Group();
     this.add(this.launcher);
     this.buildLauncher();
@@ -72,14 +71,14 @@ class ComparePretext extends Entity {
     this.backChip = new Card({
       width: 118,
       height: 34,
-      bg: "rgba(253, 252, 250, 0.94)",
+      bg: 'rgba(253, 252, 250, 0.94)',
       border: WARM.accentSoft,
       borderWidth: 1,
       radius: 17,
-      label: "Back to all demos",
+      label: 'Back to all demos',
       onClick: () => this.closeDemo(),
     });
-    const backLabel = new Text("← All demos", {
+    const backLabel = new Text('← All demos', {
       font: FONT.sans(13, 600),
       color: WARM.ink,
     });
@@ -93,12 +92,12 @@ class ComparePretext extends Entity {
   }
 
   private buildLauncher(): void {
-    const eyebrow = new Text("PRETEXT, REBUILT ON VECTOJS", {
+    const eyebrow = new Text('PRETEXT, REBUILT ON VECTOJS', {
       font: FONT.mono(12),
       color: WARM.accent,
     });
     eyebrow.setPosition(0, 40);
-    const heading = new Text("Demos", {
+    const heading = new Text('Demos', {
       font: FONT.serifDisplay(34),
       color: WARM.ink,
     });

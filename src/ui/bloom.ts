@@ -1,4 +1,4 @@
-import type { IRenderer } from "@vectojs/core";
+import type { IRenderer } from '@vectojs/core';
 
 /**
  * Fakes a radial bloom the linear-gradient-only renderer cannot draw: a few

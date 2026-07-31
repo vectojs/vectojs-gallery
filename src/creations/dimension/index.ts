@@ -1,9 +1,9 @@
-import { Entity } from "@vectojs/core";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { ThreeAdapter } from "@vectojs/three";
-import { Stack, Text, Toggle, Button } from "@vectojs/ui";
-import { buildParticlePositions } from "./particle-field";
+import { Entity } from '@vectojs/core';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { ThreeAdapter } from '@vectojs/three';
+import { Stack, Text, Toggle, Button } from '@vectojs/ui';
+import { buildParticlePositions } from './particle-field';
 
 interface SceneState {
   particleCount: number;
@@ -50,13 +50,13 @@ class Dimension extends Entity {
   private last = 0;
 
   constructor() {
-    super("Dimension");
+    super('Dimension');
 
-    this.canvas = document.createElement("canvas");
-    this.canvas.style.position = "fixed";
-    this.canvas.style.top = "0";
-    this.canvas.style.left = "0";
-    this.canvas.style.zIndex = "5";
+    this.canvas = document.createElement('canvas');
+    this.canvas.style.position = 'fixed';
+    this.canvas.style.top = '0';
+    this.canvas.style.left = '0';
+    this.canvas.style.zIndex = '5';
     document.body.appendChild(this.canvas);
 
     try {
@@ -72,7 +72,7 @@ class Dimension extends Entity {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
     this.threeScene = new THREE.Scene();
-    this.threeScene.background = new THREE.Color("#04060d");
+    this.threeScene.background = new THREE.Color('#04060d');
 
     this.camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
     this.camera.position.set(0, 1.6, 6);
@@ -88,16 +88,13 @@ class Dimension extends Entity {
     this.controls.target.set(0, 0.6, 0);
 
     const particleMaterial = new THREE.PointsMaterial({
-      color: "#5b9cff",
+      color: '#5b9cff',
       size: 0.05,
       transparent: true,
       opacity: 0.75,
       depthWrite: false,
     });
-    this.particles = new THREE.Points(
-      new THREE.BufferGeometry(),
-      particleMaterial,
-    );
+    this.particles = new THREE.Points(new THREE.BufferGeometry(), particleMaterial);
     this.rebuildParticles(this.state.particleCount);
     this.threeScene.add(this.particles);
 
@@ -106,26 +103,21 @@ class Dimension extends Entity {
     this.threeScene.add(this.grid);
 
     this.adapter = new ThreeAdapter({ width: PANEL_W, height: PANEL_H });
-    (this.adapter.mesh.material as THREE.MeshBasicMaterial).side =
-      THREE.DoubleSide;
-    this.adapter.mesh.scale.set(
-      PANEL_SCALE,
-      PANEL_SCALE * (PANEL_H / PANEL_W),
-      1,
-    );
+    (this.adapter.mesh.material as THREE.MeshBasicMaterial).side = THREE.DoubleSide;
+    this.adapter.mesh.scale.set(PANEL_SCALE, PANEL_SCALE * (PANEL_H / PANEL_W), 1);
     this.adapter.mesh.position.set(0, 0.6, 0);
     this.threeScene.add(this.adapter.mesh);
     this.buildPanel(this.adapter);
 
-    this.canvas.addEventListener("pointermove", this.onCanvasPointerMove);
-    this.canvas.addEventListener("click", this.onCanvasClick);
-    this.canvas.addEventListener("wheel", this.onCanvasWheel, {
+    this.canvas.addEventListener('pointermove', this.onCanvasPointerMove);
+    this.canvas.addEventListener('click', this.onCanvasClick);
+    this.canvas.addEventListener('wheel', this.onCanvasWheel, {
       passive: true,
     });
-    window.addEventListener("pointerdown", this.onWindowPointerDown, {
+    window.addEventListener('pointerdown', this.onWindowPointerDown, {
       capture: true,
     });
-    window.addEventListener("pointerup", this.onWindowPointerUp);
+    window.addEventListener('pointerup', this.onWindowPointerUp);
 
     this.startLoop();
   }
@@ -135,16 +127,16 @@ class Dimension extends Entity {
       this.canvas.remove();
       this.canvas = null;
     }
-    this.fallbackEl = document.createElement("div");
+    this.fallbackEl = document.createElement('div');
     this.fallbackEl.textContent = "WebGL isn't available in this browser.";
-    this.fallbackEl.style.position = "fixed";
-    this.fallbackEl.style.top = "0";
-    this.fallbackEl.style.left = "0";
-    this.fallbackEl.style.display = "flex";
-    this.fallbackEl.style.alignItems = "center";
-    this.fallbackEl.style.justifyContent = "center";
-    this.fallbackEl.style.color = "#9fb0cc";
-    this.fallbackEl.style.font = "16px Inter, system-ui";
+    this.fallbackEl.style.position = 'fixed';
+    this.fallbackEl.style.top = '0';
+    this.fallbackEl.style.left = '0';
+    this.fallbackEl.style.display = 'flex';
+    this.fallbackEl.style.alignItems = 'center';
+    this.fallbackEl.style.justifyContent = 'center';
+    this.fallbackEl.style.color = '#9fb0cc';
+    this.fallbackEl.style.font = '16px Inter, system-ui';
     document.body.appendChild(this.fallbackEl);
   }
 
@@ -152,11 +144,8 @@ class Dimension extends Entity {
     if (!this.particles) return;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute(
-      "position",
-      new THREE.BufferAttribute(
-        buildParticlePositions(count, PARTICLE_RADIUS),
-        3,
-      ),
+      'position',
+      new THREE.BufferAttribute(buildParticlePositions(count, PARTICLE_RADIUS), 3),
     );
     this.particles.geometry.dispose();
     this.particles.geometry = geo;
@@ -164,41 +153,41 @@ class Dimension extends Entity {
 
   private buildPanel(adapter: ThreeAdapter): void {
     const countLabel = new Text(`Particles — ${this.state.particleCount}`, {
-      font: "400 22px Inter, system-ui",
-      color: "#9fb0cc",
+      font: '400 22px Inter, system-ui',
+      color: '#9fb0cc',
     });
     const setCount = (next: number): void => {
       this.state.particleCount = Math.max(COUNT_MIN, Math.min(COUNT_MAX, next));
       countLabel.setText(`Particles — ${this.state.particleCount}`);
       this.rebuildParticles(this.state.particleCount);
     };
-    const STEPPER_BTN_OPTS = { font: "600 22px sans-serif", padding: 20 };
-    const minusBtn = new Button("−", {
+    const STEPPER_BTN_OPTS = { font: '600 22px sans-serif', padding: 20 };
+    const minusBtn = new Button('−', {
       ...STEPPER_BTN_OPTS,
       onClick: () => setCount(this.state.particleCount - COUNT_STEP),
     });
-    const plusBtn = new Button("+", {
+    const plusBtn = new Button('+', {
       ...STEPPER_BTN_OPTS,
       onClick: () => setCount(this.state.particleCount + COUNT_STEP),
     });
     const stepperRow = new Stack({
-      direction: "horizontal",
+      direction: 'horizontal',
       gap: 14,
-      align: "center",
+      align: 'center',
     });
     stepperRow.add(minusBtn);
     stepperRow.add(countLabel);
     stepperRow.add(plusBtn);
 
-    const heading = new Text("Scene Controls", {
-      font: "600 30px Inter, system-ui",
-      color: "#f8fafc",
+    const heading = new Text('Scene Controls', {
+      font: '600 30px Inter, system-ui',
+      color: '#f8fafc',
     });
 
-    const TOGGLE_OPTS = { width: 72, height: 40, font: "18px sans-serif" };
+    const TOGGLE_OPTS = { width: 72, height: 40, font: '18px sans-serif' };
     const orbitToggle = new Toggle({
       ...TOGGLE_OPTS,
-      label: "Auto-orbit",
+      label: 'Auto-orbit',
       checked: this.state.autoOrbit,
       onChange: (v: boolean) => {
         this.state.autoOrbit = v;
@@ -206,7 +195,7 @@ class Dimension extends Entity {
     });
     const gridToggle = new Toggle({
       ...TOGGLE_OPTS,
-      label: "Floor grid",
+      label: 'Floor grid',
       checked: this.state.grid,
       onChange: (v: boolean) => {
         this.state.grid = v;
@@ -214,14 +203,14 @@ class Dimension extends Entity {
     });
     const spinToggle = new Toggle({
       ...TOGGLE_OPTS,
-      label: "Panel spin",
+      label: 'Panel spin',
       checked: this.state.spin,
       onChange: (v: boolean) => {
         this.state.spin = v;
       },
     });
 
-    const panel = new Stack({ direction: "vertical", gap: 32, align: "start" });
+    const panel = new Stack({ direction: 'vertical', gap: 32, align: 'start' });
     panel.add(heading);
     panel.add(stepperRow);
     panel.add(orbitToggle);
@@ -239,7 +228,7 @@ class Dimension extends Entity {
   }
 
   private forward(
-    type: "pointerdown" | "pointerup" | "pointermove" | "wheel" | "click",
+    type: 'pointerdown' | 'pointerup' | 'pointermove' | 'wheel' | 'click',
     e: MouseEvent | WheelEvent,
   ): boolean {
     if (!this.adapter || !this.camera) return false;
@@ -254,25 +243,24 @@ class Dimension extends Entity {
   // target-phase listener on the canvas regardless of registration order. See
   // the original vectojs-website/src/demos/dimension.ts for the full reasoning.
   private readonly onWindowPointerDown = (e: PointerEvent): void => {
-    if (this.forward("pointerdown", e) && this.controls)
-      this.controls.enabled = false;
+    if (this.forward('pointerdown', e) && this.controls) this.controls.enabled = false;
   };
 
   private readonly onWindowPointerUp = (e: PointerEvent): void => {
-    this.forward("pointerup", e);
+    this.forward('pointerup', e);
     if (this.controls) this.controls.enabled = true;
   };
 
   private readonly onCanvasPointerMove = (e: PointerEvent): void => {
-    this.forward("pointermove", e);
+    this.forward('pointermove', e);
   };
 
   private readonly onCanvasClick = (e: MouseEvent): void => {
-    this.forward("click", e);
+    this.forward('click', e);
   };
 
   private readonly onCanvasWheel = (e: WheelEvent): void => {
-    this.forward("wheel", e);
+    this.forward('wheel', e);
   };
 
   private startLoop(): void {
@@ -286,8 +274,7 @@ class Dimension extends Entity {
         this.controls.update();
       }
       if (this.grid) this.grid.visible = this.state.grid;
-      if (this.state.spin && this.adapter)
-        this.adapter.mesh.rotation.y += dt * 0.0006;
+      if (this.state.spin && this.adapter) this.adapter.mesh.rotation.y += dt * 0.0006;
       if (this.renderer && this.threeScene && this.camera) {
         this.renderer.render(this.threeScene, this.camera);
       }
@@ -324,14 +311,14 @@ class Dimension extends Entity {
   override destroy(): void {
     this.stopLoop();
     if (this.canvas) {
-      this.canvas.removeEventListener("pointermove", this.onCanvasPointerMove);
-      this.canvas.removeEventListener("click", this.onCanvasClick);
-      this.canvas.removeEventListener("wheel", this.onCanvasWheel);
+      this.canvas.removeEventListener('pointermove', this.onCanvasPointerMove);
+      this.canvas.removeEventListener('click', this.onCanvasClick);
+      this.canvas.removeEventListener('wheel', this.onCanvasWheel);
     }
-    window.removeEventListener("pointerdown", this.onWindowPointerDown, {
+    window.removeEventListener('pointerdown', this.onWindowPointerDown, {
       capture: true,
     });
-    window.removeEventListener("pointerup", this.onWindowPointerUp);
+    window.removeEventListener('pointerup', this.onWindowPointerUp);
 
     this.controls?.dispose();
     // ThreeAdapter owns its own offscreen canvas, VectoJS Scene, and

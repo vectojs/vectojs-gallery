@@ -14,16 +14,16 @@
  * original (VectoJS-themed) and the obstacles are abstract shapes, not the
  * trademarked logos the original happens to use.
  */
-import { Entity, type IRenderer } from "@vectojs/core";
-import { DARK } from "../shared/theme";
-import { CONTENT_TOP, drawDemoHeader } from "../shared/chrome";
-import { LinePool, type PooledLine } from "../shared/LinePool";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { DARK } from '../shared/theme';
+import { CONTENT_TOP, drawDemoHeader } from '../shared/chrome';
+import { LinePool, type PooledLine } from '../shared/LinePool';
 import {
   makeFlowMeasurer,
   prepareFlow,
   layoutNextFlowLine,
   type PreparedFlow,
-} from "../shared/text-flow";
+} from '../shared/text-flow';
 import {
   carveTextLineSlots,
   polygonIntervalForBand,
@@ -34,22 +34,22 @@ import {
   type Interval,
   type Point,
   type Rect,
-} from "../shared/wrap-geometry";
+} from '../shared/wrap-geometry';
 
 const BODY_FONT = '18px Georgia, "Times New Roman", serif';
 const BODY_LINE_HEIGHT = 28;
 const HEADLINE_FAMILY = 'Georgia, "Times New Roman", serif';
-const HEADLINE_TEXT = "TYPE THAT FLOWS AROUND ANYTHING";
-const CREDIT_TEXT = "A VectoJS layout study";
+const HEADLINE_TEXT = 'TYPE THAT FLOWS AROUND ANYTHING';
+const CREDIT_TEXT = 'A VectoJS layout study';
 const CREDIT_FONT = '12px "Helvetica Neue", Helvetica, Arial, sans-serif';
 
 const BODY_COPY =
-  "A page is not a stack of rectangles. On paper, text has always known how to move — around a photograph, past a dropped initial, along the curve of an illustration — because a compositor could see the whole spread at once and place every line by hand. The web forgot this. Its text sits in boxes because measuring text used to mean asking the browser, and the browser made you pay for every answer with a reflow. " +
-  "VectoJS measures text on the canvas instead. Every word is measured once, and after that a line of type is pure arithmetic: take the horizontal room available on this band, subtract whatever shapes intrude on it, and hand the remaining width to the layout engine. The engine returns exactly the text that fits, and the next line resumes from precisely where this one stopped. " +
-  "Because the shapes are just numbers, they can move. Click one of the marks on this spread and it spins; the text closes in behind it and opens ahead of it, every frame, with no layout pass and no jump. The left column fills first and hands its cursor to the right column, so the body reads as one continuous stream broken across two measures — the way a newspaper reads, and the way the web never quite managed. " +
-  "This is the plain version of an idea that sounds exotic: text as a fluid material rather than a static block. Nothing here is expensive. The whole spread relays out in well under a millisecond, which is why it can happen live while you drag a browser edge or send a shape spinning through the column.";
+  'A page is not a stack of rectangles. On paper, text has always known how to move — around a photograph, past a dropped initial, along the curve of an illustration — because a compositor could see the whole spread at once and place every line by hand. The web forgot this. Its text sits in boxes because measuring text used to mean asking the browser, and the browser made you pay for every answer with a reflow. ' +
+  'VectoJS measures text on the canvas instead. Every word is measured once, and after that a line of type is pure arithmetic: take the horizontal room available on this band, subtract whatever shapes intrude on it, and hand the remaining width to the layout engine. The engine returns exactly the text that fits, and the next line resumes from precisely where this one stopped. ' +
+  'Because the shapes are just numbers, they can move. Click one of the marks on this spread and it spins; the text closes in behind it and opens ahead of it, every frame, with no layout pass and no jump. The left column fills first and hands its cursor to the right column, so the body reads as one continuous stream broken across two measures — the way a newspaper reads, and the way the web never quite managed. ' +
+  'This is the plain version of an idea that sounds exotic: text as a fluid material rather than a static block. Nothing here is expensive. The whole spread relays out in well under a millisecond, which is why it can happen live while you drag a browser edge or send a shape spinning through the column.';
 
-type ObstacleKind = "poly-a" | "poly-b";
+type ObstacleKind = 'poly-a' | 'poly-b';
 interface Obstacle {
   kind: ObstacleKind;
   rect: Rect;
@@ -83,38 +83,38 @@ class DynamicLayoutDemo extends Entity {
   private anySpinning = false;
   // Selectable text is projected through pooled Text entities (raw fillText
   // projects nothing selectable); chrome + obstacles stay on the canvas.
-  private textPool = new LinePool("DynamicLayoutText");
+  private textPool = new LinePool('DynamicLayoutText');
 
   constructor() {
-    super("DynamicLayoutDemo");
+    super('DynamicLayoutDemo');
     this.measure = makeFlowMeasurer(BODY_FONT);
     this.preparedBody = prepareFlow(BODY_COPY, this.measure);
     this.add(this.textPool);
     this.obstacles = [
       {
-        kind: "poly-a",
+        kind: 'poly-a',
         rect: { x: 0, y: 0, width: 0, height: 0 },
         baseHull: regularPolygonHull(6, Math.PI / 6),
         angle: 0,
         spinFrom: 0,
         spinTo: 0,
         spinStart: -1,
-        color: "rgba(124,92,255,0.22)",
+        color: 'rgba(124,92,255,0.22)',
       },
       {
-        kind: "poly-b",
+        kind: 'poly-b',
         rect: { x: 0, y: 0, width: 0, height: 0 },
         baseHull: regularPolygonHull(3, -Math.PI / 2),
         angle: 0,
         spinFrom: 0,
         spinTo: 0,
         spinStart: -1,
-        color: "rgba(34,211,238,0.20)",
+        color: 'rgba(34,211,238,0.20)',
       },
     ];
 
     this.interactive = true;
-    this.on("pointerdown", (e: { localX?: number; localY?: number }) => {
+    this.on('pointerdown', (e: { localX?: number; localY?: number }) => {
       this.handleClick(e.localX, e.localY);
     });
   }
@@ -136,7 +136,7 @@ class DynamicLayoutDemo extends Entity {
     for (const o of this.obstacles) {
       if (isPointInPolygon(this.hullOf(o), x, y)) {
         o.spinFrom = o.angle;
-        o.spinTo = o.angle + Math.PI * (o.kind === "poly-a" ? 1 : -1);
+        o.spinTo = o.angle + Math.PI * (o.kind === 'poly-a' ? 1 : -1);
         o.spinStart = performance.now();
         this.anySpinning = true;
         this.scene?.markDirty();
@@ -171,13 +171,7 @@ class DynamicLayoutDemo extends Entity {
   ): Interval[] {
     const blocked: Interval[] = [];
     for (const o of this.obstacles) {
-      const iv = polygonIntervalForBand(
-        this.hullOf(o),
-        bandTop,
-        bandBottom,
-        hPad,
-        vPad,
-      );
+      const iv = polygonIntervalForBand(this.hullOf(o), bandTop, bandBottom, hPad, vPad);
       if (iv) blocked.push(iv);
     }
     return blocked;
@@ -187,7 +181,7 @@ class DynamicLayoutDemo extends Entity {
   private flowColumn(
     region: Rect,
     startSeg: number,
-    side: "left" | "right",
+    side: 'left' | 'right',
     extraRects: Rect[],
     lineHeight: number,
     font: string,
@@ -214,10 +208,7 @@ class DynamicLayoutDemo extends Entity {
       )) {
         blocked.push(iv);
       }
-      const slots = carveTextLineSlots(
-        { left: region.x, right: region.x + region.width },
-        blocked,
-      );
+      const slots = carveTextLineSlots({ left: region.x, right: region.x + region.width }, blocked);
       if (slots.length === 0) {
         top += lineHeight;
         continue;
@@ -228,19 +219,11 @@ class DynamicLayoutDemo extends Entity {
         const c = slots[i];
         const bw = slot.right - slot.left;
         const cw = c.right - c.left;
-        if (
-          cw > bw ||
-          (cw === bw &&
-            (side === "left" ? c.left > slot.left : c.left < slot.left))
-        ) {
+        if (cw > bw || (cw === bw && (side === 'left' ? c.left > slot.left : c.left < slot.left))) {
           slot = c;
         }
       }
-      const line = layoutNextFlowLine(
-        this.preparedBody,
-        seg,
-        slot.right - slot.left,
-      );
+      const line = layoutNextFlowLine(this.preparedBody, seg, slot.right - slot.left);
       if (!line) break;
       out.push({
         x: Math.round(slot.left),
@@ -283,48 +266,30 @@ class DynamicLayoutDemo extends Entity {
     };
 
     // headline: fit font size so no word breaks, routing around obstacle A
-    const headlineWidth = Math.min(
-      this.W - gutter * 2,
-      Math.max(this.W * 0.5, 360),
-    );
+    const headlineWidth = Math.min(this.W - gutter * 2, Math.max(this.W * 0.5, 360));
     const headlineFontSize = this.fitHeadline(headlineWidth);
     const headlineFont = `700 ${headlineFontSize}px ${HEADLINE_FAMILY}`;
     const headlineLH = Math.round(headlineFontSize * 1.02);
-    const headlinePrepared = prepareFlow(
-      HEADLINE_TEXT,
-      makeFlowMeasurer(headlineFont),
-    );
+    const headlinePrepared = prepareFlow(HEADLINE_TEXT, makeFlowMeasurer(headlineFont));
     {
       let seg = 0;
       let top = pageTop;
-      while (
-        seg < headlinePrepared.segments.length &&
-        top + headlineLH <= pageBottom
-      ) {
+      while (seg < headlinePrepared.segments.length && top + headlineLH <= pageBottom) {
         const blocked = this.obstacleIntervals(
           top,
           top + headlineLH,
           headlineLH * 0.3,
           headlineLH * 0.1,
         );
-        const slots = carveTextLineSlots(
-          { left: gutter, right: gutter + headlineWidth },
-          blocked,
-        );
+        const slots = carveTextLineSlots({ left: gutter, right: gutter + headlineWidth }, blocked);
         const slot = slots.length
-          ? slots.reduce((a, b) =>
-              b.right - b.left > a.right - a.left ? b : a,
-            )
+          ? slots.reduce((a, b) => (b.right - b.left > a.right - a.left ? b : a))
           : null;
         if (!slot) {
           top += headlineLH;
           continue;
         }
-        const line = layoutNextFlowLine(
-          headlinePrepared,
-          seg,
-          slot.right - slot.left,
-        );
+        const line = layoutNextFlowLine(headlinePrepared, seg, slot.right - slot.left);
         if (!line) break;
         this.headlineLines.push({
           x: Math.round(slot.left),
@@ -370,7 +335,7 @@ class DynamicLayoutDemo extends Entity {
       this.flowColumn(
         region,
         0,
-        "left",
+        'left',
         headlineRects,
         BODY_LINE_HEIGHT,
         BODY_FONT,
@@ -397,7 +362,7 @@ class DynamicLayoutDemo extends Entity {
     const cursor = this.flowColumn(
       leftRegion,
       0,
-      "left",
+      'left',
       [],
       BODY_LINE_HEIGHT,
       BODY_FONT,
@@ -407,7 +372,7 @@ class DynamicLayoutDemo extends Entity {
     this.flowColumn(
       rightRegion,
       cursor,
-      "right",
+      'right',
       headlineRects,
       BODY_LINE_HEIGHT,
       BODY_FONT,
@@ -425,7 +390,7 @@ class DynamicLayoutDemo extends Entity {
   private syncTextPool(): void {
     const pooled: PooledLine[] = [];
     const headlineFontSize = this.headlineLines.length
-      ? parseInt(this.headlineLines[0].font.match(/(\d+)px/)?.[1] ?? "40", 10)
+      ? parseInt(this.headlineLines[0].font.match(/(\d+)px/)?.[1] ?? '40', 10)
       : 40;
     for (const l of this.headlineLines) {
       pooled.push({
@@ -496,8 +461,8 @@ class DynamicLayoutDemo extends Entity {
     drawDemoHeader(
       r,
       32,
-      "Type that flows",
-      "One continuous stream across two columns, routing around shapes you can click to spin.",
+      'Type that flows',
+      'One continuous stream across two columns, routing around shapes you can click to spin.',
       true,
     );
 
@@ -510,7 +475,7 @@ class DynamicLayoutDemo extends Entity {
       for (let i = 1; i < hull.length; i++) r.lineTo(hull[i].x, hull[i].y);
       r.lineTo(hull[0].x, hull[0].y);
       r.fill(o.color);
-      r.stroke(o.color.replace(/0\.\d+\)/, "0.6)"), 1.5);
+      r.stroke(o.color.replace(/0\.\d+\)/, '0.6)'), 1.5);
     }
 
     // Headline, credit, and body text are projected by the selectable Text

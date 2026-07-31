@@ -10,15 +10,15 @@
  * - Other       → tries UTF-8 decode, returns raw text
  */
 
-import JSZip from "jszip";
+import JSZip from 'jszip';
 
 const IMAGE_MIME: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  gif: "image/gif",
-  svg: "image/svg+xml",
-  webp: "image/webp",
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
 };
 
 /**
@@ -34,43 +34,39 @@ const IMAGE_MIME: Record<string, string> = {
  */
 function escapeMarkdown(text: string): string {
   return text
-    .replace(/\\/g, "\\\\")
-    .replace(/([`*_{}[\]()#+!|<>~])/g, "\\$1")
-    .replace(/^(\s*)-/gm, "$1\\-")
-    .replace(/^(\s*)(\d+)\./gm, "$1$2\\.");
+    .replace(/\\/g, '\\\\')
+    .replace(/([`*_{}[\]()#+!|<>~])/g, '\\$1')
+    .replace(/^(\s*)-/gm, '$1\\-')
+    .replace(/^(\s*)(\d+)\./gm, '$1$2\\.');
 }
 
 /** Resolve an `<img src>`/`<image xlink:href>` path relative to its chapter's directory. */
 function resolveEpubPath(baseDir: string, relative: string): string {
-  if (relative.startsWith("data:")) return relative;
+  if (relative.startsWith('data:')) return relative;
   const url = new URL(relative, `file:///${baseDir}`);
   return decodeURIComponent(url.pathname.slice(1));
 }
 
-async function embedEpubImage(
-  zip: JSZip,
-  baseDir: string,
-  src: string,
-): Promise<string | null> {
+async function embedEpubImage(zip: JSZip, baseDir: string, src: string): Promise<string | null> {
   const path = resolveEpubPath(baseDir, src);
   const entry = zip.file(path);
   if (!entry) return null;
-  const ext = path.split(".").pop()?.toLowerCase() ?? "";
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
   const mime = IMAGE_MIME[ext];
   if (!mime) return null;
-  const base64 = await entry.async("base64");
+  const base64 = await entry.async('base64');
   return `data:${mime};base64,${base64}`;
 }
 
 const BLOCK_TAGS = new Set([
-  "p",
-  "div",
-  "section",
-  "article",
-  "li",
-  "blockquote",
-  "figure",
-  "figcaption",
+  'p',
+  'div',
+  'section',
+  'article',
+  'li',
+  'blockquote',
+  'figure',
+  'figcaption',
 ]);
 const HEADING_LEVEL: Record<string, number> = {
   h1: 1,
@@ -87,42 +83,34 @@ const HEADING_LEVEL: Record<string, number> = {
  * this only needs to preserve paragraph/heading breaks and embed images in
  * their original document position, not achieve full HTML→Markdown fidelity.
  */
-async function xhtmlNodeToMarkdown(
-  node: ChildNode,
-  zip: JSZip,
-  baseDir: string,
-): Promise<string> {
+async function xhtmlNodeToMarkdown(node: ChildNode, zip: JSZip, baseDir: string): Promise<string> {
   if (node.nodeType === Node.TEXT_NODE) {
-    return escapeMarkdown(node.textContent ?? "");
+    return escapeMarkdown(node.textContent ?? '');
   }
-  if (node.nodeType !== Node.ELEMENT_NODE) return "";
+  if (node.nodeType !== Node.ELEMENT_NODE) return '';
 
   const el = node as Element;
   const tag = el.tagName.toLowerCase();
 
-  if (tag === "img" || tag === "image") {
-    const src =
-      el.getAttribute("src") ??
-      el.getAttribute("xlink:href") ??
-      el.getAttribute("href");
-    if (!src) return "";
+  if (tag === 'img' || tag === 'image') {
+    const src = el.getAttribute('src') ?? el.getAttribute('xlink:href') ?? el.getAttribute('href');
+    if (!src) return '';
     const dataUri = await embedEpubImage(zip, baseDir, src);
-    if (!dataUri) return "";
-    const alt = escapeMarkdown(el.getAttribute("alt") ?? "");
+    if (!dataUri) return '';
+    const alt = escapeMarkdown(el.getAttribute('alt') ?? '');
     return `\n\n![${alt}](${dataUri})\n\n`;
   }
-  if (tag === "br") return "\n";
-  if (tag === "script" || tag === "style") return "";
+  if (tag === 'br') return '\n';
+  if (tag === 'script' || tag === 'style') return '';
 
   const childParts: string[] = [];
   for (const child of Array.from(el.childNodes)) {
     childParts.push(await xhtmlNodeToMarkdown(child, zip, baseDir));
   }
-  const inner = childParts.join("");
+  const inner = childParts.join('');
 
   const headingLevel = HEADING_LEVEL[tag];
-  if (headingLevel)
-    return `\n\n${"#".repeat(headingLevel)} ${inner.trim()}\n\n`;
+  if (headingLevel) return `\n\n${'#'.repeat(headingLevel)} ${inner.trim()}\n\n`;
   if (BLOCK_TAGS.has(tag)) return `\n\n${inner.trim()}\n\n`;
   return inner;
 }
@@ -133,7 +121,7 @@ export interface ParsedFile {
   /** Original source (MD or plain) for display purposes */
   source: string;
   /** MIME-level type hint */
-  kind: "text" | "markdown" | "epub";
+  kind: 'text' | 'markdown' | 'epub';
 }
 
 // ── EPUB (JSZip-based) ────────────────────────────────────────────────────────
@@ -150,39 +138,33 @@ async function parseEpub(file: File): Promise<string> {
   const zip = await JSZip.loadAsync(buf);
 
   // Step 1: Find the OPF path from container.xml
-  const containerXml = await zip.file("META-INF/container.xml")?.async("text");
-  if (!containerXml)
-    throw new Error("Invalid EPUB: missing META-INF/container.xml");
+  const containerXml = await zip.file('META-INF/container.xml')?.async('text');
+  if (!containerXml) throw new Error('Invalid EPUB: missing META-INF/container.xml');
 
-  const containerDoc = new DOMParser().parseFromString(
-    containerXml,
-    "application/xml",
-  );
-  const rootfileEl = containerDoc.querySelector("rootfile");
-  const opfPath = rootfileEl?.getAttribute("full-path");
-  if (!opfPath) throw new Error("Invalid EPUB: no rootfile in container.xml");
+  const containerDoc = new DOMParser().parseFromString(containerXml, 'application/xml');
+  const rootfileEl = containerDoc.querySelector('rootfile');
+  const opfPath = rootfileEl?.getAttribute('full-path');
+  if (!opfPath) throw new Error('Invalid EPUB: no rootfile in container.xml');
 
   // Step 2: Parse the OPF
-  const opfXml = await zip.file(opfPath)?.async("text");
+  const opfXml = await zip.file(opfPath)?.async('text');
   if (!opfXml) throw new Error(`Invalid EPUB: missing OPF at ${opfPath}`);
 
-  const opfDoc = new DOMParser().parseFromString(opfXml, "application/xml");
-  const opfDir = opfPath.includes("/")
-    ? opfPath.substring(0, opfPath.lastIndexOf("/") + 1)
-    : "";
+  const opfDoc = new DOMParser().parseFromString(opfXml, 'application/xml');
+  const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
 
   // Build manifest id → href map
   const manifest = new Map<string, string>();
-  for (const item of opfDoc.querySelectorAll("manifest > item")) {
-    const id = item.getAttribute("id");
-    const href = item.getAttribute("href");
+  for (const item of opfDoc.querySelectorAll('manifest > item')) {
+    const id = item.getAttribute('id');
+    const href = item.getAttribute('href');
     if (id && href) manifest.set(id, href);
   }
 
   // Get spine order
   const spineIds: string[] = [];
-  for (const itemref of opfDoc.querySelectorAll("spine > itemref")) {
-    const idref = itemref.getAttribute("idref");
+  for (const itemref of opfDoc.querySelectorAll('spine > itemref')) {
+    const idref = itemref.getAttribute('idref');
     if (idref) spineIds.push(idref);
   }
 
@@ -194,47 +176,35 @@ async function parseEpub(file: File): Promise<string> {
 
     // Resolve path relative to OPF directory
     const fullPath = opfDir + href;
-    const content = await zip.file(fullPath)?.async("text");
+    const content = await zip.file(fullPath)?.async('text');
     if (!content) continue;
 
     // Parse XHTML and convert to Markdown, preserving embedded images
-    const doc = new DOMParser().parseFromString(
-      content,
-      "application/xhtml+xml",
-    );
-    const chapterDir = fullPath.includes("/")
-      ? fullPath.substring(0, fullPath.lastIndexOf("/") + 1)
-      : "";
-    const text = doc.body
-      ? (await xhtmlNodeToMarkdown(doc.body, zip, chapterDir)).trim()
-      : "";
+    const doc = new DOMParser().parseFromString(content, 'application/xhtml+xml');
+    const chapterDir = fullPath.includes('/')
+      ? fullPath.substring(0, fullPath.lastIndexOf('/') + 1)
+      : '';
+    const text = doc.body ? (await xhtmlNodeToMarkdown(doc.body, zip, chapterDir)).trim() : '';
     if (text) parts.push(text);
   }
 
   if (parts.length === 0) {
     // Fallback: try to extract from any .xhtml/.html files in the zip
     const htmlFiles = Object.keys(zip.files).filter(
-      (f) => /\.(xhtml|html|htm)$/i.test(f) && !f.startsWith("META-INF"),
+      (f) => /\.(xhtml|html|htm)$/i.test(f) && !f.startsWith('META-INF'),
     );
     htmlFiles.sort();
     for (const path of htmlFiles) {
-      const content = await zip.file(path)?.async("text");
+      const content = await zip.file(path)?.async('text');
       if (!content) continue;
-      const doc = new DOMParser().parseFromString(
-        content,
-        "application/xhtml+xml",
-      );
-      const chapterDir = path.includes("/")
-        ? path.substring(0, path.lastIndexOf("/") + 1)
-        : "";
-      const text = doc.body
-        ? (await xhtmlNodeToMarkdown(doc.body, zip, chapterDir)).trim()
-        : "";
+      const doc = new DOMParser().parseFromString(content, 'application/xhtml+xml');
+      const chapterDir = path.includes('/') ? path.substring(0, path.lastIndexOf('/') + 1) : '';
+      const text = doc.body ? (await xhtmlNodeToMarkdown(doc.body, zip, chapterDir)).trim() : '';
       if (text) parts.push(text);
     }
   }
 
-  return parts.join("\n\n");
+  return parts.join('\n\n');
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -242,20 +212,20 @@ async function parseEpub(file: File): Promise<string> {
 export async function parseFile(file: File): Promise<ParsedFile> {
   const name = file.name.toLowerCase();
 
-  if (name.endsWith(".epub")) {
+  if (name.endsWith('.epub')) {
     const text = await parseEpub(file);
     // The extracted text is now real Markdown (headings, paragraph breaks,
     // embedded `![alt](data:...)` images) — route it through the same
     // Markdown-rendering path ("epub" previously fell into the plain-text
     // StreamTextEntity path, which had no way to render an <img>).
-    return { plainText: text, source: text, kind: "markdown" };
+    return { plainText: text, source: text, kind: 'markdown' };
   }
 
   const raw = await file.text();
 
-  if (name.endsWith(".md") || name.endsWith(".markdown")) {
-    return { plainText: raw, source: raw, kind: "markdown" };
+  if (name.endsWith('.md') || name.endsWith('.markdown')) {
+    return { plainText: raw, source: raw, kind: 'markdown' };
   }
 
-  return { plainText: raw, source: raw, kind: "text" };
+  return { plainText: raw, source: raw, kind: 'text' };
 }

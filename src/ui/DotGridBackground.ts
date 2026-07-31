@@ -1,6 +1,6 @@
-import { Entity, type IRenderer } from "@vectojs/core";
-import { COLOR, BRAND_GRADIENT } from "./tokens";
-import { drawBloom } from "./bloom";
+import { Entity, type IRenderer } from '@vectojs/core';
+import { COLOR, BRAND_GRADIENT } from './tokens';
+import { drawBloom } from './bloom';
 
 const DOT_SPACING = 26;
 
@@ -12,7 +12,7 @@ const DOT_SPACING = 26;
  */
 export class DotGridBackground extends Entity {
   constructor(width: number, height: number) {
-    super("DotGridBackground");
+    super('DotGridBackground');
     this.width = width;
     this.height = height;
   }

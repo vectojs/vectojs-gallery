@@ -11,7 +11,7 @@
  * over its whole surface — only wheel + an explicit scrollbar-drag band claim
  * the pointer; a body drag still starts a native text selection.
  */
-import { Entity, type IRenderer } from "@vectojs/core";
+import { Entity, type IRenderer } from '@vectojs/core';
 
 const SCROLLBAR_W = 8;
 const SCROLLBAR_PAD = 3;
@@ -28,7 +28,7 @@ export class ScrollColumn extends Entity {
   private dragStartScroll = 0;
   private hoverThumb = false;
 
-  constructor(width: number, height: number, name = "ScrollColumn") {
+  constructor(width: number, height: number, name = 'ScrollColumn') {
     super(name);
     this.viewW = width;
     this.viewH = height;
@@ -42,17 +42,17 @@ export class ScrollColumn extends Entity {
         return false;
       }
       render(): void {}
-    })("ScrollColumnContent");
+    })('ScrollColumnContent');
     this.add(this.content);
 
-    this.on("wheel", (e: WheelEvent) => {
+    this.on('wheel', (e: WheelEvent) => {
       if (e.ctrlKey) return;
       e.preventDefault();
       this.scrollBy(e.deltaY);
     });
     // Only a pointerdown on the scrollbar thumb starts a scroll drag; a
     // pointerdown anywhere else falls through to native text selection.
-    this.on("pointerdown", (e: { localX?: number; localY?: number }) => {
+    this.on('pointerdown', (e: { localX?: number; localY?: number }) => {
       if (e.localX === undefined || e.localY === undefined) return;
       if (this.inThumb(e.localX, e.localY)) {
         this.draggingThumb = true;
@@ -60,7 +60,7 @@ export class ScrollColumn extends Entity {
         this.dragStartScroll = this.scrollY;
       }
     });
-    this.on("pointermove", (e: { localX?: number; localY?: number }) => {
+    this.on('pointermove', (e: { localX?: number; localY?: number }) => {
       if (e.localX !== undefined && e.localY !== undefined) {
         const h = this.inThumb(e.localX, e.localY);
         if (h !== this.hoverThumb) {
@@ -72,15 +72,13 @@ export class ScrollColumn extends Entity {
       const maxScroll = Math.max(0, this.contentH - this.viewH);
       const track = this.viewH - SCROLLBAR_PAD * 2;
       const ratio = maxScroll / Math.max(1, track - this.thumbH());
-      this.setScroll(
-        this.dragStartScroll + (e.localY - this.dragStartY) * ratio,
-      );
+      this.setScroll(this.dragStartScroll + (e.localY - this.dragStartY) * ratio);
     });
     const end = (): void => {
       this.draggingThumb = false;
     };
-    this.on("pointerup", end);
-    this.on("pointerleave", () => {
+    this.on('pointerup', end);
+    this.on('pointerleave', () => {
       this.draggingThumb = false;
       this.hoverThumb = false;
     });
@@ -91,12 +89,7 @@ export class ScrollColumn extends Entity {
     const local = this.worldToLocal(globalX, globalY);
     if (!local) return false;
     // Claim wheel over the whole viewport but pointerdown only over the thumb.
-    return (
-      local.x >= 0 &&
-      local.x <= this.viewW &&
-      local.y >= 0 &&
-      local.y <= this.viewH
-    );
+    return local.x >= 0 && local.x <= this.viewW && local.y >= 0 && local.y <= this.viewH;
   }
 
   setViewport(width: number, height: number): void {
@@ -161,21 +154,13 @@ export class ScrollColumn extends Entity {
     const ty = this.thumbY();
     // track
     r.beginPath();
-    r.roundRect(
-      tx,
-      SCROLLBAR_PAD,
-      SCROLLBAR_W,
-      this.viewH - SCROLLBAR_PAD * 2,
-      SCROLLBAR_W / 2,
-    );
-    r.fill("rgba(128,128,128,0.12)");
+    r.roundRect(tx, SCROLLBAR_PAD, SCROLLBAR_W, this.viewH - SCROLLBAR_PAD * 2, SCROLLBAR_W / 2);
+    r.fill('rgba(128,128,128,0.12)');
     // thumb
     r.beginPath();
     r.roundRect(tx, ty, SCROLLBAR_W, th, SCROLLBAR_W / 2);
     r.fill(
-      this.hoverThumb || this.draggingThumb
-        ? "rgba(128,128,128,0.55)"
-        : "rgba(128,128,128,0.35)",
+      this.hoverThumb || this.draggingThumb ? 'rgba(128,128,128,0.55)' : 'rgba(128,128,128,0.35)',
     );
   }
 }

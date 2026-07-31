@@ -1,20 +1,19 @@
-import { Entity } from "@vectojs/core";
-import type { IRenderer } from "@vectojs/core";
+import { Entity } from '@vectojs/core';
+import type { IRenderer } from '@vectojs/core';
 
-type FruitKey = "apple" | "grape" | "orange" | "lime";
+type FruitKey = 'apple' | 'grape' | 'orange' | 'lime';
 interface FruitDef {
   key: FruitKey;
   name: string;
   color: string;
 }
 const FRUITS: FruitDef[] = [
-  { key: "apple", name: "Apples", color: "#e23b3b" },
-  { key: "grape", name: "Grapes", color: "#8b5cf6" },
-  { key: "orange", name: "Oranges", color: "#f59e0b" },
-  { key: "lime", name: "Limes", color: "#22c55e" },
+  { key: 'apple', name: 'Apples', color: '#e23b3b' },
+  { key: 'grape', name: 'Grapes', color: '#8b5cf6' },
+  { key: 'orange', name: 'Oranges', color: '#f59e0b' },
+  { key: 'lime', name: 'Limes', color: '#22c55e' },
 ];
-const defOf = (k: FruitKey): FruitDef =>
-  FRUITS.find((f) => f.key === k) as FruitDef;
+const defOf = (k: FruitKey): FruitDef => FRUITS.find((f) => f.key === k) as FruitDef;
 
 interface Fruit {
   x: number;
@@ -42,21 +41,15 @@ function ctext(
 
 // A single fruit: colored body, a gloss highlight, a stem, and a leaf. Grapes are
 // drawn as a little cluster so they read differently from the round fruit.
-function drawFruit(
-  r: IRenderer,
-  x: number,
-  y: number,
-  rad: number,
-  key: FruitKey,
-): void {
+function drawFruit(r: IRenderer, x: number, y: number, rad: number, key: FruitKey): void {
   const def = defOf(key);
   const stemW = Math.max(2, rad * 0.13);
-  if (key === "grape") {
+  if (key === 'grape') {
     r.beginPath();
     r.moveTo(x, y - rad * 0.7);
     r.lineTo(x + rad * 0.1, y - rad * 1.15);
-    r.stroke("#7c4a1e", stemW);
-    r.fillCircle(x + rad * 0.32, y - rad * 1.05, rad * 0.24, "#4ade80");
+    r.stroke('#7c4a1e', stemW);
+    r.fillCircle(x + rad * 0.32, y - rad * 1.05, rad * 0.24, '#4ade80');
     const s = rad * 0.44;
     const off: [number, number][] = [
       [-0.55, -0.35],
@@ -67,21 +60,20 @@ function drawFruit(
       [0, 0.55],
       [0, 0.02],
     ];
-    for (const [ox, oy] of off)
-      r.fillCircle(x + ox * rad, y + oy * rad, s, def.color);
-    r.fillCircle(x - rad * 0.28, y - rad * 0.18, rad * 0.16, "#ffffff", 0.28);
+    for (const [ox, oy] of off) r.fillCircle(x + ox * rad, y + oy * rad, s, def.color);
+    r.fillCircle(x - rad * 0.28, y - rad * 0.18, rad * 0.16, '#ffffff', 0.28);
     return;
   }
   r.beginPath();
   r.moveTo(x, y - rad + 1);
   r.lineTo(x + rad * 0.14, y - rad - rad * 0.42);
-  r.stroke("#7c4a1e", stemW);
-  r.fillCircle(x + rad * 0.42, y - rad * 0.92, rad * 0.24, "#4ade80");
+  r.stroke('#7c4a1e', stemW);
+  r.fillCircle(x + rad * 0.42, y - rad * 0.92, rad * 0.24, '#4ade80');
   r.fillCircle(x, y, rad, def.color);
-  r.fillCircle(x - rad * 0.3, y - rad * 0.34, rad * 0.26, "#ffffff", 0.32);
+  r.fillCircle(x - rad * 0.3, y - rad * 0.34, rad * 0.26, '#ffffff', 0.32);
 }
 
-type Phase = "ready" | "play" | "win" | "fail";
+type Phase = 'ready' | 'play' | 'win' | 'fail';
 
 class CatchGame extends Entity {
   W = 0;
@@ -89,11 +81,11 @@ class CatchGame extends Entity {
   private fruits: Fruit[] = [];
   plateX = 0;
   keyDir = 0; // -1 left, +1 right, 0 none
-  private goalKey: FruitKey = "apple";
+  private goalKey: FruitKey = 'apple';
   private goalNeed = 3;
   private goalGot = 0;
   private catchesLeft = CATCH_BUDGET;
-  phase: Phase = "ready";
+  phase: Phase = 'ready';
   overlayT = 0;
   private spawnAcc = 0;
   private flash = 0;
@@ -143,14 +135,14 @@ class CatchGame extends Entity {
     this.catchesLeft = CATCH_BUDGET;
     this.fruits = [];
     this.spawnAcc = 0;
-    this.phase = "ready";
+    this.phase = 'ready';
     this.overlayT = 0;
     this.flash = 0;
     this.plateX = this.W / 2;
   }
 
   begin(): void {
-    if (this.phase === "ready") this.phase = "play";
+    if (this.phase === 'ready') this.phase = 'play';
   }
 
   // Centered Start button (canvas-drawn, so the game stays zero-DOM). One geometry
@@ -162,13 +154,13 @@ class CatchGame extends Entity {
   }
 
   hitStart(x: number, y: number): boolean {
-    if (this.phase !== "ready") return false;
+    if (this.phase !== 'ready') return false;
     const b = this.startRect();
     return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
   }
 
   setPlate(x: number): void {
-    if (this.phase !== "play") return;
+    if (this.phase !== 'play') return;
     const half = this.plateW / 2;
     this.plateX = Math.min(this.W - half, Math.max(half, x));
   }
@@ -196,14 +188,13 @@ class CatchGame extends Entity {
     const dts = Math.min(0.05, dt / 1000); // clamp so a tab-resume can't teleport fruit
     this.t += dts;
     if (this.flash > 0) this.flash = Math.max(0, this.flash - dts * 3);
-    if (this.phase === "ready") return; // fruit only falls after Start is pressed
-    if (this.phase !== "play") {
+    if (this.phase === 'ready') return; // fruit only falls after Start is pressed
+    if (this.phase !== 'play') {
       this.overlayT = Math.min(1, this.overlayT + dts * 3);
       return;
     }
 
-    if (this.keyDir !== 0)
-      this.setPlate(this.plateX + this.keyDir * this.plateSpeed * dts);
+    if (this.keyDir !== 0) this.setPlate(this.plateX + this.keyDir * this.plateSpeed * dts);
 
     this.spawnAcc += dts;
     while (this.spawnAcc >= SPAWN_INTERVAL) {
@@ -228,10 +219,10 @@ class CatchGame extends Entity {
         this.flash = 1;
         this.flashOk = isTarget;
         if (this.goalGot >= this.goalNeed) {
-          this.phase = "win";
+          this.phase = 'win';
           this.overlayT = 0;
         } else if (this.catchesLeft <= 0) {
-          this.phase = "fail";
+          this.phase = 'fail';
           this.overlayT = 0;
         }
       } else if (f.y - f.r > this.H) {
@@ -241,7 +232,7 @@ class CatchGame extends Entity {
   }
 
   render(r: IRenderer): void {
-    if (this.phase === "ready") {
+    if (this.phase === 'ready') {
       this.drawPlate(r);
       this.drawReady(r);
       return;
@@ -249,7 +240,7 @@ class CatchGame extends Entity {
     for (const f of this.fruits) drawFruit(r, f.x, f.y, f.r, f.key);
     this.drawPlate(r);
     this.drawHUD(r);
-    if (this.phase !== "play") this.drawOverlay(r);
+    if (this.phase !== 'play') this.drawOverlay(r);
   }
 
   private drawReady(r: IRenderer): void {
@@ -257,33 +248,25 @@ class CatchGame extends Entity {
     const H = this.H;
     const def = defOf(this.goalKey);
     const bigR = Math.max(22, H * 0.07);
-    ctext(
-      r,
-      "Fruit Catch",
-      W / 2,
-      H * 0.24,
-      "800 30px Inter, system-ui",
-      30,
-      "#f8fafc",
-    );
+    ctext(r, 'Fruit Catch', W / 2, H * 0.24, '800 30px Inter, system-ui', 30, '#f8fafc');
     drawFruit(r, W / 2, H * 0.42, bigR, this.goalKey);
     ctext(
       r,
       `Catch ${this.goalNeed} ${def.name}`,
       W / 2,
       H * 0.42 + bigR + 36,
-      "700 20px Inter, system-ui",
+      '700 20px Inter, system-ui',
       20,
-      "#e2e8f0",
+      '#e2e8f0',
     );
     ctext(
       r,
-      "You have 5 catches — a wrong fruit wastes one",
+      'You have 5 catches — a wrong fruit wastes one',
       W / 2,
       H * 0.42 + bigR + 60,
-      "400 13px Inter, system-ui",
+      '400 13px Inter, system-ui',
       13,
-      "#94a3b8",
+      '#94a3b8',
     );
 
     // Pulsing Start button
@@ -291,7 +274,7 @@ class CatchGame extends Entity {
     const pulse = 0.5 + 0.5 * Math.sin(this.t * 3.2);
     r.beginPath();
     r.roundRect(b.x, b.y, b.w, b.h, b.h / 2);
-    r.fill("#22c55e");
+    r.fill('#22c55e');
     r.stroke(`rgba(134,239,172,${(0.35 + pulse * 0.5).toFixed(3)})`, 2);
     const cyb = b.y + b.h / 2;
     const cxb = b.x + b.w / 2;
@@ -300,25 +283,17 @@ class CatchGame extends Entity {
     r.lineTo(cxb - 34, cyb + 8);
     r.lineTo(cxb - 21, cyb);
     r.closePath();
-    r.fill("#052e16");
-    ctext(
-      r,
-      "Start",
-      cxb + 8,
-      cyb + 6,
-      "800 18px Inter, system-ui",
-      18,
-      "#052e16",
-    );
+    r.fill('#052e16');
+    ctext(r, 'Start', cxb + 8, cyb + 6, '800 18px Inter, system-ui', 18, '#052e16');
 
     ctext(
       r,
-      "Move with the mouse or the arrow keys",
+      'Move with the mouse or the arrow keys',
       W / 2,
       b.y + b.h + 30,
-      "500 12px Inter, system-ui",
+      '500 12px Inter, system-ui',
       12,
-      "#7c8aa5",
+      '#7c8aa5',
     );
   }
 
@@ -333,17 +308,17 @@ class CatchGame extends Entity {
         this.plateX,
         y + h / 2,
         w * 0.62 * (1 - this.flash * 0.4),
-        this.flashOk ? "#22c55e" : "#ef4444",
+        this.flashOk ? '#22c55e' : '#ef4444',
         this.flash * 0.22,
       );
     }
     r.beginPath();
     r.roundRect(x, y, w, h, h / 2);
-    r.fill("#e2e8f0");
-    r.stroke("#94a3b8", 1.5);
+    r.fill('#e2e8f0');
+    r.stroke('#94a3b8', 1.5);
     r.beginPath();
     r.roundRect(x + 5, y + 2.5, w - 10, h * 0.42, h * 0.2);
-    r.fill("#ffffff");
+    r.fill('#ffffff');
   }
 
   // Below the shared BackChip ("← Gallery", local x:16..~120, y:16..50) so the
@@ -356,27 +331,21 @@ class CatchGame extends Entity {
     const hy = CatchGame.HUD_Y;
     r.beginPath();
     r.roundRect(8, hy, W - 16, 46, 12);
-    r.fill("rgba(8,12,22,0.55)"); // translucent dark bar (no gradients needed)
-    r.stroke("rgba(255,255,255,0.08)", 1);
+    r.fill('rgba(8,12,22,0.55)'); // translucent dark bar (no gradients needed)
+    r.stroke('rgba(255,255,255,0.08)', 1);
 
     // Goal (left): mini target fruit + "Catch N" / name
     const def = defOf(this.goalKey);
     drawFruit(r, 34, hy + 24, 12, this.goalKey);
-    r.fillText(
-      `Catch ${this.goalNeed}`,
-      54,
-      hy + 20,
-      "700 15px Inter, system-ui",
-      "#f1f5f9",
-    );
-    r.fillText(def.name, 54, hy + 37, "500 12px Inter, system-ui", "#94a3b8");
+    r.fillText(`Catch ${this.goalNeed}`, 54, hy + 20, '700 15px Inter, system-ui', '#f1f5f9');
+    r.fillText(def.name, 54, hy + 37, '500 12px Inter, system-ui', '#94a3b8');
 
     // Progress (centre): one dot per required target, filled as caught
     const startX = W / 2 - (this.goalNeed - 1) * 13;
     for (let i = 0; i < this.goalNeed; i++) {
       const px = startX + i * 26;
       if (i < this.goalGot) drawFruit(r, px, hy + 23, 9, this.goalKey);
-      else r.fillCircle(px, hy + 23, 9, "#ffffff", 0.12);
+      else r.fillCircle(px, hy + 23, 9, '#ffffff', 0.12);
     }
 
     // Catches left (right): five pips depleting
@@ -384,12 +353,12 @@ class CatchGame extends Entity {
     const pipGap = 6;
     const total = CATCH_BUDGET * pipW + (CATCH_BUDGET - 1) * pipGap;
     const px0 = W - 18 - total;
-    r.fillText("catches", px0, hy + 16, "500 10px Inter, system-ui", "#94a3b8");
+    r.fillText('catches', px0, hy + 16, '500 10px Inter, system-ui', '#94a3b8');
     for (let i = 0; i < CATCH_BUDGET; i++) {
       const px = px0 + i * (pipW + pipGap);
       r.beginPath();
       r.roundRect(px, hy + 24, pipW, pipW, 3);
-      r.fill(i < this.catchesLeft ? "#38bdf8" : "rgba(255,255,255,0.1)");
+      r.fill(i < this.catchesLeft ? '#38bdf8' : 'rgba(255,255,255,0.1)');
     }
   }
 
@@ -397,19 +366,19 @@ class CatchGame extends Entity {
     const W = this.W;
     const H = this.H;
     const a = this.overlayT;
-    const win = this.phase === "win";
+    const win = this.phase === 'win';
     r.save();
     r.setGlobalAlpha(0.74 * a);
     r.beginPath();
     r.roundRect(0, 0, W, H, 0);
-    r.fill(win ? "#04140a" : "#160406");
+    r.fill(win ? '#04140a' : '#160406');
     r.restore();
 
     r.save();
     r.setGlobalAlpha(a);
     const cx = W / 2;
     const cy = H * 0.4;
-    const col = win ? "#22c55e" : "#ef4444";
+    const col = win ? '#22c55e' : '#ef4444';
     r.fillCircle(cx, cy, 34, col, 0.16);
     r.beginPath();
     r.arc(cx, cy, 34, 0, TAU);
@@ -430,30 +399,30 @@ class CatchGame extends Entity {
     }
     ctext(
       r,
-      win ? "Human verified" : "Out of catches",
+      win ? 'Human verified' : 'Out of catches',
       cx,
       cy + 72,
-      "800 26px Inter, system-ui",
+      '800 26px Inter, system-ui',
       26,
-      "#f8fafc",
+      '#f8fafc',
     );
     ctext(
       r,
       `Caught ${this.goalGot} / ${this.goalNeed} ${defOf(this.goalKey).name}`,
       cx,
       cy + 100,
-      "500 14px Inter, system-ui",
+      '500 14px Inter, system-ui',
       14,
-      "#94a3b8",
+      '#94a3b8',
     );
     ctext(
       r,
-      "Press any key or click to play again",
+      'Press any key or click to play again',
       cx,
       cy + 132,
-      "600 13px Inter, system-ui",
+      '600 13px Inter, system-ui',
       13,
-      "#7dd3fc",
+      '#7dd3fc',
     );
     r.restore();
   }
@@ -461,15 +430,13 @@ class CatchGame extends Entity {
   private canvas: HTMLCanvasElement | null = null;
 
   constructor() {
-    super("CatchGame");
-    this.canvas = document.getElementById(
-      "gallery-canvas",
-    ) as HTMLCanvasElement | null;
+    super('CatchGame');
+    this.canvas = document.getElementById('gallery-canvas') as HTMLCanvasElement | null;
     if (this.canvas) {
-      this.canvas.addEventListener("pointermove", this.onPointerMove);
-      this.canvas.addEventListener("pointerdown", this.onPointerDown);
-      window.addEventListener("keydown", this.onKeyDown);
-      window.addEventListener("keyup", this.onKeyUp);
+      this.canvas.addEventListener('pointermove', this.onPointerMove);
+      this.canvas.addEventListener('pointerdown', this.onPointerDown);
+      window.addEventListener('keydown', this.onKeyDown);
+      window.addEventListener('keyup', this.onKeyUp);
     }
     this.reset();
   }
@@ -481,11 +448,11 @@ class CatchGame extends Entity {
 
   override destroy(): void {
     if (this.canvas) {
-      this.canvas.removeEventListener("pointermove", this.onPointerMove);
-      this.canvas.removeEventListener("pointerdown", this.onPointerDown);
+      this.canvas.removeEventListener('pointermove', this.onPointerMove);
+      this.canvas.removeEventListener('pointerdown', this.onPointerDown);
     }
-    window.removeEventListener("keydown", this.onKeyDown);
-    window.removeEventListener("keyup", this.onKeyUp);
+    window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('keyup', this.onKeyUp);
     super.destroy();
   }
 
@@ -515,9 +482,9 @@ class CatchGame extends Entity {
 
   private readonly onPointerDown = (e: PointerEvent): void => {
     const p = this.scenePt(e.clientX, e.clientY);
-    if (this.phase === "ready") {
+    if (this.phase === 'ready') {
       if (this.hitStart(p.x, p.y)) this.begin();
-    } else if (this.phase === "play") {
+    } else if (this.phase === 'play') {
       this.setPlate(p.x);
     } else {
       this.reset();
@@ -525,32 +492,32 @@ class CatchGame extends Entity {
   };
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    if (this.phase === "ready") {
-      if (e.key === " " || e.key === "Enter") {
+    if (this.phase === 'ready') {
+      if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
         this.begin();
       }
       return;
     }
-    if (this.phase !== "play") {
-      if (e.key === " " || e.key === "Enter" || e.key.startsWith("Arrow")) {
+    if (this.phase !== 'play') {
+      if (e.key === ' ' || e.key === 'Enter' || e.key.startsWith('Arrow')) {
         e.preventDefault();
         this.reset();
       }
       return;
     }
-    if (e.key === "ArrowLeft") {
+    if (e.key === 'ArrowLeft') {
       e.preventDefault();
       this.keyDir = -1;
-    } else if (e.key === "ArrowRight") {
+    } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       this.keyDir = 1;
     }
   };
 
   private readonly onKeyUp = (e: KeyboardEvent): void => {
-    if (e.key === "ArrowLeft" && this.keyDir === -1) this.keyDir = 0;
-    if (e.key === "ArrowRight" && this.keyDir === 1) this.keyDir = 0;
+    if (e.key === 'ArrowLeft' && this.keyDir === -1) this.keyDir = 0;
+    if (e.key === 'ArrowRight' && this.keyDir === 1) this.keyDir = 0;
   };
 }
 

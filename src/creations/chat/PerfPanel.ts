@@ -4,9 +4,9 @@
  * Drawn directly on Canvas2D for minimal overhead.
  */
 
-import { Entity } from "@vectojs/core";
-import type { PerfSample } from "./perf";
-import type { RawRenderer } from "./raw-renderer";
+import { Entity } from '@vectojs/core';
+import type { PerfSample } from './perf';
+import type { RawRenderer } from './raw-renderer';
 
 export class PerfPanel extends Entity {
   public sample: PerfSample = {
@@ -18,7 +18,7 @@ export class PerfPanel extends Entity {
   };
 
   constructor() {
-    super("PerfPanel");
+    super('PerfPanel');
     this.width = 180;
     this.height = 92;
     this.interactive = false;
@@ -38,44 +38,30 @@ export class PerfPanel extends Entity {
     ctx.save();
     ctx.beginPath();
     ctx.roundRect(0, 0, w, h, 10);
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.08)";
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
 
-    const row = (
-      label: string,
-      value: string,
-      y: number,
-      color = "#5c4a35",
-    ) => {
-      ctx.font = "10px monospace";
-      ctx.fillStyle = "#9e8e78";
-      ctx.textBaseline = "middle";
+    const row = (label: string, value: string, y: number, color = '#5c4a35') => {
+      ctx.font = '10px monospace';
+      ctx.fillStyle = '#9e8e78';
+      ctx.textBaseline = 'middle';
       ctx.fillText(label, 12, y);
-      ctx.font = "bold 12px monospace";
+      ctx.font = 'bold 12px monospace';
       ctx.fillStyle = color;
       ctx.fillText(value, w - 12 - ctx.measureText(value).width, y);
     };
 
-    const fpsColor =
-      s.fps >= 55 ? "#22c55e" : s.fps >= 30 ? "#f59e0b" : "#ef4444";
+    const fpsColor = s.fps >= 55 ? '#22c55e' : s.fps >= 30 ? '#f59e0b' : '#ef4444';
 
     // Live rate (colored by health) plus the best sustained rate ("peak"), so a
     // high-refresh panel's capability is visible without hiding real choppiness.
-    row("FPS", `${s.fps}  ·  ${s.peakFps} pk`, 22, fpsColor);
-    row("FRAME", `${s.frameMs} ms`, 42);
-    row(
-      "HEAP",
-      isNaN(s.heapUsedMB) ? "N/A" : `${s.heapUsedMB.toFixed(1)} MB`,
-      62,
-    );
-    row(
-      "HEAP LIM",
-      isNaN(s.heapLimitMB) ? "N/A" : `${s.heapLimitMB.toFixed(0)} MB`,
-      80,
-    );
+    row('FPS', `${s.fps}  ·  ${s.peakFps} pk`, 22, fpsColor);
+    row('FRAME', `${s.frameMs} ms`, 42);
+    row('HEAP', isNaN(s.heapUsedMB) ? 'N/A' : `${s.heapUsedMB.toFixed(1)} MB`, 62);
+    row('HEAP LIM', isNaN(s.heapLimitMB) ? 'N/A' : `${s.heapLimitMB.toFixed(0)} MB`, 80);
   }
 }
