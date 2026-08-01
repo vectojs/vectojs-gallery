@@ -34,6 +34,7 @@ First, clone this repository and make sure you have [Bun](https://bun.sh) instal
    Open `http://localhost:2222` to see the live native canvas gallery interface.
 
 3. **Production Build**:
+
    ```bash
    bun run build
    ```

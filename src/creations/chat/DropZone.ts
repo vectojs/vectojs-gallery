@@ -20,6 +20,17 @@ export class DropZone extends Entity {
     this.interactive = v;
     this.opacity = v ? 1 : 0;
   }
+  /**
+   * Replaces the call-to-action line, for "loaded but stopped" — the state
+   * `Esc` leaves behind, where the file is still in memory and Play will
+   * replay it. Empty shows the normal prompt.
+   */
+  hint = '';
+  /**
+   * Replaces the whole card body while a file is being read off disk. Empty
+   * shows the normal prompt.
+   */
+  loadingLabel = '';
   private _hovered = false;
   private _onClick: () => void;
   private _time = 0;
@@ -105,12 +116,12 @@ export class DropZone extends Entity {
     // Title
     ctx.font = '900 24px sans-serif';
     ctx.fillStyle = '#3d2e1a';
-    ctx.fillText('Drop a file to stream', cw / 2, 140);
+    ctx.fillText(this.loadingLabel ? 'Reading file …' : 'Drop a file to stream', cw / 2, 140);
 
     // Sub
     ctx.font = '14px sans-serif';
     ctx.fillStyle = '#8c7a65';
-    ctx.fillText('TXT · Markdown · EPUB · any text file', cw / 2, 172);
+    ctx.fillText(this.loadingLabel || this.hint || 'Markdown · plain text', cw / 2, 172);
 
     // Button
     const bw = 180,
@@ -135,7 +146,7 @@ export class DropZone extends Entity {
     ctx.fillStyle = 'rgba(120,100,75,0.5)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('Supports drag & drop · EPUB chapters extracted automatically', w / 2, h - 20);
+    ctx.fillText('Supports drag & drop · .md, .markdown, .txt', w / 2, h - 20);
   }
 
   hasPendingAnimations(): boolean {

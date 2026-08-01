@@ -99,10 +99,10 @@ export const CREATIONS: Creation[] = [
   },
   {
     id: 'chat',
-    title: 'Stream Reader — Markdown & EPUB',
+    title: 'Stream Reader — streaming Markdown',
     description:
-      'Drop a .txt/.md/.epub file and it streams character-by-character at an adjustable rate: incremental plain-text layout, or @vectojs/ui Markdown with math, tables, and code, all off the main thread.',
-    tags: ['Streaming', 'Markdown', 'EPUB'],
+      'Drop a .md/.txt file and it reveals the source at an adjustable rate, the way an LLM response arrives: @vectojs/markdown lexes off the main thread and reconciles each chunk in place, with math, tables, and code.',
+    tags: ['Streaming', 'Markdown'],
     stage: '#f7f2e8',
     // Reserve space above the control bar (56px desktop / 90px mobile, see
     // ControlPanel.panelHeight) plus a clear gap.

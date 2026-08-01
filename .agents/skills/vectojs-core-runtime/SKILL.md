@@ -28,13 +28,13 @@ For copyable examples, read `references/scene-recipes.md`.
 
 ## Common mistakes
 
-| Mistake                               | Correction                                                                               |
-| ------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Passing `renderMode` to `new Scene()` | Create the scene, then set `scene.renderMode = 'onDemand'`.                              |
-| Pixel-coordinate tests for controls   | Use projected DOM roles for tests: `getByRole(...).click()`.                             |
-| Forgetting teardown                   | Call `scene.destroy()` to release renderers, observers, workers, and projected DOM.      |
-| Custom canvas input for text          | Use `@vectojs/ui` `Input`/`TextArea` so IME, selection, clipboard, and undo stay native. |
-| Rebuilding text every frame           | Reuse entities and update width/content through the hot APIs where available.            |
+| Mistake                                                 | Correction                                                                                            |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Passing `renderMode` to `new Scene()`                   | Create the scene, then set `scene.renderMode = 'onDemand'`.                                           |
+| Pixel-coordinate tests for controls                     | Use projected DOM roles for tests: `getByRole(...).click()`.                                          |
+| Forgetting teardown                                     | Call `scene.destroy()` to release renderers, observers, workers, and projected DOM.                   |
+| Custom canvas input for text                            | Use `@vectojs/ui` `Input`/`TextArea` so IME, selection, clipboard, and undo stay native.              |
+| Rebuilding text every frame                             | Reuse entities and update width/content through the hot APIs where available.                         |
 | Discarding dynamic interactive children without cleanup | Call `scene.detachA11y(child)` first — `syncA11y` creates/updates shadow nodes but never prunes them. |
 
 ## Runtime gotchas (source-verified)

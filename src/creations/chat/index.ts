@@ -1,29 +1,44 @@
 /**
- * StreamReader — a Markdown & EPUB streaming reader, ported from the
- * vectojs-playground `stream-page` prototype into the Gallery's one-Entity-
- * per-creation contract. Drop or pick a .txt/.md/.epub file and it streams
- * character-by-character at an adjustable rate, exercising VectoJS's
- * incremental text layout (plain text) and @vectojs/ui's incremental
- * Markdown rendering (with math via MathMarkdown).
+ * StreamReader — a Markdown streaming reader, exercising
+ * `@vectojs/markdown`'s own incremental streaming path.
  *
- * Unlike the prototype (its own page, its own Scene, `window`-sized), this
- * is a guest inside the Gallery's one shared full-window canvas/Scene: no
- * private canvas, no own render loop — `resizeTo()`/`update()`/`destroy()`
- * plug into the same lifecycle every other creation uses, and every
- * `window`/`document`-level listener registered here is explicitly removed
- * in `destroy()` so switching creations doesn't leak them.
+ * Drop or pick a `.md`/`.txt` file and it reveals the source at an adjustable
+ * rate, one tokenizer unit at a time, the way an LLM response arrives.
+ *
+ * This creation is a guest inside the Gallery's one shared full-window
+ * canvas/Scene: no private canvas, no own render loop — `resizeTo()`,
+ * `update()`, and `destroy()` plug into the same lifecycle every other
+ * creation uses, and every `window`/`document`-level listener registered here
+ * is explicitly removed in `destroy()` so switching creations doesn't leak
+ * them.
+ *
+ * ## Why there is no custom Markdown subclass here any more
+ *
+ * This creation used to ship a 593-line `MathMarkdown` subclass plus its own
+ * lexing Worker and `marked` math extensions. All three existed to work around
+ * gaps that `@vectojs/markdown` has since closed (0.6.0): inline `$…$` is
+ * typeset natively, a math fence defers conversion until it closes and
+ * memoizes the result, and MathJax loads on demand. The subclass also reached
+ * into the library's private `updateTokens()` and called it *without* the
+ * `matchLen` its own worker had just computed, forcing a full main-thread
+ * re-scan of every token's `raw` string on every streamed chunk — and, by
+ * bypassing `appendMarkdownCore`, it opted out of every reconciler reuse path
+ * the library added (lists were Θ(N²), headings and blockquotes were rebuilt
+ * per chunk).
+ *
+ * The fix is to stop reimplementing the streaming path: `createStream()` owns
+ * buffering and per-frame coalescing, and `write()` goes through the same
+ * reconciler as a one-shot parse.
  */
 import { Entity } from '@vectojs/core';
-import type { MarkdownTheme } from '@vectojs/markdown';
-import { createStreamState, tickStream, tokenize, type StreamState } from './state';
-import { parseFile } from './parser';
+import { Markdown, type MarkdownTheme, type StreamController } from '@vectojs/markdown';
+import { createStreamState, rewindStream, tickStream, tokenize, type StreamState } from './state';
+import { ACCEPTED_EXTENSIONS, loadFile } from './parser';
 import { PerfMonitor } from './perf';
-import { StreamTextEntity } from './StreamTextEntity';
 import { ControlPanel } from './ControlPanel';
 import { PerfPanel } from './PerfPanel';
 import { DropZone } from './DropZone';
 import { ScrollBar, SCROLLBAR_HIT_BAND } from './ScrollBar';
-import { MathMarkdown } from './MathMarkdown';
 
 const MD_THEME: MarkdownTheme = {
   textColor: '#2d2015',
@@ -44,36 +59,40 @@ const PERF_H = 98;
 const PERF_PAD = 12;
 // Top margin for the top-right-anchored perf panel, matching the back chip's
 // top inset (y = 16) so the two top-anchored overlays sit on the same band.
-// (Was dropped to 56 only to clear the old FullscreenChip, since removed.)
 const PERF_TOP = 16;
 
 // A plain function parameter always gets its declared type, not whatever
 // narrowing the caller's control flow had applied — needed below because
-// `tickStream()` can flip `state.status` to "done" from inside a block
-// where TS had already narrowed it to the literal "streaming".
+// `tickStream()` can flip `state.status` to 'done' from inside a block where TS
+// has already narrowed it to the literal 'streaming'.
 function isDone(status: StreamState['status']): boolean {
   return status === 'done';
 }
 
+/** Left/top inset of the document inside the content viewport. */
+const DOC_INSET = 32;
+/** Extra scrollable slack below the document so the last line clears the panel. */
+const DOC_TAIL = 64;
+
 class StreamReader extends Entity {
   private state: StreamState;
   private perf = new PerfMonitor();
-  private streamText: StreamTextEntity;
-  private markdownView: MathMarkdown;
+  private markdownView: Markdown;
   private controlPanel: ControlPanel;
   private perfPanel: PerfPanel;
   private dropZone: DropZone;
   private scrollBar: ScrollBar;
   private canvasEl: HTMLCanvasElement | null;
 
+  /**
+   * The library's writer for the current document, or `null` when nothing is
+   * loaded. Recreated per document (and per loop pass) because a controller is
+   * single-use: `close()` settles it, and it cannot rewind.
+   */
+  private stream: StreamController | null = null;
+
   private mdScrollY = 0;
   private mdAutoScroll = true;
-  private mdPushedText = '';
-  // Set once the post-stream calibration `setContent` rebuild has run for the
-  // current document — distinct from `mdPushedText`, which already equals
-  // `state.visible` by the time `finished` goes true on the same tick (see
-  // update()), so comparing against it can never detect "not yet calibrated".
-  private mdCalibrated = false;
   private lastPerfUpdate = 0;
   private mdDragging = false;
   private mdDragY = 0;
@@ -86,13 +105,6 @@ class StreamReader extends Entity {
     super('StreamReader');
     this.state = createStreamState();
     this.canvasEl = document.getElementById('gallery-canvas') as HTMLCanvasElement | null;
-
-    this.streamText = new StreamTextEntity({
-      font: '15px/1.7 "JetBrains Mono", "Fira Mono", "Consolas", monospace',
-      color: '#2d2015',
-      lineHeight: 26,
-      padding: 40,
-    });
 
     this.controlPanel = new ControlPanel({
       onFileOpen: () => this.openFilePicker(),
@@ -130,27 +142,20 @@ class StreamReader extends Entity {
     // is non-interactive so it never blocks the document's text selection).
     this.scrollBar.metrics = () => ({
       viewH: this.height - this.controlPanel.panelHeight,
-      contentH: this.markdownView.height + 64,
+      contentH: this.markdownView.height + DOC_TAIL,
       scrollY: this.mdScrollY,
     });
 
     // maxWidth is a placeholder — the entity's real width is 0 until the
-    // shell's first resizeTo() call; layout() sets the real value (and only
-    // then populates content) once it's known, same fix as the portfolio
-    // hub's chat-column bug (2026-07-18-gallery-hub-polish).
-    this.markdownView = new MathMarkdown('', {
+    // shell's first resizeTo() call; layout() sets the real value once it is
+    // known.
+    this.markdownView = new Markdown('', {
       maxWidth: 800,
       theme: MD_THEME,
       onLinkClick: (url) => window.open(url, '_blank'),
     });
     this.setMarkdownShown(false);
 
-    // VectoJS paints children in add() order (later = on top). DropZone's
-    // own doc comment says it's "hidden once a file is loaded" — i.e. it
-    // needs to be the TOPMOST layer while idle, covering streamText's own
-    // always-opaque background. Added last (but before the chrome panels,
-    // which must stay usable even while the drop zone shows).
-    this.add(this.streamText);
     this.add(this.markdownView);
     this.add(this.scrollBar); // over the document, under the chrome/drop layers
     this.add(this.dropZone);
@@ -173,7 +178,7 @@ class StreamReader extends Entity {
   }
 
   private markdownMaxScroll(viewportH: number): number {
-    return Math.max(0, this.markdownView.height + 64 - viewportH);
+    return Math.max(0, this.markdownView.height + DOC_TAIL - viewportH);
   }
 
   /**
@@ -182,15 +187,20 @@ class StreamReader extends Entity {
    * and moves the view. No-op when the offset is unchanged.
    */
   private scrollMarkdownTo(y: number): void {
-    if (this.state.kind !== 'markdown') return;
+    if (!this.isDocumentShown()) return;
     const h = this.height - this.controlPanel.panelHeight;
     const maxScroll = this.markdownMaxScroll(h);
     const clamped = Math.max(0, Math.min(maxScroll, y));
     if (clamped === this.mdScrollY) return;
     this.mdScrollY = clamped;
     this.mdAutoScroll = this.mdScrollY >= maxScroll - 8;
-    this.markdownView.y = 32 - this.mdScrollY;
+    this.markdownView.y = DOC_INSET - this.mdScrollY;
     this.scene?.markDirty();
+  }
+
+  /** True once a file is loaded and the document (not the drop hint) is on screen. */
+  private isDocumentShown(): boolean {
+    return this.state.status !== 'idle';
   }
 
   /**
@@ -245,18 +255,10 @@ class StreamReader extends Entity {
     this.dropZone.width = w;
     this.dropZone.height = h;
 
-    this.streamText.x = 0;
-    this.streamText.y = 0;
-    this.streamText.width = w;
-    this.streamText.height = h - ctrlH;
-
-    // Idle always uses StreamText for the hint; markdown only while playing/paused/done.
-    const useMarkdown = this.state.kind === 'markdown' && this.state.status !== 'idle';
-    if (useMarkdown) {
-      this.streamText.visible = false;
+    if (this.isDocumentShown()) {
       this.setMarkdownShown(true);
-      this.markdownView.x = 32;
-      this.markdownView.y = 32 - this.mdScrollY;
+      this.markdownView.x = DOC_INSET;
+      this.markdownView.y = DOC_INSET - this.mdScrollY;
 
       // Scrollbar overlays the content viewport (above the control panel).
       this.scrollBar.x = 0;
@@ -265,18 +267,16 @@ class StreamReader extends Entity {
       this.scrollBar.height = h - ctrlH;
       this.scrollBar.opacity = 1;
 
-      const targetW = w - 64;
+      // A width change is the one case that must re-wrap already-rendered
+      // blocks, which no incremental path can do — `maxWidth` feeds every
+      // block's measured width. Re-lay-out through the same source of truth
+      // instead of rebuilding from `state.visible`, so an open stream is not
+      // disturbed.
+      const targetW = w - DOC_INSET * 2;
       if (this.markdownView.maxWidth !== targetW) {
         this.markdownView.maxWidth = targetW;
-        this.markdownView.setContent(this.state.visible);
-        this.mdPushedText = this.state.visible;
-        // Not `mdCalibrated = true`: this rebuild can happen mid-stream
-        // (e.g. a window resize before the document finishes), and
-        // `state.visible` may still grow afterward — only the completion-time
-        // rebuild in update() should retire the calibration flag.
       }
     } else {
-      this.streamText.visible = true;
       this.setMarkdownShown(false);
       this.scrollBar.opacity = 0;
     }
@@ -311,43 +311,53 @@ class StreamReader extends Entity {
   private openFilePicker(): void {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.txt,.md,.markdown,.epub,.html,.htm,.csv,.json,.log';
+    input.accept = ACCEPTED_EXTENSIONS;
     input.onchange = () => {
       const file = input.files?.[0];
-      if (file) void this.loadFile(file);
+      if (file) void this.openFile(file);
     };
     input.click();
   }
 
-  private async loadFile(file: File): Promise<void> {
-    this.streamText.visible = true;
-    this.streamText.idleHint = `⏳ Parsing ${file.name} …`;
-    this.streamText.visibleText = '';
-    this.streamText.resetScroll();
-    this.setMarkdownShown(false);
-    this.scene?.markDirty();
+  /**
+   * Discard the current writer. `destroy()` rather than `close()`: closing is a
+   * promise that also runs end-of-stream settlement, which is meaningless for a
+   * document being thrown away, and it would race the next document's writer.
+   */
+  private releaseStream(): void {
+    this.stream?.destroy();
+    this.stream = null;
+  }
 
-    const parsed = await parseFile(file);
-
-    this.state.content = parsed.plainText;
-    this.state.kind = parsed.kind;
-    this.state.tokens = tokenize(parsed.plainText);
-    this.state.fileName = file.name;
-    this.state.cursor = 0;
-    this.state.visible = '';
-    this.state.accumulator = 0;
-
+  /** Point the document at a fresh empty source and open a new writer over it. */
+  private resetDocument(): void {
+    this.releaseStream();
+    this.markdownView.setContent('');
+    this.stream = this.markdownView.createStream({
+      // A typewriter that shows `**bo` before the closing `**` arrives reads as
+      // a rendering bug rather than as typing. The guess is display-only and is
+      // unwound on close, so the finished document is identical either way.
+      incompleteMode: 'optimistic',
+    });
     this.mdScrollY = 0;
     this.mdAutoScroll = true;
-    this.mdPushedText = '';
-    this.mdCalibrated = false;
-    this.markdownView.setContent('');
+  }
+
+  private async openFile(file: File): Promise<void> {
+    this.dropZone.loadingLabel = `Parsing ${file.name} …`;
+    this.scene?.markDirty();
+
+    const loaded = await loadFile(file);
+
+    this.state.content = loaded.source;
+    this.state.tokens = tokenize(loaded.source);
+    this.state.fileName = loaded.fileName;
+    rewindStream(this.state);
+
+    this.resetDocument();
 
     this.state.status = 'streaming'; // auto-start
-
-    this.streamText.visibleText = '';
-    this.streamText.idleHint = '';
-    this.streamText.resetScroll();
+    this.dropZone.loadingLabel = '';
     this.dropZone.visible = false;
 
     this.layout();
@@ -356,20 +366,17 @@ class StreamReader extends Entity {
 
   private stopAndClear(): void {
     this.state.status = 'idle';
-    this.state.cursor = 0;
-    this.state.visible = '';
-    this.state.accumulator = 0;
-    this.streamText.visibleText = '';
-    this.streamText.resetScroll();
-    this.streamText.idleHint = this.state.fileName
+    rewindStream(this.state);
+    this.releaseStream();
+    this.markdownView.setContent('');
+    this.dropZone.visible = true;
+    this.dropZone.loadingLabel = '';
+    this.dropZone.hint = this.state.fileName
       ? `${this.state.fileName} — Press ▶ Play to start`
       : '';
 
     this.mdScrollY = 0;
     this.mdAutoScroll = true;
-    this.mdPushedText = '';
-    this.mdCalibrated = false;
-    this.markdownView.setContent('');
 
     this.layout();
     this.scene?.markDirty();
@@ -380,29 +387,25 @@ class StreamReader extends Entity {
   }
 
   // `continuousRedraw: false` (registry.ts) switches the shared Scene to
-  // `renderMode: 'onDemand'` while this creation is mounted (see
-  // main.ts) — it skips the entire update/render walk once idle (no dirty
-  // flag, no pending animation). Active streaming only re-marks the scene
-  // dirty from INSIDE update() (below, when tickStream adds new
-  // characters) — if update() itself stops being called because a single
-  // tick happened to add zero characters (accumulator hadn't crossed a
-  // full token yet) while nothing else was marking the scene dirty, that
-  // silence is self-perpetuating: no update() call means no chance to
-  // mark dirty again, so the stream can stall completely until some
-  // unrelated interaction nudges the scene awake. Without this override
-  // (the default reports "not animating"), core has no way to know
-  // streaming is still in flight. See forge/findings.md 2026-07-19
-  // ("FPS drops lower and lower as more EPUBs are loaded" — the real
-  // cause was streaming silently stalling, not the frame rate itself).
+  // `renderMode: 'onDemand'` while this creation is mounted (see main.ts) — it
+  // skips the entire update/render walk once idle (no dirty flag, no pending
+  // animation). Active streaming only re-marks the scene dirty from INSIDE
+  // update() — if update() itself stops being called because a single tick
+  // happened to add zero characters (the accumulator hadn't crossed a full
+  // token yet) while nothing else was marking the scene dirty, that silence is
+  // self-perpetuating: no update() call means no chance to mark dirty again, so
+  // the stream would stall until some unrelated interaction nudged the scene
+  // awake. Without this override (the default reports "not animating"), core
+  // has no way to know streaming is still in flight.
   override hasPendingAnimations(): boolean {
     return this.state.status === 'streaming';
   }
 
   override render(): void {
-    /* everything here is a child entity (streamText/markdownView/panels) — nothing to draw directly */
+    /* everything here is a child entity (markdownView/panels) — nothing to draw directly */
   }
 
-  override update(_dt: number): void {
+  override update(dt: number): void {
     const now = performance.now();
     const sample = this.perf.tick(now);
     if (now - this.lastPerfUpdate > 1000) {
@@ -417,49 +420,37 @@ class StreamReader extends Entity {
       return;
     }
 
-    const addedCount = tickStream(this.state, _dt);
+    const chunk = tickStream(this.state, dt);
 
-    if (this.state.kind === 'markdown') {
-      this.streamText.visibleText = ''; // clear raw text to avoid overlap
+    if (chunk) {
+      // `write()` returns a backpressure promise. Not awaited: this is a
+      // fixed-rate typewriter whose next chunk is decided by the frame clock,
+      // so there is nothing useful to do with the resolution, and the default
+      // 64KiB buffer is far above one tick's worth of text.
+      void this.stream?.write(chunk);
 
-      const newlyAdded = this.state.visible.slice(this.mdPushedText.length);
-      const finished = isDone(this.state.status) || this.state.cursor >= this.state.tokens.length;
-
-      // No time-merge throttle — appends whenever a frame has new
-      // characters, so the text "types out" smoothly at any frame rate.
-      if (newlyAdded) {
-        this.markdownView.appendMarkdown(newlyAdded);
-        this.mdPushedText = this.state.visible;
-
-        if (this.mdAutoScroll) {
-          const h = this.height - this.controlPanel.panelHeight;
-          this.mdScrollY = this.markdownMaxScroll(h);
-          this.markdownView.y = 32 - this.mdScrollY;
-        }
+      if (this.mdAutoScroll) {
+        const h = this.height - this.controlPanel.panelHeight;
+        this.mdScrollY = this.markdownMaxScroll(h);
+        this.markdownView.y = DOC_INSET - this.mdScrollY;
       }
-
-      if (finished && !this.mdCalibrated) {
-        // One calibration rebuild right as streaming ends, but ONLY when the
-        // document actually contains math/image content that could have been
-        // left stale by @vectojs/ui's incremental `updateTokens` fast path
-        // (a paragraph that completed an `inlineMath`/`image` run mid-stream
-        // then became non-last before `reconcileLastMixedParagraph` swapped
-        // it). A full `setContent` re-lexes and re-shapes every block in one
-        // frame — the single worst streaming-completion hitch (~700ms+ on a
-        // large doc, real-GPU) — so skipping it for plain text/code documents
-        // (which have nothing to correct) removes that hitch entirely. See
-        // forge/findings.md 2026-07-18 / 2026-07-20.
-        if (this.markdownView.needsCalibration()) {
-          this.markdownView.setContent(this.state.visible);
-        }
-        this.mdPushedText = this.state.visible;
-        this.mdCalibrated = true;
-      }
-    } else if (addedCount > 0) {
-      this.streamText.visibleText = this.state.visible;
+      this.scene?.markDirty();
     }
 
-    if (addedCount > 0 || this.state.cursor >= this.state.tokens.length) {
+    if (isDone(this.state.status)) {
+      // Closing is what makes the document converge on a one-shot parse: it
+      // final-flushes, waits for the last chunk's off-thread parse to land, and
+      // unwinds the optimistic tail guess.
+      const finishing = this.stream;
+      this.stream = null;
+      void finishing?.close().then(() => {
+        if (this.state.loop && this.state.status === 'done') {
+          rewindStream(this.state);
+          this.resetDocument();
+          this.state.status = 'streaming';
+        }
+        this.scene?.markDirty();
+      });
       this.scene?.markDirty();
     }
 
@@ -475,6 +466,7 @@ class StreamReader extends Entity {
     window.removeEventListener('pointermove', this.onWindowPointerMove);
     window.removeEventListener('pointerup', this.onWindowPointerUp);
     window.removeEventListener('keydown', this.onKeyDown);
+    this.releaseStream();
     // ControlPanel owns a real DOM <input> — its own destroy() removes it.
     // Entity.destroy() doesn't cascade to children (see Nexus/Dimension for
     // the same reasoning), so this has to happen explicitly.
@@ -491,18 +483,17 @@ class StreamReader extends Entity {
   private readonly onDrop = (e: DragEvent): void => {
     e.preventDefault();
     const file = e.dataTransfer?.files[0];
-    if (file) void this.loadFile(file);
+    if (file) void this.openFile(file);
   };
 
-  // ── Markdown scroll (wheel + touch drag) ────────────────────────────────────
+  // ── Scroll (wheel + touch drag) ─────────────────────────────────────────────
 
   private readonly onWheel = (e: WheelEvent): void => {
-    if (this.state.kind !== 'markdown') return;
     this.scrollMarkdownTo(this.mdScrollY + e.deltaY);
   };
 
   private readonly onWindowPointerDown = (e: PointerEvent): void => {
-    if (this.state.kind !== 'markdown') return;
+    if (!this.isDocumentShown()) return;
     // Scrollbar-thumb grab (mouse or touch) takes priority over body drag.
     if (this.pointerOnThumb(e.clientX, e.clientY)) {
       this.thumbDragging = true;
@@ -519,7 +510,7 @@ class StreamReader extends Entity {
   };
 
   private readonly onWindowPointerMove = (e: PointerEvent): void => {
-    if (this.state.kind !== 'markdown') return;
+    if (!this.isDocumentShown()) return;
     if (this.thumbDragging) {
       this.scrollMarkdownTo(this.thumbDragToScroll(e.clientY - this.thumbStartClientY));
       return;

@@ -21,8 +21,10 @@ This website is a **VectoJS Native Canvas Application** (no Astro, React, or sta
 
 - **Package Manager**: Bun is preferred (`bun install`, `bun run dev`, `bun run build`). NPM is also supported as a fallback.
 - **Linter & Formatter**:
-  - Formatter: **Prettier** is strictly enforced (`prettier --write .`).
-  - Linter: **Oxlint** (`oxlint`) is used for extreme performance static analysis.
+  - Formatter: **oxfmt** is the authority (`bun run format` / `bun run format:check`). Prettier is gone — it is not in `devDependencies` and there is no `.prettierrc`. Single quotes in TS/JS, trailing commas everywhere.
+  - Linter: **Oxlint** (`bun run lint`, i.e. `oxlint --deny-warnings src`). Warnings fail, so unused imports and vars block the gate.
+  - Markdown: **markdownlint-cli2** (`bun run lint:md`) covers every tracked `.md`, including `.agents/skills/`. `MD060` wants table pipes aligned to the widest cell, which `--fix` cannot do when a row is wider than the header; realign the whole table instead of narrowing the row.
+  - `bun run check` runs all three. It must exit 0 before you call a task done.
 - **TypeScript Settings**: `tsconfig.json` runs in strict resolution mode. Make sure all imports use clean extensions.
 - **Git Hygiene**: Showcase entries live under `src/creations/<id>/`; registry metadata lives in `src/registry.ts`, not `src/main.ts` (which only bootstraps the `Scene` and wires the UI components together).
 
@@ -32,7 +34,7 @@ This website is a **VectoJS Native Canvas Application** (no Astro, React, or sta
 
 1. Create `src/creations/<id>/index.ts`, default-exporting a class that extends `Entity` from `@vectojs/core` (`isPointInside`, `render`, and — if animated — `update`, calling `super.update(dt, time)`).
 2. Register it in `CREATIONS` in `src/registry.ts`: `id`, `title`, `description`, `tags`, and a lazy `load: () => import("./creations/<id>")` thunk.
-3. `bun run format:check && bun run lint && bun run test && bun run build` must all pass.
+3. `bun run check && bun test && bun run build` must all pass.
 
 ### 🎨 Creation theme contract (required for every new demo)
 
@@ -66,3 +68,27 @@ demos looking intentional:
 - **Read first**: Always inspect `src/main.ts` and `src/creations/` before starting code changes.
 - **Strict Sandbox**: Keep your files inside `src/creations/`. Never modify bundler configurations or `.github/` workflows unless instructed by the user.
 - **Verify Builds**: Before completing your task, run `bun run build` locally and ensure 0 TypeScript compilation errors or linter warnings.
+- **Use the packages, do not reimplement them.** A demo that hand-rolls what a
+  `@vectojs/*` package already does will be slower than the package and will
+  silently stop receiving its optimizations. Two real examples from this repo,
+  both since deleted: a 593-line `Markdown` subclass that ran its own lexer
+  worker and called the private `updateTokens()` **without** the `matchLen` its
+  own worker had computed — forcing an O(N) main-thread rescan of every token per
+  chunk and opting out of every reconciler reuse path — and a 563-line
+  hand-rolled Canvas2D line-wrapper for plain text, replaced by feeding the text
+  to `Markdown` (plain text is valid Markdown).
+- **Streaming text goes through `createStream()`**, not a manual
+  `setContent()`/`appendMarkdown()` loop. It coalesces writes per frame, takes
+  `incompleteMode: 'optimistic'` so a half-typed `**bold` does not flicker as
+  literal asterisks, and reports settled blocks via `onStable`. Its `pacing` is
+  fixed at construction with no pause, so a demo that needs play/pause keeps its
+  own ticker and writes the revealed slice each tick. Use `destroy()` to throw a
+  document away and `close()` only when you actually want end-of-stream
+  settlement — `close()` on a discarded document races the next writer.
+- **Keep dependency pins current.** Creations pin `@vectojs/*` versions in
+  `package.json`; a stale pin means the demo shows off an old runtime. Check
+  against the versions published from the `vectojs` monorepo before optimizing
+  anything by hand, because the win is often already upstream.
+- **Never hardcode a frame budget.** `16.67` / 60fps is wrong on this hardware
+  (the dev display runs at 240Hz). Measure the refresh rate at runtime and
+  report it alongside any per-frame number.

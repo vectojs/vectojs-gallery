@@ -15,6 +15,7 @@ export class PerfPanel extends Entity {
     heapUsedMB: 0,
     heapLimitMB: 0,
     frameMs: 0,
+    refreshMs: 1000 / 60,
   };
 
   constructor() {
@@ -55,7 +56,12 @@ export class PerfPanel extends Entity {
       ctx.fillText(value, w - 12 - ctx.measureText(value).width, y);
     };
 
-    const fpsColor = s.fps >= 55 ? '#22c55e' : s.fps >= 30 ? '#f59e0b' : '#ef4444';
+    // Health is judged against the panel's own measured rate, not a hardcoded
+    // 60: on a 240Hz display a steady 200fps is healthy, and on a 60Hz one it is
+    // unreachable. Green >=90% of peak, amber >=50%, red below.
+    const target = Math.max(s.peakFps, 1);
+    const ratio = s.fps / target;
+    const fpsColor = ratio >= 0.9 ? '#22c55e' : ratio >= 0.5 ? '#f59e0b' : '#ef4444';
 
     // Live rate (colored by health) plus the best sustained rate ("peak"), so a
     // high-refresh panel's capability is visible without hiding real choppiness.
