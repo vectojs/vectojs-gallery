@@ -1,5 +1,6 @@
 import { Entity } from '@vectojs/core';
 import type { IRenderer } from '@vectojs/core';
+import { centerX, textWidth } from '../../ui/text-metrics';
 import { COLOR } from '../../ui/tokens';
 
 /**
@@ -75,9 +76,8 @@ interface ToolButton {
   w: number;
 }
 
-// The renderer draws text left-aligned and has no measureText, so widths are
-// approximated from the glyph count (matches the `catch` creation's approach).
-const approxW = (text: string, px: number): number => text.length * px * 0.56;
+/** Canvas2D font shorthand for this creation's UI text. */
+const uiFont = (px: number, weight = 600): string => `${weight} ${px}px Inter, system-ui`;
 
 function ctext(
   r: IRenderer,
@@ -88,13 +88,8 @@ function ctext(
   color: string,
   weight = 600,
 ): void {
-  r.fillText(
-    text,
-    cx - approxW(text, px) / 2,
-    baseline,
-    `${weight} ${px}px Inter, system-ui`,
-    color,
-  );
+  const font = uiFont(px, weight);
+  r.fillText(text, centerX(text, font, cx), baseline, font, color);
 }
 
 class CanvasStudio extends Entity {
@@ -122,16 +117,42 @@ class CanvasStudio extends Entity {
 
   private canvas: HTMLCanvasElement | null = null;
 
+  /** Wrapped DOM handlers, keyed by the original so removal matches. */
+  private readonly wrapped = new Map<(e: never) => void, (e: Event) => void>();
+
   constructor() {
     super('CanvasStudio');
     this.canvas = document.getElementById('gallery-canvas') as HTMLCanvasElement | null;
     if (this.canvas) {
-      this.canvas.addEventListener('pointerdown', this.onPointerDown);
-      this.canvas.addEventListener('dblclick', this.onDblClick);
-      window.addEventListener('pointermove', this.onPointerMove);
-      window.addEventListener('pointerup', this.onPointerUp);
-      window.addEventListener('keydown', this.onKeyDown);
+      this.canvas.addEventListener('pointerdown', this.repaintAfter(this.onPointerDown));
+      this.canvas.addEventListener('dblclick', this.repaintAfter(this.onDblClick));
+      window.addEventListener('pointermove', this.repaintAfter(this.onPointerMove));
+      window.addEventListener('pointerup', this.repaintAfter(this.onPointerUp));
+      window.addEventListener('keydown', this.repaintAfter(this.onKeyDown));
     }
+  }
+
+  /**
+   * Wrap a raw DOM handler so it requests a repaint after mutating state.
+   *
+   * Every mutation in this creation happens inside one of these handlers, and
+   * the editor animates nothing but a fading toast — so with these in place the
+   * scene can run `onDemand` instead of pumping a full redraw forever. On this
+   * 240Hz display the old default repainted an unchanged canvas 240 times a
+   * second while the user did nothing.
+   *
+   * The wrapper is stored per handler so `destroy()` can still remove the exact
+   * listener that was added; `removeEventListener` compares by identity.
+   */
+  private repaintAfter<E extends Event>(handler: (e: E) => void): (e: E) => void {
+    const existing = this.wrapped.get(handler);
+    if (existing) return existing as (e: E) => void;
+    const wrapper = (e: E): void => {
+      handler(e);
+      this.scene?.markDirty();
+    };
+    this.wrapped.set(handler, wrapper as (e: Event) => void);
+    return wrapper;
   }
 
   resizeTo(width: number, height: number): void {
@@ -155,13 +176,13 @@ class CanvasStudio extends Entity {
 
   override destroy(): void {
     if (this.canvas) {
-      this.canvas.removeEventListener('pointerdown', this.onPointerDown);
-      this.canvas.removeEventListener('dblclick', this.onDblClick);
+      this.canvas.removeEventListener('pointerdown', this.repaintAfter(this.onPointerDown));
+      this.canvas.removeEventListener('dblclick', this.repaintAfter(this.onDblClick));
       this.canvas.style.cursor = 'default';
     }
-    window.removeEventListener('pointermove', this.onPointerMove);
-    window.removeEventListener('pointerup', this.onPointerUp);
-    window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('pointermove', this.repaintAfter(this.onPointerMove));
+    window.removeEventListener('pointerup', this.repaintAfter(this.onPointerUp));
+    window.removeEventListener('keydown', this.repaintAfter(this.onKeyDown));
     super.destroy();
   }
 
@@ -201,7 +222,7 @@ class CanvasStudio extends Entity {
     if (s.type !== 'text') return;
     const px = s.h > 0 ? this.fontSizeOf(s) : 34;
     if (s.h <= 0) s.h = px / 0.72;
-    s.w = Math.max(40, approxW(s.text ?? '', this.fontSizeOf(s)) + 8);
+    s.w = Math.max(40, textWidth(s.text ?? '', uiFont(this.fontSizeOf(s), 700)) + 8);
   }
 
   private byId(id: number): Shape | undefined {
@@ -324,7 +345,7 @@ class CanvasStudio extends Entity {
     const px = 13;
     const btns: ToolButton[] = [];
     let total = 0;
-    const widths = defs.map((d) => Math.round(approxW(d.label, px) + padX * 2));
+    const widths = defs.map((d) => Math.round(textWidth(d.label, uiFont(px)) + padX * 2));
     total = widths.reduce((a, b) => a + b, 0) + gap * (defs.length - 1);
     const swatchesW = PALETTE.length * (CanvasStudio.SWATCH + 6) + 18; /* separator */
     total += swatchesW;
@@ -499,7 +520,13 @@ class CanvasStudio extends Entity {
 
   update(dt: number): void {
     const dts = Math.min(0.05, dt / 1000);
-    if (this.toast.t > 0) this.toast.t = Math.max(0, this.toast.t - dts * 0.5);
+    if (this.toast.t > 0) {
+      this.toast.t = Math.max(0, this.toast.t - dts * 0.5);
+      // The only animation in the editor. Under `onDemand` nothing else would
+      // ask for the frames that fade it out, so it asks for them itself — and
+      // stops as soon as it has faded, rather than pumping forever.
+      this.scene?.markDirty();
+    }
   }
 
   // --- rendering -----------------------------------------------------------
@@ -691,7 +718,7 @@ class CanvasStudio extends Entity {
   private drawToast(r: IRenderer): void {
     const a = Math.min(1, this.toast.t * 1.6);
     const px = 14;
-    const w = approxW(this.toast.msg, px) + 40;
+    const w = textWidth(this.toast.msg, uiFont(px)) + 40;
     const x = this.W / 2 - w / 2;
     const y = this.H - 78;
     r.save();

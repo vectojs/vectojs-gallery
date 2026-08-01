@@ -54,9 +54,11 @@ export const CREATIONS: Creation[] = [
       "Fabric.js's interactive object model, rebuilt from first principles on VectoJS: drag, scale from 8 oriented handles, rotate, band-select and group-move, reorder z-depth, and serialize the whole scene to JSON and back — every shape a plain numeric record, every handle computed geometry.",
     tags: ['Editor', 'Interaction', 'Serialization'],
     stage: '#f2efe8',
-    // Every mutation here happens inside a raw pointer/keyboard handler that
-    // doesn't call scene.markDirty(), so it relies on the forced-redraw pump
-    // (same as `catch`) — leave continuousRedraw at its default (true).
+    // Nothing here animates except a toast that fades itself out, and every
+    // mutation goes through a pointer/keyboard handler wrapped to call
+    // scene.markDirty(). So the editor repaints on input instead of pumping a
+    // full redraw at the display's refresh rate while the user sits still.
+    continuousRedraw: false,
     load: () => import('./creations/studio'),
   },
   {

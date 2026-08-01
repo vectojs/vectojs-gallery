@@ -1,5 +1,6 @@
 import { Entity } from '@vectojs/core';
 import type { IRenderer } from '@vectojs/core';
+import { centerX } from '../../ui/text-metrics';
 
 type FruitKey = 'apple' | 'grape' | 'orange' | 'lime';
 interface FruitDef {
@@ -26,17 +27,17 @@ const CATCH_BUDGET = 5;
 const SPAWN_INTERVAL = 0.85; // seconds between drops
 const TAU = Math.PI * 2;
 
-// Approximate centered text — the renderer draws left-aligned and has no measureText.
+// Centered text. `IRenderer` draws left-aligned and has no measureText, so the
+// left edge comes from a real offscreen measurement (see ui/text-metrics).
 function ctext(
   r: IRenderer,
   text: string,
   cx: number,
   y: number,
   font: string,
-  px: number,
   color: string,
 ): void {
-  r.fillText(text, cx - text.length * px * 0.27, y, font, color);
+  r.fillText(text, centerX(text, font, cx), y, font, color);
 }
 
 // A single fruit: colored body, a gloss highlight, a stem, and a leaf. Grapes are
@@ -248,7 +249,7 @@ class CatchGame extends Entity {
     const H = this.H;
     const def = defOf(this.goalKey);
     const bigR = Math.max(22, H * 0.07);
-    ctext(r, 'Fruit Catch', W / 2, H * 0.24, '800 30px Inter, system-ui', 30, '#f8fafc');
+    ctext(r, 'Fruit Catch', W / 2, H * 0.24, '800 30px Inter, system-ui', '#f8fafc');
     drawFruit(r, W / 2, H * 0.42, bigR, this.goalKey);
     ctext(
       r,
@@ -256,7 +257,6 @@ class CatchGame extends Entity {
       W / 2,
       H * 0.42 + bigR + 36,
       '700 20px Inter, system-ui',
-      20,
       '#e2e8f0',
     );
     ctext(
@@ -265,7 +265,6 @@ class CatchGame extends Entity {
       W / 2,
       H * 0.42 + bigR + 60,
       '400 13px Inter, system-ui',
-      13,
       '#94a3b8',
     );
 
@@ -284,7 +283,7 @@ class CatchGame extends Entity {
     r.lineTo(cxb - 21, cyb);
     r.closePath();
     r.fill('#052e16');
-    ctext(r, 'Start', cxb + 8, cyb + 6, '800 18px Inter, system-ui', 18, '#052e16');
+    ctext(r, 'Start', cxb + 8, cyb + 6, '800 18px Inter, system-ui', '#052e16');
 
     ctext(
       r,
@@ -292,7 +291,6 @@ class CatchGame extends Entity {
       W / 2,
       b.y + b.h + 30,
       '500 12px Inter, system-ui',
-      12,
       '#7c8aa5',
     );
   }
@@ -403,7 +401,6 @@ class CatchGame extends Entity {
       cx,
       cy + 72,
       '800 26px Inter, system-ui',
-      26,
       '#f8fafc',
     );
     ctext(
@@ -412,7 +409,6 @@ class CatchGame extends Entity {
       cx,
       cy + 100,
       '500 14px Inter, system-ui',
-      14,
       '#94a3b8',
     );
     ctext(
@@ -421,7 +417,6 @@ class CatchGame extends Entity {
       cx,
       cy + 132,
       '600 13px Inter, system-ui',
-      13,
       '#7dd3fc',
     );
     r.restore();
