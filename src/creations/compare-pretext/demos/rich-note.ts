@@ -1,150 +1,55 @@
 /**
- * Rich Text / "Rich Note" — port of pretext's rich-note demo.
+ * Rich Text — one paragraph of styled runs with atomic chips embedded in it.
  *
- * pretext's version mixes plain text, monospace code spans, link-styled
- * text, and atomic "chip" pills inline, using a dedicated `rich-inline`
- * helper so a chip never breaks mid-pill while the surrounding text still
- * wraps freely — mixing three fonts inline and guaranteeing atomic pills
- * would otherwise mean either nested inline-block DOM tricks or per-frame
- * `getBoundingClientRect()` probing. Ported here on `@vectojs/ui`'s `Flow`
- * (a `Stack` configured `direction: 'horizontal', wrap: true`): each word of
- * plain/code/link text becomes its own atomic `Text` child, and every chip
- * becomes an atomic pill `Entity` — `Flow`'s wrap-at-child-boundary layout
- * already treats every added child as unbreakable, so a chip can never
- * split without any extra plumbing. This is the exact pattern
- * `MathMarkdown.renderMixedParagraph` already uses in this repo for
- * mixed text+block content.
+ * This is a rebuild. The previous version expanded the sentence into ~88
+ * sibling entities (one `Text` per word, one per whitespace run, plus a `Pill`
+ * entity per chip) inside a `Flow`, which meant `Stack.layout()`'s box packing
+ * stood in for text layout. That produced four measurable defects at once:
+ * every inter-word gap was 2.12x too wide (a whitespace-only `Text` measures
+ * 0px yet still paid a gap on each side), the mixed-script run could not break
+ * and overflowed the card by 217px, chip labels sat 4.5px below the body
+ * baseline, and copied text came out scrambled because 87 flat mirrors in mixed
+ * coordinate spaces defeated the projection sort.
+ *
+ * Now the paragraph is ONE `RichText`. The engine owns bidi, CJK line breaking
+ * and real space advances, and emits a single coherent content projection — so
+ * selection, copy and screen-reader order follow from the text itself.
  */
-import { Entity, type IRenderer } from '@vectojs/core';
-import { Card, Flow, Text } from '@vectojs/ui';
-import { WARM, FONT } from '../shared/theme';
+
+import { Entity, type A11yAttributes, type IRenderer } from '@vectojs/core';
+import { Card, RichText } from '@vectojs/ui';
 import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from '../shared/chrome';
-
-type TextStyleName = 'body' | 'link' | 'code';
-type ChipTone = 'mention' | 'status' | 'priority' | 'time' | 'count';
-type Spec =
-  | { kind: 'text'; text: string; style: TextStyleName }
-  | { kind: 'chip'; label: string; tone: ChipTone };
-
-/** True if the string contains any Arabic/Hebrew (RTL) characters. */
-function hasRTL(s: string): boolean {
-  return /[\u0590-\u05ff\u0600-\u06ff\u0700-\u074f\u0750-\u077f]/.test(s);
-}
-
-// Same content as pretext's DEFAULT_RICH_NOTE_SPECS: an engineering-standup
-// sentence deliberately mixing English, Chinese, Arabic, emoji, and five
-// chip pills of varying tone/width.
-const SPECS: Spec[] = [
-  { kind: 'text', text: 'Ship ', style: 'body' },
-  { kind: 'chip', label: '@maya', tone: 'mention' },
-  { kind: 'text', text: "'s ", style: 'body' },
-  { kind: 'text', text: 'rich-note', style: 'code' },
-  { kind: 'text', text: ' card once ', style: 'body' },
-  { kind: 'text', text: 'pre-wrap', style: 'code' },
-  { kind: 'text', text: ' lands. Status ', style: 'body' },
-  { kind: 'chip', label: 'blocked', tone: 'status' },
-  { kind: 'text', text: ' by ', style: 'body' },
-  { kind: 'text', text: 'vertical text', style: 'link' },
-  {
-    kind: 'text',
-    text: ' research, but 北京 copy and Arabic QA are both green ✅. Keep ',
-    style: 'body',
-  },
-  { kind: 'chip', label: 'جاهز', tone: 'status' },
-  { kind: 'text', text: ' for ', style: 'body' },
-  { kind: 'text', text: 'Cmd+K', style: 'code' },
-  {
-    kind: 'text',
-    text: ' docs; the review bundle now includes 中文 labels, عربي fallback, and one more launch pass 🚀 for ',
-    style: 'body',
-  },
-  { kind: 'chip', label: 'Fri 2:30 PM', tone: 'time' },
-  { kind: 'text', text: '. Keep ', style: 'body' },
-  { kind: 'text', text: 'layoutNextLine()', style: 'code' },
-  { kind: 'text', text: ' public, tag this ', style: 'body' },
-  { kind: 'chip', label: 'P1', tone: 'priority' },
-  { kind: 'text', text: ', keep ', style: 'body' },
-  { kind: 'chip', label: '3 reviewers', tone: 'count' },
-  { kind: 'text', text: ', and route feedback to ', style: 'body' },
-  { kind: 'text', text: 'design sync', style: 'link' },
-  { kind: 'text', text: '.', style: 'body' },
-];
-
-const BODY_FONT = FONT.sans(17, 500);
-const LINK_FONT = FONT.sans(17, 600);
-const CODE_FONT = FONT.mono(14);
-const CHIP_FONT = FONT.sans(12, 700);
-
-const TEXT_STYLE: Record<TextStyleName, { font: string; color: string }> = {
-  body: { font: BODY_FONT, color: WARM.ink },
-  link: { font: LINK_FONT, color: WARM.accent },
-  code: { font: CODE_FONT, color: '#8a4b1f' },
-};
-
-const CHIP_TONE: Record<ChipTone, { bg: string; fg: string }> = {
-  mention: { bg: '#dbeafe', fg: '#1d4ed8' },
-  status: { bg: '#fde8d8', fg: '#b45309' },
-  priority: { bg: '#fee2e2', fg: '#b91c1c' },
-  time: { bg: '#dcfce7', fg: '#15803d' },
-  count: { bg: '#ede9fe', fg: '#6d28d9' },
-};
+import { FONT, WARM } from '../shared/theme';
+import { clearChipRasterCache } from './rich-note-chips';
+import { buildNoteSpans } from './rich-note-content';
 
 const BODY_MIN_WIDTH = 260;
 const BODY_DEFAULT_WIDTH = 516;
 const BODY_MAX_WIDTH = 760;
 const PAGE_MARGIN = 28;
-
-class Pill extends Entity {
-  private label: Text;
-  private tone: ChipTone;
-
-  constructor(label: string, tone: ChipTone) {
-    super();
-    this.tone = tone;
-    this.label = new Text(label, {
-      font: CHIP_FONT,
-      color: CHIP_TONE[tone].fg,
-    });
-    this.add(this.label);
-    // extraWidth 22 in pretext's model accounts for pill padding/border chrome
-    // not part of the glyph advance — matched here as literal padding.
-    this.width = this.label.width + 22;
-    this.height = 24;
-    this.label.setPosition(11, 6.5);
-  }
-
-  isPointInside(): boolean {
-    return false;
-  }
-
-  render(r: IRenderer): void {
-    r.beginPath();
-    r.roundRect(0, 0, this.width, this.height, this.height / 2);
-    r.fill(CHIP_TONE[this.tone].bg);
-  }
-}
-
 const NOTE_TOP = CONTENT_TOP + 24;
 const NOTE_PAD = 22;
 
-class RichNoteDemo extends Entity {
+/** Body size and line height, matching the reference model. */
+const BODY_SIZE = 17;
+const BODY_LINE_HEIGHT = 34;
+
+const SLIDER_TRACK_MAX = 260;
+
+export class RichNoteDemo extends Entity {
   private W = 0;
   private H = 0;
-  private noteCard: Card;
-  private flow: Flow;
+  private readonly noteCard: Card;
+  private readonly body: RichText;
   private requestedWidth = BODY_DEFAULT_WIDTH;
   private bodyWidth = BODY_DEFAULT_WIDTH;
   private dragging = false;
-  private sliderTrackX = 0;
-  private sliderTrackW = 260;
+  private sliderTrackX = PAGE_MARGIN + 320;
+  private sliderTrackW = SLIDER_TRACK_MAX;
 
   constructor() {
     super('RichNoteDemo');
-    // The note shell is a real Card, and the flow is its child, so they are
-    // positioned together (setting the card's position moves the flow with
-    // it) — the previous split (card drawn in render(), flow positioned in
-    // resizeTo()) desynced whenever the slider changed the width without a
-    // resize.
+
     this.noteCard = new Card({
       width: BODY_DEFAULT_WIDTH + NOTE_PAD * 2,
       height: 200,
@@ -153,24 +58,30 @@ class RichNoteDemo extends Entity {
       borderWidth: 1,
       radius: 20,
     });
-    this.flow = new Flow({
-      gap: 5,
-      align: 'center',
+
+    this.body = new RichText(buildNoteSpans(), {
+      font: FONT.sans(BODY_SIZE, 500),
+      color: WARM.ink,
       maxWidth: BODY_DEFAULT_WIDTH,
+      linkColor: WARM.accent,
+      selectable: true,
     });
-    this.flow.setPosition(NOTE_PAD, NOTE_PAD);
-    this.buildFlowChildren();
-    this.noteCard.add(this.flow);
+    this.body.setPosition(NOTE_PAD, NOTE_PAD);
+
+    // The body is a child of the card so a slider-only change moves both
+    // together; keeping them as siblings previously let them desync.
+    this.noteCard.add(this.body);
     this.add(this.noteCard);
 
     this.interactive = true;
-    this.on('pointerdown', (e: { localX?: number; localY?: number }) => {
-      if (this.pointInSlider(e.localX, e.localY)) {
-        this.dragging = true;
-        this.updateFromPointer(e.localX);
-      }
+    // `localX`/`localY` are already entity-local — the engine resolves them for
+    // whichever listener is running, so no manual `worldToLocal` is needed.
+    this.on('pointerdown', (e) => {
+      if (!this.pointInSlider(e.localX, e.localY)) return;
+      this.dragging = true;
+      this.updateFromPointer(e.localX);
     });
-    this.on('pointermove', (e: { localX?: number }) => {
+    this.on('pointermove', (e) => {
       if (this.dragging) this.updateFromPointer(e.localX);
     });
     this.on('pointerup', () => {
@@ -179,29 +90,23 @@ class RichNoteDemo extends Entity {
     this.on('pointerleave', () => {
       this.dragging = false;
     });
+
+    this.applyWidth();
   }
 
-  private buildFlowChildren(): void {
-    for (const spec of SPECS) {
-      if (spec.kind === 'chip') {
-        this.flow.add(new Pill(spec.label, spec.tone));
-        continue;
-      }
-      const style = TEXT_STYLE[spec.style];
-      // Word-splitting into atomic Flow children reverses RTL runs: each word
-      // becomes its own L-to-R box, so a right-to-left phrase gets its words
-      // placed left-to-right. Keep any run containing RTL characters as ONE
-      // Text atom so the LayoutEngine's own bidi ordering (Intl.Segmenter)
-      // stays correct; only pure-LTR runs are split for natural wrapping.
-      if (hasRTL(spec.text)) {
-        this.flow.add(new Text(spec.text.trim(), { font: style.font, color: style.color }));
-        continue;
-      }
-      const words = spec.text.split(/(\s+)/).filter((w) => w.length > 0);
-      for (const word of words) {
-        this.flow.add(new Text(word, { font: style.font, color: style.color }));
-      }
-    }
+  /**
+   * Keep this entity out of the DOM hit-testing stack.
+   *
+   * This entity is `interactive` (for the width slider) and sized to the whole
+   * viewport, and core projects every such node as a shadow element with
+   * `pointerEvents: 'auto'`. That element sat above every content mirror and
+   * swallowed the `mousedown` that starts a selection drag, which is why the
+   * note could not be selected at all. Declining pointer events here hands them
+   * back to the text mirrors underneath; canvas-side slider dragging is
+   * unaffected because it is routed by `isPointInside`, not by the DOM.
+   */
+  override getA11yAttributes(): A11yAttributes {
+    return { pointerEvents: 'none' };
   }
 
   private pointInSlider(x?: number, y?: number): boolean {
@@ -214,40 +119,36 @@ class RichNoteDemo extends Entity {
     );
   }
 
-  private updateFromPointer(x?: number): void {
-    if (x === undefined) return;
-    const t = Math.max(0, Math.min(1, (x - this.sliderTrackX) / this.sliderTrackW));
-    const maxBodyWidth = this.maxBodyWidthFor(this.W);
-    this.requestedWidth = BODY_MIN_WIDTH + t * (maxBodyWidth - BODY_MIN_WIDTH);
+  private updateFromPointer(localX?: number): void {
+    if (localX === undefined) return;
+    const t = Math.max(0, Math.min(1, (localX - this.sliderTrackX) / this.sliderTrackW));
+    const max = this.maxBodyWidthFor(this.W);
+    this.requestedWidth = Math.round(BODY_MIN_WIDTH + t * (max - BODY_MIN_WIDTH));
     this.applyWidth();
     this.scene?.markDirty();
   }
 
   private maxBodyWidthFor(viewportWidth: number): number {
-    return Math.max(
-      BODY_MIN_WIDTH,
-      Math.min(BODY_MAX_WIDTH, viewportWidth - PAGE_MARGIN * 2 - NOTE_PAD * 2),
-    );
+    const available = viewportWidth - PAGE_MARGIN * 2 - NOTE_PAD * 2;
+    return Math.max(BODY_MIN_WIDTH, Math.min(BODY_MAX_WIDTH, available));
   }
 
-  /** Relayout the flow and resize/reposition the note card to match. */
   private applyWidth(): void {
-    const maxBodyWidth = this.maxBodyWidthFor(this.W);
-    this.bodyWidth = Math.max(BODY_MIN_WIDTH, Math.min(maxBodyWidth, this.requestedWidth));
-    this.flow.maxWidth = this.bodyWidth;
-    this.flow.layout();
-    this.noteCard.width = this.bodyWidth + NOTE_PAD * 2;
-    this.noteCard.height = this.flow.height + NOTE_PAD * 2;
-    const noteLeft = Math.max(PAGE_MARGIN, (this.W - this.noteCard.width) / 2);
-    this.noteCard.setPosition(noteLeft, NOTE_TOP);
+    const max = this.maxBodyWidthFor(this.W || BODY_DEFAULT_WIDTH + PAGE_MARGIN * 2 + NOTE_PAD * 2);
+    this.bodyWidth = Math.max(BODY_MIN_WIDTH, Math.min(max, this.requestedWidth));
+
+    this.body.setMaxWidth(this.bodyWidth);
+
+    const cardW = this.bodyWidth + NOTE_PAD * 2;
+    this.noteCard.width = cardW;
+    this.noteCard.height = this.body.height + NOTE_PAD * 2;
+    this.noteCard.setPosition(Math.max(PAGE_MARGIN, (this.W - cardW) / 2), NOTE_TOP);
   }
 
-  isPointInside(globalX: number, globalY: number): boolean {
-    // Only claim pointer events over the width-slider band; everywhere else
-    // must fall through so the browser can start a text selection on the
-    // projected Text content (returning true for the whole box ate the
-    // mousedown and made the note unselectable).
-    const local = this.worldToLocal(globalX, globalY);
+  override isPointInside(x: number, y: number): boolean {
+    // Only the slider band belongs to this entity. Claiming the whole box would
+    // take canvas hits away from the text underneath.
+    const local = this.worldToLocal(x, y);
     if (!local) return false;
     return this.pointInSlider(local.x, local.y);
   }
@@ -258,14 +159,20 @@ class RichNoteDemo extends Entity {
     this.width = width;
     this.height = height;
     this.sliderTrackX = PAGE_MARGIN + 320;
-    this.sliderTrackW = Math.min(260, Math.max(140, width - this.sliderTrackX - 40));
+    this.sliderTrackW = Math.min(SLIDER_TRACK_MAX, Math.max(140, width - this.sliderTrackX - 40));
     this.applyWidth();
   }
 
-  render(r: IRenderer): void {
+  override destroy(): void {
+    clearChipRasterCache();
+    super.destroy();
+  }
+
+  override render(r: IRenderer): void {
     r.beginPath();
     r.roundRect(0, 0, this.W, this.H, 0);
     r.fill(WARM.page);
+
     drawDemoHeader(
       r,
       PAGE_MARGIN,
@@ -273,15 +180,18 @@ class RichNoteDemo extends Entity {
       'Text runs, links, code spans, and atomic chips — adjust the width and the chips stay whole while text keeps wrapping.',
     );
 
-    // Width slider (drawn in the header band, right of the title)
     const trackY = HEADER_TITLE_Y - 4;
     r.beginPath();
-    r.roundRect(this.sliderTrackX, trackY - 2, this.sliderTrackW, 4, 2);
+    r.roundRect(this.sliderTrackX, trackY, this.sliderTrackW, 4, 2);
     r.fill(WARM.rule);
-    const t =
-      (this.bodyWidth - BODY_MIN_WIDTH) / (this.maxBodyWidthFor(this.W) - BODY_MIN_WIDTH || 1);
+
+    const max = this.maxBodyWidthFor(this.W);
+    const t = (this.bodyWidth - BODY_MIN_WIDTH) / Math.max(1, max - BODY_MIN_WIDTH);
     const handleX = this.sliderTrackX + t * this.sliderTrackW;
-    r.fillCircle(handleX, trackY, 8, WARM.accent);
+    r.beginPath();
+    r.roundRect(handleX - 7, trackY - 6, 14, 16, 7);
+    r.fill(WARM.accent);
+
     r.fillText(
       `Text width: ${Math.round(this.bodyWidth)}px`,
       this.sliderTrackX,
@@ -293,3 +203,5 @@ class RichNoteDemo extends Entity {
 }
 
 export default RichNoteDemo;
+
+export { BODY_LINE_HEIGHT, BODY_MIN_WIDTH, BODY_MAX_WIDTH, BODY_DEFAULT_WIDTH };
