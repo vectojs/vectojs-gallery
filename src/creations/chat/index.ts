@@ -60,6 +60,10 @@ const PERF_PAD = 12;
 // Top margin for the top-right-anchored perf panel, matching the back chip's
 // top inset (y = 16) so the two top-anchored overlays sit on the same band.
 const PERF_TOP = 16;
+// How often the panel re-reads the scene's telemetry. The engine measures every
+// frame; this only throttles how often those numbers are copied onto the panel,
+// so the text stays readable instead of flickering at the display rate.
+const PERF_REFRESH_MS = 500;
 
 // A plain function parameter always gets its declared type, not whatever
 // narrowing the caller's control flow had applied — needed below because
@@ -268,13 +272,15 @@ class StreamReader extends Entity {
       this.scrollBar.opacity = 1;
 
       // A width change is the one case that must re-wrap already-rendered
-      // blocks, which no incremental path can do — `maxWidth` feeds every
-      // block's measured width. Re-lay-out through the same source of truth
-      // instead of rebuilding from `state.visible`, so an open stream is not
-      // disturbed.
+      // blocks, and no incremental path can do it: `maxWidth` is read when each
+      // block is built, so assigning it alone leaves every existing block at the
+      // old width. Only a rebuild re-measures them, and `state.visible` is the
+      // revealed source those blocks were built from, so replaying it reproduces
+      // the document exactly at the new width.
       const targetW = w - DOC_INSET * 2;
       if (this.markdownView.maxWidth !== targetW) {
         this.markdownView.maxWidth = targetW;
+        this.reflowDocument();
       }
     } else {
       this.setMarkdownShown(false);
@@ -343,6 +349,40 @@ class StreamReader extends Entity {
     this.mdAutoScroll = true;
   }
 
+  /**
+   * Rebuild the document at the current `maxWidth`, preserving scroll and any
+   * open stream.
+   *
+   * Needed because `maxWidth` is read when a block is built, so changing it does
+   * not re-measure blocks that already exist — a resize would otherwise leave the
+   * whole rendered document wrapped at the previous width. `state.visible` is the
+   * revealed source those blocks were built from, so replaying it through
+   * `setContent` reproduces them exactly, now measured at the new width.
+   *
+   * The writer is replaced rather than reused: it is bound to the block structure
+   * `setContent` just discarded. A fresh writer appends to whatever the document
+   * currently holds, so streaming resumes mid-document instead of restarting.
+   * Scroll offset is carried across explicitly, since a resize should not also
+   * jump the reader back to the top.
+   */
+  private reflowDocument(): void {
+    const wasStreaming = this.stream !== null;
+    const scrollY = this.mdScrollY;
+    const autoScroll = this.mdAutoScroll;
+
+    this.releaseStream();
+    this.markdownView.setContent(this.state.visible);
+    if (wasStreaming) {
+      this.stream = this.markdownView.createStream({
+        incompleteMode: 'optimistic',
+      });
+    }
+
+    this.mdScrollY = scrollY;
+    this.mdAutoScroll = autoScroll;
+    this.scene?.markDirty();
+  }
+
   private async openFile(file: File): Promise<void> {
     this.dropZone.loadingLabel = `Parsing ${file.name} …`;
     this.scene?.markDirty();
@@ -407,11 +447,10 @@ class StreamReader extends Entity {
 
   override update(dt: number): void {
     const now = performance.now();
-    const sample = this.perf.tick(now);
-    if (now - this.lastPerfUpdate > 1000) {
-      this.perfPanel.sample = sample;
+    if (this.scene && now - this.lastPerfUpdate > PERF_REFRESH_MS) {
+      this.perfPanel.sample = this.perf.sample(this.scene);
       this.lastPerfUpdate = now;
-      this.scene?.markDirty();
+      this.scene.markDirty();
     }
 
     if (this.state.status !== 'streaming') {
@@ -467,6 +506,9 @@ class StreamReader extends Entity {
     window.removeEventListener('pointerup', this.onWindowPointerUp);
     window.removeEventListener('keydown', this.onKeyDown);
     this.releaseStream();
+    // The refresh-rate probe runs its own rAF chain, independent of the scene
+    // loop, so leaving the creation has to stop it explicitly.
+    this.perf.destroy();
     // ControlPanel owns a real DOM <input> — its own destroy() removes it.
     // Entity.destroy() doesn't cascade to children (see Nexus/Dimension for
     // the same reasoning), so this has to happen explicitly.
