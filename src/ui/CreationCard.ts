@@ -2,7 +2,7 @@ import { Entity, type IRenderer } from '@vectojs/core';
 import { Text } from '@vectojs/ui';
 import type { Creation } from '../registry';
 import { ThumbDoodle } from './ThumbDoodle';
-import { clampTextToLines } from './clamp';
+import { clampTagsToWidth, clampTextToLines } from './clamp';
 import { COLOR, FONT, accentFor, type Accent } from './tokens';
 
 const PADDING = 16;
@@ -10,6 +10,19 @@ const THUMB_RATIO = 0.625; // 16:10 — the thumbnail should dominate the card
 const CARD_RADIUS = 14;
 const LIFT = 8;
 const BADGE_RADIUS = 18;
+/** Gap the tag pill leaves on each side of its text. */
+const TAG_PILL_PAD_X = 8;
+/**
+ * Separator between tags. Tighter than it looks: at `FONT.mono(11)` the old
+ * `'   ·   '` cost 26px more per gap than this does, which was most of the
+ * overflow on its own.
+ */
+const TAG_SEPARATOR = ' · ';
+
+/** Widest the tag text may be before its pill would escape a `width` card. */
+function tagsBudget(width: number): number {
+  return width - PADDING * 2 - TAG_PILL_PAD_X * 2;
+}
 
 function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
@@ -90,10 +103,14 @@ export class CreationCard extends Entity {
     descText.setPosition(PADDING, descY);
     this.add(descText);
 
-    this.tagsText = new Text(creation.tags.join('   ·   '), {
+    this.tagsText = new Text('', {
       font: FONT.mono(11),
       color: COLOR.textFaint,
     });
+    // The pill is sized from this text, so it has to fit the card up front:
+    // `Text` has no ellipsis and the card does not clip, so an overflowing tag
+    // row escapes and is painted over by the next card in the row.
+    clampTagsToWidth(this.tagsText, creation.tags, TAG_SEPARATOR, tagsBudget(width));
     this.add(this.tagsText);
 
     // Natural height; setUniformHeight may stretch it (tags stay bottom-anchored).
@@ -121,7 +138,7 @@ export class CreationCard extends Entity {
    */
   setUniformHeight(h: number): void {
     this.height = h;
-    this.tagsText.setPosition(PADDING + 8, h - PADDING - 22 + 5);
+    this.tagsText.setPosition(PADDING + TAG_PILL_PAD_X, h - PADDING - 22 + 5);
   }
 
   // Bed positions the card after construction; capture that resting Y so the
@@ -174,7 +191,7 @@ export class CreationCard extends Entity {
     r.roundRect(PADDING, barY, this.width - PADDING * 2, 3, 1.5);
     r.fill(barGrad);
 
-    const pillW = this.tagsText.width + 16;
+    const pillW = this.tagsText.width + TAG_PILL_PAD_X * 2;
     const pillY = this.height - PADDING - 22;
     r.beginPath();
     r.roundRect(PADDING, pillY, pillW, 22, 11);
