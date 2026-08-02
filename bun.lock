@@ -5,10 +5,10 @@
     "": {
       "name": "vectojs-gallery",
       "dependencies": {
-        "@vectojs/core": "1.25.0",
+        "@vectojs/core": "1.27.1",
         "@vectojs/markdown": "0.6.0",
         "@vectojs/three": "0.1.8",
-        "@vectojs/ui": "2.6.0",
+        "@vectojs/ui": "2.8.0",
         "three": "^0.160.0",
       },
       "devDependencies": {
@@ -514,7 +514,7 @@
 
     "@vectojs/animation": ["@vectojs/animation@0.1.1", "", { "dependencies": { "@vectojs/math": "^0.1.1" } }, "sha512-XmQjh2vhJUpmui61HiAZKcYRVV2W3qH9afIHza4Ls69Uq6tURBaOiE9Of0lQqszfi2y/HqbJ2KPKdeqh1pO4fQ=="],
 
-    "@vectojs/core": ["@vectojs/core@1.25.0", "", { "dependencies": { "@vectojs/animation": "^0.1.1", "@vectojs/layout": "^0.5.0", "@vectojs/math": "^0.1.1", "@vectojs/text": "^0.3.0" } }, "sha512-L+nCTZsZr4QgFoMg6x/r/CjLcle0GI0YlIcv7TxEwJ5NwZNABpGL8/N63eu8o8uFlos0wVg51lhmV1ALix/EsA=="],
+    "@vectojs/core": ["@vectojs/core@1.27.1", "", { "dependencies": { "@vectojs/animation": "^0.1.1", "@vectojs/layout": "^0.5.0", "@vectojs/math": "^0.1.1", "@vectojs/text": "^0.3.0" } }, "sha512-TssizXNPgTmUnh4Zvfv47434cCRLZXzuk0mljBeBjE1FONWAVRNKCd/yMY/fIFD1XsMn5Nj7Gw0E6zLaOUuEzA=="],
 
     "@vectojs/layout": ["@vectojs/layout@0.5.0", "", { "dependencies": { "@vectojs/text": "^0.3.0" } }, "sha512-riVhdoYyinzBZ09xEfrOtwIyEcOlZ+PXnzxmHbnkimIq7XfN+YW6F+VdVogRcht6KXLhjA7zIG0m9EGQ4M58Jw=="],
 
@@ -526,7 +526,7 @@
 
     "@vectojs/three": ["@vectojs/three@0.1.8", "", { "peerDependencies": { "@vectojs/core": ">=1.0.0 <2.0.0", "three": "^0.160.0" } }, "sha512-ChM5dJduwK7/ocnre3u7HOJpxCz2Thq0flm3qGuk/7v8abOenASqMBIZdgCHhVfAMcMZakMS3fxkEDigfT0sxA=="],
 
-    "@vectojs/ui": ["@vectojs/ui@2.6.0", "", { "peerDependencies": { "@vectojs/core": ">=1.8.0 <2.0.0" } }, "sha512-aq9O5tue9htX5A5SyrfIcR0NWTKfJXUzV4r+cDELJ4zImo/cvlpye59rzwllSZAJe2GvilH+jcxFyHKFvh7i5g=="],
+    "@vectojs/ui": ["@vectojs/ui@2.8.0", "", { "peerDependencies": { "@vectojs/core": ">=1.25.0 <2.0.0" } }, "sha512-e/T6b2UgE3iOxfWC/5ymvc2WPNpBSHa760SsSO76CSOt9hRFqZ+qf+0piyn2d6+hm0GN/QxLYWj8UhhJlNXagQ=="],
 
     "@xmldom/xmldom": ["@xmldom/xmldom@0.9.10", "", {}, "sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw=="],
 

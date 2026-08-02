@@ -1,12 +1,32 @@
 import { Entity, type IRenderer } from '@vectojs/core';
-import { Button, Stack, Text } from '@vectojs/ui';
+import { Button, Image, Stack, Text } from '@vectojs/ui';
 import type { Creation } from '../registry';
 import type { ForgeApp } from '../apps';
-import { COLOR, FONT, BRAND_GRADIENT } from './tokens';
+import { COLOR, FONT } from './tokens';
 
 const TILE = 40;
 const TILE_X = 20;
 const TILE_Y = 20;
+/**
+ * The canonical bow mark, served same-origin from `public/`.
+ *
+ * A byte-for-byte copy of `cdn.vectojs.org/brand/vectojs-logo-light.svg`, held
+ * locally on purpose: `@vectojs/ui`'s `Image` never sets `crossOrigin`, so a
+ * cross-origin bitmap taints this canvas the moment it is drawn, and every later
+ * `getImageData` / `toDataURL` / `toBlob` on it throws `SecurityError`. Nothing
+ * in the shell reads pixels back today, but a same-origin copy keeps that door
+ * open for a canvas snapshot or pixel probe. Re-sync it if the artwork changes.
+ *
+ * The `-light` variant is the near-black artwork, which is the one that reads on
+ * this rail. Deliberately NOT `public/favicon.svg`: that file carries a
+ * `prefers-color-scheme` rule which an `<img>`-loaded SVG honors, so it would
+ * flip to near-white on a dark OS and vanish against the warm cream rail. The
+ * rail has no dark theme, so a single baked-color variant is correct here.
+ */
+const LOGO_SRC = '/vectojs-logo.svg';
+/** Artwork aspect ratio (viewBox 697x507), so the mark is never stretched. */
+const LOGO_W = 38;
+const LOGO_H = 28;
 const CONTENT_TOP = 84;
 /** Width of the rail when collapsed to just the brand tile + expand button. */
 export const COLLAPSED_RAIL_WIDTH = 56;
@@ -37,6 +57,20 @@ export class Rail extends Entity {
     this.width = width;
     this.height = height;
     this.fullWidth = width;
+
+    // Centred in the old tile's box so the surrounding layout is untouched.
+    const logo = new Image(LOGO_SRC, {
+      width: LOGO_W,
+      height: LOGO_H,
+      alt: 'VectoJS',
+      placeholder: 'transparent',
+      // The catalog shell runs `renderMode: 'always'`, but a creation switches
+      // it to `onDemand`; without this the mark would stay a blank box until
+      // something else happened to dirty the scene.
+      onLoad: () => this.scene?.markDirty(),
+    });
+    logo.setPosition(TILE_X + (TILE - LOGO_W) / 2, TILE_Y + (TILE - LOGO_H) / 2);
+    this.add(logo);
 
     const root = new Stack({ direction: 'vertical', gap: 16 });
     root.setPosition(20, CONTENT_TOP);
@@ -130,14 +164,8 @@ export class Rail extends Entity {
     r.fill(COLOR.groundRaised);
     r.stroke(COLOR.rule, 1);
 
-    const tileGrad = r.createLinearGradient(TILE_X, TILE_Y, TILE_X + TILE, TILE_Y + TILE, [
-      { stop: 0, color: BRAND_GRADIENT.a },
-      { stop: 1, color: BRAND_GRADIENT.b },
-    ]);
-    r.beginPath();
-    r.roundRect(TILE_X, TILE_Y, TILE, TILE, 11);
-    r.fill(tileGrad);
-    r.fillText('V', TILE_X + 12, TILE_Y + 29, FONT.display(22), COLOR.void);
+    // The mark itself is an `Image` child (added in the constructor) so it
+    // projects a real `<img alt>` shadow node; nothing is drawn for it here.
 
     // The brand word-mark is only drawn when there's room for it.
     if (this.collapsed) return;
