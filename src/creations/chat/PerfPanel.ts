@@ -1,21 +1,43 @@
 /**
  * PerfPanel — overlaid stats panel (top-right corner).
- * Shows: FPS | Frame ms | JS Heap | CPU proxy
+ *
+ * Shows: rendered FPS + measured display Hz | render cost | JS heap.
  * Drawn directly on Canvas2D for minimal overhead.
+ *
+ * Every field renders `—` when its input has not been measured yet, rather than
+ * a stand-in number. A placeholder integer here is indistinguishable on screen
+ * from a real reading, which is exactly how this panel previously came to
+ * display a hardcoded 60 as though it had measured it.
  */
 
 import { Entity } from '@vectojs/core';
 import type { PerfSample } from './perf';
 import type { RawRenderer } from './raw-renderer';
 
+/** Health thresholds for the rendered-vs-display rate ratio. */
+const RATIO_GOOD = 0.9;
+const RATIO_WARN = 0.5;
+
+const COLOR_GOOD = '#22c55e';
+const COLOR_WARN = '#f59e0b';
+const COLOR_BAD = '#ef4444';
+const COLOR_UNKNOWN = '#5c4a35';
+
 export class PerfPanel extends Entity {
+  /**
+   * Starts fully unmeasured — every field `NaN`, rendered as `—`.
+   *
+   * Seeding these with numbers is what made the panel assert 60fps before it had
+   * timed a single frame.
+   */
   public sample: PerfSample = {
-    fps: 0,
-    peakFps: 0,
-    heapUsedMB: 0,
-    heapLimitMB: 0,
-    frameMs: 0,
-    refreshMs: 1000 / 60,
+    fps: NaN,
+    displayHz: NaN,
+    frameMs: NaN,
+    frameIntervalMs: NaN,
+    heapUsedMB: NaN,
+    heapLimitMB: NaN,
+    cpuProxy: NaN,
   };
 
   constructor() {
@@ -46,7 +68,7 @@ export class PerfPanel extends Entity {
     ctx.stroke();
     ctx.restore();
 
-    const row = (label: string, value: string, y: number, color = '#5c4a35') => {
+    const row = (label: string, value: string, y: number, color = COLOR_UNKNOWN) => {
       ctx.font = '10px monospace';
       ctx.fillStyle = '#9e8e78';
       ctx.textBaseline = 'middle';
@@ -56,18 +78,46 @@ export class PerfPanel extends Entity {
       ctx.fillText(value, w - 12 - ctx.measureText(value).width, y);
     };
 
-    // Health is judged against the panel's own measured rate, not a hardcoded
-    // 60: on a 240Hz display a steady 200fps is healthy, and on a 60Hz one it is
-    // unreachable. Green >=90% of peak, amber >=50%, red below.
-    const target = Math.max(s.peakFps, 1);
-    const ratio = s.fps / target;
-    const fpsColor = ratio >= 0.9 ? '#22c55e' : ratio >= 0.5 ? '#f59e0b' : '#ef4444';
+    // Health is the rendered cadence against the *measured* display rate. Both
+    // must be known for the comparison to mean anything; with either missing the
+    // value is drawn neutral rather than being scored against a guess.
+    const fpsColor = fpsHealthColor(s.fps, s.displayHz);
 
-    // Live rate (colored by health) plus the best sustained rate ("peak"), so a
-    // high-refresh panel's capability is visible without hiding real choppiness.
-    row('FPS', `${s.fps}  ·  ${s.peakFps} pk`, 22, fpsColor);
-    row('FRAME', `${s.frameMs} ms`, 42);
-    row('HEAP', isNaN(s.heapUsedMB) ? 'N/A' : `${s.heapUsedMB.toFixed(1)} MB`, 62);
-    row('HEAP LIM', isNaN(s.heapLimitMB) ? 'N/A' : `${s.heapLimitMB.toFixed(0)} MB`, 80);
+    row('FPS', formatRate(s.fps), 22, fpsColor);
+    row('DISPLAY', formatRate(s.displayHz), 42);
+    row('RENDER', formatMs(s.frameMs), 62);
+    row('HEAP', formatHeap(s.heapUsedMB), 80);
   }
+}
+
+/**
+ * Colors the rendered rate against the measured display rate.
+ *
+ * Returns the neutral color unless both are known: an `onDemand` scene parked
+ * between renders legitimately reports a fraction of the display rate, so this
+ * only scores the ratio when there is a real rate to score against.
+ */
+export function fpsHealthColor(fps: number, displayHz: number): string {
+  if (!Number.isFinite(fps) || !Number.isFinite(displayHz) || displayHz <= 0) {
+    return COLOR_UNKNOWN;
+  }
+  const ratio = fps / displayHz;
+  if (ratio >= RATIO_GOOD) return COLOR_GOOD;
+  if (ratio >= RATIO_WARN) return COLOR_WARN;
+  return COLOR_BAD;
+}
+
+/** Formats a rate in Hz, or `—` when unmeasured. */
+export function formatRate(hz: number): string {
+  return Number.isFinite(hz) ? `${Math.round(hz)} Hz` : '—';
+}
+
+/** Formats a duration in ms, or `—` when unmeasured. */
+export function formatMs(ms: number): string {
+  return Number.isFinite(ms) ? `${ms} ms` : '—';
+}
+
+/** Formats a heap reading in MB, or `N/A` where the API is unavailable. */
+export function formatHeap(mb: number): string {
+  return Number.isFinite(mb) ? `${mb.toFixed(1)} MB` : 'N/A';
 }
