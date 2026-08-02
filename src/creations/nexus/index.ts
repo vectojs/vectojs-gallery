@@ -1,14 +1,16 @@
 import { Entity, ComputeParticleEntity, type IRenderer } from '@vectojs/core';
 import { Button, Stack, Text, Dropdown } from '@vectojs/ui';
 import { sampleTextPoints } from './text-shape';
+import { SHELL_MAX_FPS } from '../../shell-config';
+import { BUDGET, clampCountToPath, simPathFrom, simPathLabel, type SimPath } from './budget';
 
 const SHAPE_TEXT = 'VectoJS';
 const FLOATS = 8; // per particle: pos.xy, vel.xy, origin.xy, size, life
 const SPRING_K = 0.5;
 const DAMPING = 0.85;
 
-const GALLERY_DEFAULT_MAX_FPS = 60; // matches main.ts's shared Scene({ maxFPS: 60 })
-const FPS_OPTIONS = ['30', '60', '120', 'Uncapped'];
+const UNCAPPED_LABEL = 'Uncapped';
+const FPS_OPTIONS = ['30', '60', '120', UNCAPPED_LABEL];
 
 /**
  * The particle field itself: a single `ComputeParticleEntity` seeded onto
@@ -25,22 +27,31 @@ class Nexus extends Entity {
   private reformBtn: Button;
   private controlsPanel: Stack;
   private countLabel: Text;
-  private readonly hasGPU: boolean;
-  private readonly countMin: number;
-  private readonly countMax: number;
-  private readonly countStep: number;
+  private pathLabel: Text;
+  private simPath: SimPath;
+  private countMin: number;
+  private countMax: number;
+  private countStep: number;
   private particleCount: number;
   private pendingParticleCount: number | null = null;
   private particleRebuildTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Cache key + payload for `sampleTextPoints`, whose result depends only on
+   *  the text and the box it is centred in. */
+  private shapeCache: { key: string; pts: Float32Array } | null = null;
 
   constructor() {
     super('Nexus');
 
-    this.hasGPU = !!(navigator as Navigator & { gpu?: unknown }).gpu;
-    this.countMin = this.hasGPU ? 5000 : 500;
-    this.countMax = this.hasGPU ? 120000 : 6000;
-    this.countStep = this.hasGPU ? 5000 : 500;
-    this.particleCount = this.hasGPU ? 60000 : 4000;
+    // Start from the optimistic budget when the platform even reports a GPU,
+    // then correct on the first frame that tells us what actually ran (see
+    // `syncSimPath`). Guessing low and raising would show a sparse field for
+    // one frame on the machines this demo is meant to show off.
+    this.simPath = (navigator as Navigator & { gpu?: unknown }).gpu ? 'webgpu' : 'js';
+    const budget = BUDGET[this.simPath];
+    this.countMin = budget.min;
+    this.countMax = budget.max;
+    this.countStep = budget.step;
+    this.particleCount = budget.initial;
 
     this.particles = this.buildParticles(this.particleCount);
     this.add(this.particles);
@@ -56,11 +67,14 @@ class Nexus extends Entity {
       color: '#e2e8f0',
     });
     const STEPPER_BTN_OPTS = { font: '600 15px sans-serif', padding: 8 };
-    const minusBtn = new Button('−', {
+    // `Button`'s caption IS its accessible name (`getA11yAttributes` returns
+    // `label: this.label`), and there is no separate option to override it — so
+    // a '−' glyph would announce as "−, button". Use words.
+    const minusBtn = new Button('Fewer', {
       ...STEPPER_BTN_OPTS,
       onClick: () => this.setParticleCount(this.particleCount - this.countStep),
     });
-    const plusBtn = new Button('+', {
+    const plusBtn = new Button('More', {
       ...STEPPER_BTN_OPTS,
       onClick: () => this.setParticleCount(this.particleCount + this.countStep),
     });
@@ -78,12 +92,17 @@ class Nexus extends Entity {
       color: '#e2e8f0',
     });
     const fpsDropdown = new Dropdown(FPS_OPTIONS, {
-      value: String(GALLERY_DEFAULT_MAX_FPS),
+      // Reflect the shell's real default rather than a hardcoded number: this
+      // dropdown writes the shared Scene, so a label that disagreed with the
+      // actual value is what let a stale `60` leak out of here and cap every
+      // creation opened afterwards.
+      value: SHELL_MAX_FPS === 0 ? UNCAPPED_LABEL : String(SHELL_MAX_FPS),
+      label: 'Max FPS',
       width: 110,
       height: 32,
       font: '13px sans-serif',
       onChange: (v: string) => {
-        if (this.scene) this.scene.maxFPS = v === 'Uncapped' ? 0 : Number(v);
+        if (this.scene) this.scene.maxFPS = v === UNCAPPED_LABEL ? 0 : Number(v);
       },
     });
     const fpsRow = new Stack({
@@ -94,6 +113,15 @@ class Nexus extends Entity {
     fpsRow.add(fpsLabel);
     fpsRow.add(fpsDropdown);
 
+    // Which path is simulating is the whole point of the demo, and it was
+    // previously invisible — the WebGPU pass silently fell back to JS with no
+    // console warning, so the page claimed a compute shader while running a
+    // main-thread loop.
+    this.pathLabel = new Text('Simulating — …', {
+      font: '500 12px ui-monospace, SFMono-Regular, Menlo, monospace',
+      color: '#94a3b8',
+    });
+
     this.controlsPanel = new Stack({
       direction: 'vertical',
       gap: 10,
@@ -101,6 +129,7 @@ class Nexus extends Entity {
     });
     this.controlsPanel.add(countRow);
     this.controlsPanel.add(fpsRow);
+    this.controlsPanel.add(this.pathLabel);
     this.add(this.controlsPanel);
   }
 
@@ -157,10 +186,63 @@ class Nexus extends Entity {
     this.particles.destroy();
     this.particles = this.buildParticles(count);
     this.add(this.particles);
+    this.alignParticleSpace();
 
     const g = this.getGlobalPosition();
     this.particles.initRandomParticles(this.width + g.x, this.height + g.y);
     this.applyShape();
+  }
+
+  /**
+   * Cancel this entity's own offset on the particle child so that the
+   * particle buffer's coordinates mean the same thing on both simulation
+   * paths.
+   *
+   * The two paths disagree about whose space the buffer is in, and neither is
+   * negotiable from here:
+   *
+   * - **WebGPU** draws into a stacked full-window canvas that ignores every
+   *   entity transform, and the compute pass receives the raw
+   *   `scene.mouseX/mouseY`. Both are window space.
+   * - **CPU** is drawn inside this entity's transform
+   *   (`renderer.translate(node.x, node.y)` runs before `fillCircle(x, y, …)`)
+   *   and the simulation converts the mouse with `entity.worldToLocal(…)`.
+   *   Both are the entity's local space.
+   *
+   * Seeding in window space (what this demo does, because the field must reach
+   * the window's right/bottom edges) therefore drew the cloud shifted right by
+   * the rail width on the CPU path *and* put the cursor's repulsion field in
+   * the wrong place. Offsetting the child by `-globalPosition` makes its local
+   * space identical to window space, so one set of seeds is correct for both.
+   */
+  private alignParticleSpace(): void {
+    const g = this.getGlobalPosition();
+    this.particles.setPosition(-g.x, -g.y);
+  }
+
+  /**
+   * Adopt the budget for the path that actually simulated the last frame.
+   *
+   * `scene.accelerators` reports what ran, not merely what is installed —
+   * which is the distinction that matters here, since a registered WebGPU
+   * manager still yields to the CPU when the device request fails or the
+   * device is later lost.
+   */
+  private syncSimPath(): void {
+    const scene = this.scene;
+    if (!scene) return;
+    const path = simPathFrom(scene.accelerators.particle.path);
+    const label = `Simulating — ${simPathLabel(path)}`;
+    if (this.pathLabel.text !== label) this.pathLabel.setText(label);
+    if (path === this.simPath) return;
+
+    this.simPath = path;
+    const budget = BUDGET[path];
+    this.countMin = budget.min;
+    this.countMax = budget.max;
+    this.countStep = budget.step;
+    const clamped = clampCountToPath(this.particleCount, path);
+    if (clamped !== this.particleCount) this.setParticleCount(clamped);
   }
 
   resizeTo(width: number, height: number): void {
@@ -171,11 +253,11 @@ class Nexus extends Entity {
       width - Math.max(this.controlsPanel.width, 200) - 16,
       16 + this.reformBtn.height + 12,
     );
-    // Particle coordinates are consumed in WINDOW space, not this entity's
-    // local space (the GPU layer is a stacked full-window canvas that ignores
-    // the parent transform — forge/findings.md 2026-07-17). Size the sim
-    // bounds to local size + world offset so the field reaches the window's
-    // right/bottom edges, and offset every seed by the world position below.
+    // Particle coordinates are consumed in WINDOW space (see
+    // `alignParticleSpace` for why, and for how the CPU path is made to agree).
+    // Size the sim bounds to local size + world offset so the field reaches the
+    // window's right/bottom edges, and offset every seed by the world position.
+    this.alignParticleSpace();
     const g = this.getGlobalPosition();
     this.particles.initRandomParticles(width + g.x, height + g.y);
     this.applyShape();
@@ -189,11 +271,11 @@ class Nexus extends Entity {
     // ComputeParticleEntity owns real GPU resources — see the same
     // reasoning in the Knowledge Graph port.
     this.particles.destroy();
-    // The FPS dropdown mutates the Gallery's one shared Scene while Nexus
-    // is open (see the onChange handler above) — restore the shell default
-    // on the way out so leaving this creation doesn't leave every other
-    // creation permanently capped/uncapped.
-    if (this.scene) this.scene.maxFPS = GALLERY_DEFAULT_MAX_FPS;
+    // The FPS dropdown mutates the Gallery's one shared Scene while Nexus is
+    // open (see the onChange handler above). Restoring the shell default is
+    // deliberately NOT done here: this class cannot know it, and when it tried,
+    // it wrote a literal that disagreed with the shell and left every later
+    // creation capped. `teardownCurrent` in main.ts owns the restore.
     super.destroy();
   }
 
@@ -202,7 +284,9 @@ class Nexus extends Entity {
   }
 
   override update(): void {
-    /* ComputeParticleEntity drives its own simulation; nothing extra to do here */
+    // ComputeParticleEntity drives its own simulation; the only thing to do
+    // here is notice which path took the last frame.
+    this.syncSimPath();
   }
 
   override render(_r: IRenderer): void {
@@ -214,15 +298,26 @@ class Nexus extends Entity {
    * text pixels (with a little jitter) so the word forms instantly rather
    * than waiting several seconds for the spring to pull a scatter into
    * place — same reasoning as the original page.
+   *
+   * The sample set is cached on `(text, width, height)`. `sampleTextPoints`
+   * allocates a full-workspace canvas, rasterizes the word, and runs
+   * `getImageData` over the whole box before scanning every 4th pixel — at a
+   * 1120×900 workspace that is a ~1MP readback, and it ran on every Reform
+   * click even though nothing it depends on had changed.
    */
   private applyShape(): void {
-    const pts = sampleTextPoints(SHAPE_TEXT, this.width, this.height);
+    const key = `${SHAPE_TEXT}|${this.width}|${this.height}`;
+    let pts = this.shapeCache?.key === key ? this.shapeCache.pts : null;
+    if (!pts) {
+      pts = sampleTextPoints(SHAPE_TEXT, this.width, this.height);
+      this.shapeCache = { key, pts };
+    }
     if (pts.length < 2) return;
     const n = pts.length / 2;
     const d = this.particles.particleData;
     // Seeds are local-space samples; shift them into window space (see
-    // resizeTo) so the word centres in the workspace instead of straddling
-    // the rail.
+    // alignParticleSpace) so the word centres in the workspace instead of
+    // straddling the rail.
     const g = this.getGlobalPosition();
     for (let i = 0; i < this.particles.maxParticles; i++) {
       const p = (i % n) * 2;

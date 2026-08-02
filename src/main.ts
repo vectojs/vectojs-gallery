@@ -1,4 +1,5 @@
-import { Scene, Entity } from '@vectojs/core';
+import { Scene, Entity, WebGPUParticleSystemManager } from '@vectojs/core';
+import { coreWasmUrl } from '@vectojs/core/wasm';
 import { CREATIONS, type Creation } from './registry';
 import { APPS } from './apps';
 import { Bed } from './ui/Bed';
@@ -7,6 +8,7 @@ import { CaptionPlate } from './ui/CaptionPlate';
 import { Stage } from './ui/Stage';
 import { BackChip } from './ui/BackChip';
 import { keepSceneLive } from './keep-live';
+import { SHELL_MAX_FPS } from './shell-config';
 
 const RAIL_WIDTH = 280;
 
@@ -27,6 +29,22 @@ function creationIdFromHash(): string | null {
 interface ResizableEntity {
   resizeTo(width: number, height: number): void;
 }
+
+/**
+ * Opt the Scene into the WebGPU particle compute pass.
+ *
+ * The engine ships `WebGPUParticleSystemManager` but does not install it
+ * itself: `Scene` only builds one if a class was handed to this static, so an
+ * app that never calls it silently runs every `ComputeParticleEntity` on the
+ * CPU no matter what the hardware supports. `nexus` advertises "simulated on a
+ * WebGPU compute pass" and, before this call existed, did not do that on any
+ * machine — and because `particleBackend` defaults to `'auto'` rather than an
+ * explicit `'webgpu'`, the fallback was silent rather than an error.
+ *
+ * Registration is a static on the class, so it must happen before the Scene is
+ * constructed; module scope guarantees that.
+ */
+Scene.registerWebGPUParticleSystemManager(WebGPUParticleSystemManager);
 
 function hasResizeTo(entity: Entity): entity is Entity & ResizableEntity {
   return typeof (entity as Partial<ResizableEntity>).resizeTo === 'function';
@@ -65,7 +83,7 @@ function initGallery(): void {
   // again — measured no scroll-fps regression on a 346KB doc — so the throttle
   // (and its visible selection lag) is no longer needed.
   const scene = new Scene(canvas, {
-    maxFPS: 0,
+    maxFPS: SHELL_MAX_FPS,
     maxDPR: 2,
     a11ySyncInterval: 0,
   });
@@ -138,10 +156,18 @@ function initGallery(): void {
       currentStage = null;
     }
     currentCreation = null;
-    // Restore the default every creation but `chat` relies on (see the
+    // Restore the defaults every creation but `chat` relies on (see the
     // `renderMode = 'onDemand'` assignment in `loadCreation` below) before
     // whatever mounts next gets a chance to run.
+    //
+    // `maxFPS` is restored here rather than by the creation that changed it:
+    // `nexus` exposes a max-FPS dropdown that writes the shared Scene, and
+    // when it reset the value itself on unmount it wrote a literal `60` that
+    // did not match this shell's uncapped default, silently capping every
+    // creation opened afterwards. The shell owns the default, so the shell
+    // restores it.
     scene.renderMode = 'always';
+    scene.maxFPS = SHELL_MAX_FPS;
   };
 
   /**
@@ -344,6 +370,21 @@ function initGallery(): void {
   // (unset) so every other creation keeps today's behavior unchanged.
   keepSceneLive(scene, () => currentCreation?.continuousRedraw !== false);
   scene.start();
+
+  // Install the WASM particle kernel for the CPU simulation path. This is the
+  // fallback that runs whenever the WebGPU compute pass above is unavailable
+  // (no `navigator.gpu`, or a device request that fails), and without it that
+  // fallback is a plain JS loop with two `Math.hypot` calls per particle per
+  // frame. Fire-and-forget after `start()`: instantiation is async, resolves
+  // `false` rather than throwing when the platform declines, and the JS path
+  // stays correct in the meantime — so there is nothing to await and nothing
+  // to handle.
+  //
+  // `coreWasmUrl` is the package's own resolved URL for the binary it ships;
+  // a bare `new URL('@vectojs/core/…', import.meta.url)` cannot work, because
+  // `new URL` only resolves *relative* refs and never consults package
+  // `exports` (see the export's own doc comment).
+  void scene.enableWasmParticles(coreWasmUrl);
 }
 
 /**
