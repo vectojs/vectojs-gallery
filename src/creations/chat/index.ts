@@ -271,17 +271,15 @@ class StreamReader extends Entity {
       this.scrollBar.height = h - ctrlH;
       this.scrollBar.opacity = 1;
 
-      // A width change is the one case that must re-wrap already-rendered
-      // blocks, and no incremental path can do it: `maxWidth` is read when each
-      // block is built, so assigning it alone leaves every existing block at the
-      // old width. Only a rebuild re-measures them, and `state.visible` is the
-      // revealed source those blocks were built from, so replaying it reproduces
-      // the document exactly at the new width.
-      const targetW = w - DOC_INSET * 2;
-      if (this.markdownView.maxWidth !== targetW) {
-        this.markdownView.maxWidth = targetW;
-        this.reflowDocument();
-      }
+      // Re-wrap the already-rendered blocks in place. This used to require a full
+      // rebuild — release the stream, replay the revealed source through
+      // `setContent`, open a fresh writer, carry the scroll offset across by hand —
+      // because `maxWidth` is read when each block is *built*, so assigning it
+      // alone left every existing block at the old width. `setMaxWidth`
+      // (@vectojs/markdown 0.9.0) reflows the existing blocks instead: the same
+      // entity instances survive, an open stream writer keeps appending, and
+      // nothing is re-lexed.
+      this.markdownView.setMaxWidth(w - DOC_INSET * 2);
     } else {
       this.setMarkdownShown(false);
       this.scrollBar.opacity = 0;
@@ -347,40 +345,6 @@ class StreamReader extends Entity {
     });
     this.mdScrollY = 0;
     this.mdAutoScroll = true;
-  }
-
-  /**
-   * Rebuild the document at the current `maxWidth`, preserving scroll and any
-   * open stream.
-   *
-   * Needed because `maxWidth` is read when a block is built, so changing it does
-   * not re-measure blocks that already exist — a resize would otherwise leave the
-   * whole rendered document wrapped at the previous width. `state.visible` is the
-   * revealed source those blocks were built from, so replaying it through
-   * `setContent` reproduces them exactly, now measured at the new width.
-   *
-   * The writer is replaced rather than reused: it is bound to the block structure
-   * `setContent` just discarded. A fresh writer appends to whatever the document
-   * currently holds, so streaming resumes mid-document instead of restarting.
-   * Scroll offset is carried across explicitly, since a resize should not also
-   * jump the reader back to the top.
-   */
-  private reflowDocument(): void {
-    const wasStreaming = this.stream !== null;
-    const scrollY = this.mdScrollY;
-    const autoScroll = this.mdAutoScroll;
-
-    this.releaseStream();
-    this.markdownView.setContent(this.state.visible);
-    if (wasStreaming) {
-      this.stream = this.markdownView.createStream({
-        incompleteMode: 'optimistic',
-      });
-    }
-
-    this.mdScrollY = scrollY;
-    this.mdAutoScroll = autoScroll;
-    this.scene?.markDirty();
   }
 
   private async openFile(file: File): Promise<void> {
