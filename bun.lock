@@ -5,10 +5,10 @@
     "": {
       "name": "vectojs-gallery",
       "dependencies": {
-        "@vectojs/core": "1.29.0",
-        "@vectojs/markdown": "0.9.0",
+        "@vectojs/core": "1.31.0",
+        "@vectojs/markdown": "0.11.0",
         "@vectojs/three": "0.1.8",
-        "@vectojs/ui": "2.11.0",
+        "@vectojs/ui": "2.13.0",
         "three": "^0.160.0",
       },
       "devDependencies": {
@@ -514,11 +514,11 @@
 
     "@vectojs/animation": ["@vectojs/animation@0.1.1", "", { "dependencies": { "@vectojs/math": "^0.1.1" } }, "sha512-XmQjh2vhJUpmui61HiAZKcYRVV2W3qH9afIHza4Ls69Uq6tURBaOiE9Of0lQqszfi2y/HqbJ2KPKdeqh1pO4fQ=="],
 
-    "@vectojs/core": ["@vectojs/core@1.29.0", "", { "dependencies": { "@vectojs/animation": "^0.1.1", "@vectojs/layout": "^0.6.0", "@vectojs/math": "^0.1.1", "@vectojs/text": "^0.3.0" } }, "sha512-QjICa+mDRRX5JbupRRt+MSWFrqquq0sm31liDVCUFj6On1uaWf5tbgzhyRIwmRR+itCDvqJShKQa9PGTekXSIg=="],
+    "@vectojs/core": ["@vectojs/core@1.31.0", "", { "dependencies": { "@vectojs/animation": "^0.1.1", "@vectojs/layout": "^0.6.0", "@vectojs/math": "^0.1.1", "@vectojs/text": "^0.3.0" } }, "sha512-ispfGgqkX4G0gVK2lRREHD+RkksBUfjyRtw82v508bYItCSNMyi30jL+LcKZP6+X2H47D3w+SjUCCQVQdrf0NA=="],
 
     "@vectojs/layout": ["@vectojs/layout@0.6.0", "", { "dependencies": { "@vectojs/text": "^0.3.0" } }, "sha512-E7B3B6v8YV0KzK0B3HBnPespukD8etrhv+wJGd+u+Z/iKQ99lLYNTP2Ig7qWYq3Uf5XUr380GF2GTqhxKh77eQ=="],
 
-    "@vectojs/markdown": ["@vectojs/markdown@0.9.0", "", { "dependencies": { "marked": "^18.0.7", "mathjax-full": "^3.2.2" }, "peerDependencies": { "@vectojs/core": ">=1.25.0 <2.0.0", "@vectojs/ui": ">=2.6.0 <3.0.0" } }, "sha512-GnGUxGI8NfIBG0ULT5XuwFGs9rjsv2ptfGv/S1BlRpH2uKawAISy0QRHWSKJOsHK5IfeDF32sM4TdivPeVa9aw=="],
+    "@vectojs/markdown": ["@vectojs/markdown@0.11.0", "", { "dependencies": { "marked": "^18.0.7", "mathjax-full": "^3.2.2" }, "peerDependencies": { "@vectojs/core": ">=1.25.0 <2.0.0", "@vectojs/ui": ">=2.6.0 <3.0.0" } }, "sha512-W+UhSO0AIF1tZhUliAR65RG5S0bksda1ZN73AdVmrRUpHrBELggv0ZtVAKZlxhwlWkHLp1NzobOjha5WK0xJ4w=="],
 
     "@vectojs/math": ["@vectojs/math@0.1.1", "", {}, "sha512-zHj+oOVv1ydW5ZBzuakMptsb+qkOsFvY7PXLMm4ZNpB/dJFLyd7EiAzFu3HKJQgq0aq0rYFiExyjhlFVvLqSLw=="],
 
@@ -526,7 +526,7 @@
 
     "@vectojs/three": ["@vectojs/three@0.1.8", "", { "peerDependencies": { "@vectojs/core": ">=1.0.0 <2.0.0", "three": "^0.160.0" } }, "sha512-ChM5dJduwK7/ocnre3u7HOJpxCz2Thq0flm3qGuk/7v8abOenASqMBIZdgCHhVfAMcMZakMS3fxkEDigfT0sxA=="],
 
-    "@vectojs/ui": ["@vectojs/ui@2.11.0", "", { "peerDependencies": { "@vectojs/core": ">=1.25.0 <2.0.0" } }, "sha512-kysJRr3zagKHShPlI/OHm6sDdC2YOAl01lSlhpnKQn8tHqM8m3HKfBzglM5ZogCQfOIc0K8qYcuCqHajm7SZpg=="],
+    "@vectojs/ui": ["@vectojs/ui@2.13.0", "", { "peerDependencies": { "@vectojs/core": ">=1.25.0 <2.0.0" } }, "sha512-hr+lYw6tFIXIkHQFp0j3gFKMBC+H51MyZ8DyPEuXmXrWdIbqPCgoBYKdOivsg/DCfEsB4IjzyYr69KsZ92BGFA=="],
 
     "@xmldom/xmldom": ["@xmldom/xmldom@0.9.10", "", {}, "sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw=="],
 
