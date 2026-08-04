@@ -73,6 +73,13 @@ function isDone(status: StreamState['status']): boolean {
   return status === 'done';
 }
 
+/**
+ * Floor for the stream's admission buffer, used when the document is smaller
+ * than it. Matches the controller's own 64KiB default so a small file behaves
+ * exactly as before this was set explicitly.
+ */
+const MIN_BUFFERED_CHARS = 64 * 1024;
+
 /** Left/top inset of the document inside the content viewport. */
 const DOC_INSET = 32;
 /** Extra scrollable slack below the document so the last line clears the panel. */
@@ -333,6 +340,22 @@ class StreamReader extends Entity {
     this.stream = null;
   }
 
+  /**
+   * Stop playback because the writer refused a chunk.
+   *
+   * `write()` rejects rather than blocking when a blocked write already exists,
+   * so a refusal means this chunk never reached the document and the visible text
+   * would silently diverge from `state.cursor` if playback continued. Halting is
+   * therefore the honest outcome: the panel's status readout shows the stream is
+   * no longer running, and the document keeps everything committed so far.
+   */
+  private failStream(error: unknown): void {
+    this.releaseStream();
+    this.state.status = 'done';
+    console.error('[chat] stream write refused, playback stopped:', error);
+    this.scene?.markDirty();
+  }
+
   /** Point the document at a fresh empty source and open a new writer over it. */
   private resetDocument(): void {
     this.releaseStream();
@@ -342,6 +365,16 @@ class StreamReader extends Entity {
       // a rendering bug rather than as typing. The guess is display-only and is
       // unwound on close, so the finished document is identical either way.
       incompleteMode: 'optimistic',
+      // `tokenize()` keeps a whole `![alt](url)` span as ONE atomic token, and a
+      // `data:` URI runs to hundreds of thousands of base64 characters, so a
+      // single tick can hand over a chunk far larger than the 64KiB default.
+      // Admission only takes an oversize chunk when the buffer is otherwise
+      // empty; if anything is already accepted-but-uncommitted it parks in the
+      // single blocked slot, and a further write that frame rejects. Sizing the
+      // buffer from the document itself keeps every chunk admissible without
+      // guessing a ceiling: the whole source is the true upper bound on any
+      // chunk, and the buffer is a character count, not a retained copy.
+      maxBufferedChars: Math.max(MIN_BUFFERED_CHARS, this.state.content.length),
     });
     this.mdScrollY = 0;
     this.mdAutoScroll = true;
@@ -426,11 +459,23 @@ class StreamReader extends Entity {
     const chunk = tickStream(this.state, dt);
 
     if (chunk) {
-      // `write()` returns a backpressure promise. Not awaited: this is a
-      // fixed-rate typewriter whose next chunk is decided by the frame clock,
-      // so there is nothing useful to do with the resolution, and the default
-      // 64KiB buffer is far above one tick's worth of text.
-      void this.stream?.write(chunk);
+      // `write()` returns a backpressure promise, and it *rejects* rather than
+      // blocking when a blocked write already exists. Its resolution is of no use
+      // here — this is a fixed-rate typewriter whose next chunk is decided by the
+      // frame clock, not by admission — but discarding it with `void` turns any
+      // rejection into an unhandled one that escapes to the page as a
+      // `pageerror`, with no way for the demo to notice.
+      //
+      // One write per frame does not itself reach that state: measured in
+      // Chromium, the controller's own rAF commits between frames, so an oversize
+      // chunk is admitted alone and no rejection occurs even with a 70 KiB image
+      // token. Reproducing it took three writes inside a single frame. So this is
+      // a contract the demo should honour rather than a bug it is hitting, and
+      // the handler exists so that a future second write per frame surfaces here
+      // instead of on `window`.
+      this.stream?.write(chunk).catch((error: unknown) => {
+        this.failStream(error);
+      });
 
       if (this.mdAutoScroll) {
         const h = this.height - this.controlPanel.panelHeight;
