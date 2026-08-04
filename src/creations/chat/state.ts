@@ -22,8 +22,6 @@ export interface StreamState {
   fileName: string;
   /** Index of the next token to stream. */
   cursor: number;
-  /** Characters already revealed. */
-  visible: string;
   /** Current play state. */
   status: StreamStatus;
   /** Tokens per second (1 token ≈ 1 character for benchmark purposes). */
@@ -40,7 +38,6 @@ export function createStreamState(): StreamState {
     tokens: [],
     fileName: '',
     cursor: 0,
-    visible: '',
     status: 'idle',
     tokenRate: 100,
     accumulator: 0,
@@ -53,8 +50,9 @@ export function createStreamState(): StreamState {
  * tick — the empty string when the rate has not yet produced a whole token.
  *
  * Returns the chunk rather than a count because the caller writes it straight
- * into the Markdown stream; recomputing it from `visible` and a length would be
- * the same slice done twice.
+ * into the Markdown stream, which is the only consumer of the revealed text --
+ * the document itself holds everything committed so far, so this state does not
+ * keep a second copy.
  */
 export function tickStream(state: StreamState, dt: number): string {
   if (state.status !== 'streaming') return '';
@@ -75,7 +73,6 @@ export function tickStream(state: StreamState, dt: number): string {
   for (let i = state.cursor; i < end; i++) {
     chunk += state.tokens[i];
   }
-  state.visible += chunk;
   state.cursor = end;
 
   if (state.cursor >= state.tokens.length) state.status = 'done';
@@ -85,7 +82,6 @@ export function tickStream(state: StreamState, dt: number): string {
 /** Rewind playback to the start without touching the loaded source. */
 export function rewindStream(state: StreamState): void {
   state.cursor = 0;
-  state.visible = '';
   state.accumulator = 0;
 }
 

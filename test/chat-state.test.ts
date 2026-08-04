@@ -29,6 +29,23 @@ describe('tokenize (simulated LLM tokenizer for streaming playback)', () => {
     const src = `![alt](data:image/png;base64,${'AAAA+/'.repeat(200)})`;
     expect(tokenize(src)).toEqual([src]);
   });
+
+  test('a single image token can exceed the stream buffer default', () => {
+    // This is why the Creation sizes `maxBufferedChars` from the document rather
+    // than taking the controller's 64KiB default. Admission accepts an oversize
+    // chunk only when the buffer is otherwise empty; with anything already
+    // accepted-but-uncommitted the write parks in the single blocked slot and a
+    // further write that frame rejects. Reproduced in Chromium before the fix as
+    // an unhandled "StreamController already has a blocked write".
+    const DEFAULT_MAX_BUFFERED_CHARS = 64 * 1024;
+    const src = `![alt](data:image/png;base64,${'A'.repeat(70_000)})`;
+    const tokens = tokenize(src);
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0].length).toBeGreaterThan(DEFAULT_MAX_BUFFERED_CHARS);
+    // Sizing from the whole source is therefore always sufficient: no chunk the
+    // ticker can build is longer than the document it came from.
+    expect(src.length).toBeGreaterThanOrEqual(tokens[0].length);
+  });
 });
 
 describe('tickStream', () => {
@@ -41,12 +58,14 @@ describe('tickStream', () => {
     return state;
   }
 
-  test('returns the revealed chunk and appends it to `visible`', () => {
+  test('returns the revealed chunk, which is a prefix of the source', () => {
     const state = streaming('abcde', 1000); // 1 token/ms
     const chunk = tickStream(state, 3); // 3ms -> ~3 tokens (chars here)
     expect(chunk.length).toBeGreaterThan(0);
-    expect(state.visible).toBe(chunk);
-    expect(state.content.startsWith(state.visible)).toBe(true);
+    // The revealed text is not mirrored on the state: the Markdown document owns
+    // everything committed so far. What this module guarantees is that each chunk
+    // continues the source exactly, so the concatenation is always a prefix.
+    expect(state.content.startsWith(chunk)).toBe(true);
   });
 
   test('consecutive ticks return only what is new, never the accumulated text', () => {
@@ -55,15 +74,14 @@ describe('tickStream', () => {
     const state = streaming('abcdef', 1000);
     const first = tickStream(state, 2);
     const second = tickStream(state, 2);
-    expect(first + second).toBe(state.visible);
+    expect(state.content.startsWith(first + second)).toBe(true);
     expect(second).not.toContain(first);
   });
 
   test('transitions to done once all tokens are consumed', () => {
     const state = streaming('ab', 100000); // fast enough to finish in one tick
-    tickStream(state, 1000);
+    expect(tickStream(state, 1000)).toBe('ab');
     expect(state.status).toBe('done');
-    expect(state.visible).toBe('ab');
   });
 
   test('does not loop on its own — the caller drives a replay', () => {
@@ -72,22 +90,21 @@ describe('tickStream', () => {
     // about. `loop` is read by the caller once the stream reports `done`.
     const state = streaming('ab', 100000);
     state.loop = true;
-    tickStream(state, 1000);
+    expect(tickStream(state, 1000)).toBe('ab');
     expect(state.status).toBe('done');
-    expect(state.visible).toBe('ab');
   });
 
   test('a non-streaming state never advances', () => {
     const state = streaming('abcde', 1000);
     state.status = 'paused';
     expect(tickStream(state, 100)).toBe('');
-    expect(state.visible).toBe('');
+    expect(state.cursor).toBe(0);
   });
 
   test('a tick too short to complete a token reveals nothing', () => {
     const state = streaming('abcde', 100); // 1 token / 10ms
     expect(tickStream(state, 1)).toBe('');
-    expect(state.visible).toBe('');
+    expect(state.cursor).toBe(0);
   });
 });
 
@@ -99,11 +116,10 @@ describe('rewindStream', () => {
     state.fileName = 'doc.md';
     state.status = 'streaming';
     state.tokenRate = 100000;
-    tickStream(state, 1000);
-    expect(state.visible).toBe('abc');
+    expect(tickStream(state, 1000)).toBe('abc');
+    expect(state.cursor).toBe(state.tokens.length);
 
     rewindStream(state);
-    expect(state.visible).toBe('');
     expect(state.cursor).toBe(0);
     expect(state.accumulator).toBe(0);
     // The source and its name survive, which is what lets Play replay it.
