@@ -5,7 +5,7 @@
  * button. Hidden once a file is loaded.
  */
 
-import { Entity } from '@vectojs/core';
+import { type A11yAttributes, Entity } from '@vectojs/core';
 import { isInsideBox } from './hitTest';
 import type { RawRenderer } from './raw-renderer';
 
@@ -52,6 +52,24 @@ export class DropZone extends Entity {
   isPointInside(globalX: number, globalY: number): boolean {
     if (!this._visible) return false;
     return isInsideBox(this, globalX, globalY);
+  }
+
+  /**
+   * Full-viewport click target while visible, pointer-transparent once hidden.
+   *
+   * `isPointInside()` already refuses canvas hits when hidden, but the a11y
+   * projection is a separate DOM layer: an `interactive` entity's shadow element
+   * spans its whole box with `pointer-events: auto`, and this entity's box is the
+   * viewport. Left at the default it kept intercepting every pointer after a file
+   * loaded — measured 1286x792 px at `zIndex: 14`, above the document's text
+   * carriers at `zIndex: 0`, so text could not be selected.
+   *
+   * `role`/`label` are only meaningful while the zone is actually offering to take
+   * a file; when hidden it is not a control at all, so it reports nothing.
+   */
+  override getA11yAttributes(): A11yAttributes {
+    if (!this._visible) return { pointerEvents: 'none' };
+    return { role: 'button', label: 'Open a Markdown or text file', pointerEvents: 'auto' };
   }
 
   update(dt: number): void {

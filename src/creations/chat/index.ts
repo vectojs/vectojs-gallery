@@ -33,7 +33,7 @@
 import { Entity } from '@vectojs/core';
 import { Markdown, type MarkdownTheme, type StreamController } from '@vectojs/markdown';
 import { createStreamState, rewindStream, tickStream, tokenize, type StreamState } from './state';
-import { ACCEPTED_EXTENSIONS, loadFile } from './parser';
+import { ACCEPTED_EXTENSIONS, isAcceptedFile, loadFile } from './parser';
 import { PerfMonitor } from './perf';
 import { ControlPanel } from './ControlPanel';
 import { PerfPanel } from './PerfPanel';
@@ -175,6 +175,8 @@ class StreamReader extends Entity {
 
     document.addEventListener('dragover', this.onDragOver);
     document.addEventListener('drop', this.onDrop);
+    document.addEventListener('dragstart', this.onDragStart);
+    document.addEventListener('dragend', this.onDragEnd);
     window.addEventListener('wheel', this.onWheel, { passive: true });
     window.addEventListener('pointerdown', this.onWindowPointerDown);
     window.addEventListener('pointermove', this.onWindowPointerMove);
@@ -245,10 +247,23 @@ class StreamReader extends Entity {
   /**
    * Hide via opacity + park off-screen so AABB hit-testing cannot steal
    * events — Markdown is a @vectojs/ui component without a `visible` flag.
+   *
+   * The view is deliberately never `interactive`. An interactive entity gets an
+   * a11y projection covering its whole box with `pointer-events: auto`
+   * (`Scene.syncA11y`, `attrs.pointerEvents ?? 'auto'`), and this entity's box is
+   * the ENTIRE document — measured 1222x46064 px at `zIndex: 14`. Since the
+   * transparent text carriers are pinned at `zIndex: 0`, that blanket sat above
+   * every line: `elementFromPoint` inside a real carrier returned the blanket and
+   * native drag-selection could not start anywhere in the document.
+   *
+   * Nothing needed it. Scrolling arrives through the window-level `wheel` and
+   * `pointer*` listeners installed in `mount()`, not through entity events, and
+   * `onLinkClick` is dispatched by the per-block `RichText` children rather than
+   * by this wrapper. Canvas hit-testing is unaffected either way: it runs against
+   * the entity tree, not the DOM.
    */
   private setMarkdownShown(shown: boolean): void {
     this.markdownView.opacity = shown ? 1 : 0;
-    this.markdownView.interactive = shown;
     if (!shown) {
       this.markdownView.x = -1e6;
       this.markdownView.y = -1e6;
@@ -325,7 +340,14 @@ class StreamReader extends Entity {
     input.accept = ACCEPTED_EXTENSIONS;
     input.onchange = () => {
       const file = input.files?.[0];
-      if (file) void this.openFile(file);
+      if (!file) return;
+      // `accept` is a dialog filter, not a guarantee: "All files" defeats it in
+      // every browser's picker. Same gate as the drop path.
+      if (!isAcceptedFile(file)) {
+        this.rejectFile(file);
+        return;
+      }
+      void this.openFile(file);
     };
     input.click();
   }
@@ -509,6 +531,8 @@ class StreamReader extends Entity {
   override destroy(): void {
     document.removeEventListener('dragover', this.onDragOver);
     document.removeEventListener('drop', this.onDrop);
+    document.removeEventListener('dragstart', this.onDragStart);
+    document.removeEventListener('dragend', this.onDragEnd);
     window.removeEventListener('wheel', this.onWheel);
     window.removeEventListener('pointerdown', this.onWindowPointerDown);
     window.removeEventListener('pointermove', this.onWindowPointerMove);
@@ -531,11 +555,59 @@ class StreamReader extends Entity {
     e.preventDefault();
   };
 
+  /**
+   * A drag that started inside the app is never a document to open.
+   *
+   * The document's own rendered content is draggable DOM: a display formula
+   * projects as `<img draggable="true" src="data:image/svg+xml;base64,…">`, so a
+   * pointer drag across a formula — which to the user looks exactly like
+   * selecting text — starts a native image drag carrying an SVG *file*. Dropping
+   * it back over the reader was accepted as source and replaced the open document
+   * with the text of its own rendering: data loss from a gesture that looks like
+   * selection. `isAcceptedFile()` already rejects that payload on extension
+   * alone; this refuses it one step earlier, because a drag originating in our own
+   * UI is not a load gesture whatever it happens to carry.
+   */
+  private internalDrag = false;
+
+  private readonly onDragStart = (): void => {
+    this.internalDrag = true;
+  };
+
+  private readonly onDragEnd = (): void => {
+    this.internalDrag = false;
+  };
+
   private readonly onDrop = (e: DragEvent): void => {
     e.preventDefault();
+    if (this.internalDrag) {
+      this.internalDrag = false;
+      return;
+    }
     const file = e.dataTransfer?.files[0];
-    if (file) void this.openFile(file);
+    if (!file) return;
+    if (!isAcceptedFile(file)) {
+      this.rejectFile(file);
+      return;
+    }
+    void this.openFile(file);
   };
+
+  /**
+   * Refuse a dropped file without disturbing the open document.
+   *
+   * Says so on the drop card when that is what is on screen; otherwise the
+   * document stays untouched and the console carries the reason. Refusing beats
+   * guessing: a mistaken drop should never cost the user the document they were
+   * reading.
+   */
+  private rejectFile(file: File): void {
+    console.warn(`[chat] ignored "${file.name}": expected one of ${ACCEPTED_EXTENSIONS}`);
+    if (this.dropZone.visible) {
+      this.dropZone.hint = `${file.name} is not Markdown — expected ${ACCEPTED_EXTENSIONS}`;
+      this.scene?.markDirty();
+    }
+  }
 
   // ── Scroll (wheel + touch drag) ─────────────────────────────────────────────
 
