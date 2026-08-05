@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "plugins": ["typescript"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "rules": {
+    "no-console": "off",
+    "no-debugger": "warn",
+
+    // `no-underscore-dangle` is in the `suspicious` category this file enables,
+    // but it was never actually evaluated: until this file was renamed to its
+    // dot-prefixed form, oxlint never discovered it and silently linted on
+    // built-in defaults instead. Enabling the categories for the first time
+    // surfaced 46 findings, all of them this one rule, across
+    // `src/creations/chat/` (37) and `src/creations/compare-pretext/` (7).
+    //
+    // It is off because `_privateField` is the deliberate convention here and in
+    // the upstream `@vectojs/*` packages this app consumes — keeping the two
+    // sides consistent matters more than the rule. Same disposition as
+    // vectojs#356.
+    "no-underscore-dangle": "off"
+  }
+}
