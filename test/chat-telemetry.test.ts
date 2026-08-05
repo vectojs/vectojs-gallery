@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import { PerfMonitor, RefreshRateProbe } from '../src/creations/chat/perf';
-import { fpsHealthColor, formatHeap, formatMs, formatRate } from '../src/creations/chat/PerfPanel';
+import {
+  formatDisplayRate,
+  formatHeap,
+  formatMs,
+  formatRate,
+  fpsHealthColor,
+  starvationColor,
+} from '../src/creations/chat/PerfPanel';
 
 /**
  * A `Scene`-shaped stub exposing only `frameStats`, which is all `PerfMonitor`
@@ -126,6 +133,107 @@ describe('RefreshRateProbe', () => {
     } finally {
       globalThis.requestAnimationFrame = realRaf;
     }
+  });
+});
+
+describe('RefreshRateProbe keeps measuring instead of latching one reading', () => {
+  /** Drives a fake rAF whose per-tick advance can change mid-run. */
+  function driveProbe(msPerTickByPhase: number[][]): RefreshRateProbe {
+    const realRaf = globalThis.requestAnimationFrame;
+    const pending: FrameRequestCallback[] = [];
+    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      pending.push(cb);
+      return pending.length;
+    }) as typeof globalThis.requestAnimationFrame;
+    const probe = new RefreshRateProbe();
+    try {
+      probe.start();
+      let clock = 1000;
+      for (const [ticks, msPerTick] of msPerTickByPhase) {
+        for (let i = 0; i < ticks && pending.length > 0; i++) {
+          pending.shift()!(clock);
+          clock += msPerTick;
+        }
+      }
+    } finally {
+      globalThis.requestAnimationFrame = realRaf;
+    }
+    probe.stop();
+    return probe;
+  }
+
+  test('opens a new window instead of stopping after the first', () => {
+    // The defect: calibration ran once from the constructor, latched, and set
+    // running = false. A second window must still produce a reading, or DISPLAY is
+    // forever whatever the first ~60 frames happened to see.
+    const probe = driveProbe([[122, 4]]);
+    expect(probe.hz).toBeCloseTo(250, 0);
+    expect(probe.currentHz).toBeCloseTo(250, 0);
+  });
+
+  test('a slow first window is corrected by a later fast one', () => {
+    // This is the reported bug. Calibrating while the document is busy latched
+    // DISPLAY at the starved rate for the whole session: measured 8.3 Hz under a
+    // ~120 ms/frame block versus 240.2 Hz idle, with focus untouched throughout.
+    // window 1 at 120ms/tick ≈ 8.3Hz, then window 2 at 4ms/tick ≈ 250Hz.
+    const probe = driveProbe([
+      [61, 120],
+      [61, 4],
+    ]);
+    expect(probe.hz).toBeCloseTo(250, 0);
+  });
+
+  test('keeps the maximum, so a later slow window cannot pull capability down', () => {
+    // rAF cannot exceed vsync, so contention only ever depresses a window. The
+    // max is therefore the correct estimator of what the display can do, and it
+    // must not be dragged back down when the app gets busy again.
+    const probe = driveProbe([
+      [61, 4],
+      [61, 120],
+    ]);
+    expect(probe.hz).toBeCloseTo(250, 0);
+    // …while the live cadence does follow the slowdown, which is the whole point
+    // of reporting two numbers.
+    expect(probe.currentHz).toBeLessThan(20);
+  });
+
+  test('currentHz tracks the latest window, not the best one', () => {
+    const probe = driveProbe([
+      [61, 4],
+      [61, 20],
+    ]);
+    expect(probe.hz).toBeCloseTo(250, 0);
+    expect(probe.currentHz).toBeCloseTo(50, 0);
+  });
+});
+
+describe('the display row shows starvation rather than hiding it', () => {
+  test('shows the bare capability while the page keeps up', () => {
+    expect(formatDisplayRate(240, 238)).toBe('240 Hz');
+    expect(formatDisplayRate(240, 240)).toBe('240 Hz');
+  });
+
+  test('annotates the live cadence once it falls behind', () => {
+    // A starved session must not read as a healthy one.
+    expect(formatDisplayRate(240, 8)).toBe('240←8');
+    expect(formatDisplayRate(240, 60)).toBe('240←60');
+  });
+
+  test('stays an em dash until the capability is measured', () => {
+    expect(formatDisplayRate(NaN, 8)).toBe('—');
+  });
+
+  test('shows the bare capability when the live cadence is unknown', () => {
+    expect(formatDisplayRate(240, NaN)).toBe('240 Hz');
+  });
+
+  test('colors neutral when keeping up and warm when starved', () => {
+    const keeping = starvationColor({ displayHz: 240, rafHz: 238 });
+    const starved = starvationColor({ displayHz: 240, rafHz: 8 });
+    expect(keeping).not.toBe(starved);
+    // Unknown inputs must not be scored as starvation.
+    expect(starvationColor({ displayHz: NaN, rafHz: 8 })).toBe(keeping);
+    expect(starvationColor({ displayHz: 240, rafHz: NaN })).toBe(keeping);
   });
 });
 

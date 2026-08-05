@@ -33,6 +33,7 @@ export class PerfPanel extends Entity {
   public sample: PerfSample = {
     fps: NaN,
     displayHz: NaN,
+    rafHz: NaN,
     frameMs: NaN,
     frameIntervalMs: NaN,
     heapUsedMB: NaN,
@@ -84,7 +85,11 @@ export class PerfPanel extends Entity {
     const fpsColor = fpsHealthColor(s.fps, s.displayHz);
 
     row('FPS', formatRate(s.fps), 22, fpsColor);
-    row('DISPLAY', formatRate(s.displayHz), 42);
+    // `DISPLAY` is the panel's capability. When the page is not actually being
+    // given frames at that rate, show what it IS getting next to it rather than
+    // leaving a starved session looking healthy — `240 (raf 8)` is legible; a bare
+    // `8 Hz` latched at startup, which is what this used to show, is a lie.
+    row('DISPLAY', formatDisplayRate(s.displayHz, s.rafHz), 42, starvationColor(s));
     row('RENDER', formatMs(s.frameMs), 62);
     row('HEAP', formatHeap(s.heapUsedMB), 80);
   }
@@ -110,6 +115,41 @@ export function fpsHealthColor(fps: number, displayHz: number): string {
 /** Formats a rate in Hz, or `—` when unmeasured. */
 export function formatRate(hz: number): string {
   return Number.isFinite(hz) ? `${Math.round(hz)} Hz` : '—';
+}
+
+/** Below this fraction of the display rate, the page is being starved of frames. */
+const RAF_STARVED = 0.75;
+
+/**
+ * Formats the display rate, annotating the live rAF cadence when it has fallen
+ * behind.
+ *
+ * The bare capability is shown while the page is keeping up, because the second
+ * number is noise then. It appears only when it carries information.
+ */
+export function formatDisplayRate(displayHz: number, rafHz: number): string {
+  if (!Number.isFinite(displayHz)) return '—';
+  const base = `${Math.round(displayHz)} Hz`;
+  if (!Number.isFinite(rafHz) || displayHz <= 0) return base;
+  if (rafHz >= displayHz * RAF_STARVED) return base;
+  return `${Math.round(displayHz)}←${Math.round(rafHz)}`;
+}
+
+/**
+ * Colors the display row by whether the page is actually receiving frames.
+ *
+ * Neutral while keeping up; warm once the live cadence has dropped well below the
+ * measured capability, which means either a saturated main thread or a window the
+ * compositor has stopped sending frame callbacks to. A page cannot tell those
+ * apart — `hasFocus()` and `visibilityState` are identical in both — so this
+ * reports the symptom and does not guess the cause.
+ */
+export function starvationColor(sample: { displayHz: number; rafHz: number }): string {
+  const { displayHz, rafHz } = sample;
+  if (!Number.isFinite(displayHz) || !Number.isFinite(rafHz) || displayHz <= 0) {
+    return COLOR_UNKNOWN;
+  }
+  return rafHz >= displayHz * RAF_STARVED ? COLOR_UNKNOWN : COLOR_WARN;
 }
 
 /** Formats a duration in ms, or `—` when unmeasured. */
