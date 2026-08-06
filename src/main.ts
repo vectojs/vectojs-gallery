@@ -8,7 +8,7 @@ import { CaptionPlate } from './ui/CaptionPlate';
 import { Stage } from './ui/Stage';
 import { BackChip } from './ui/BackChip';
 import { keepSceneLive } from './keep-live';
-import { SHELL_MAX_FPS } from './shell-config';
+import { GALLERY_SCENE_OPTIONS, SHELL_MAX_FPS } from './shell-config';
 
 const RAIL_WIDTH = 280;
 
@@ -82,11 +82,7 @@ function initGallery(): void {
   // nodes exist; see forge/findings.md 2026-07-21), per-frame sync is cheap
   // again — measured no scroll-fps regression on a 346KB doc — so the throttle
   // (and its visible selection lag) is no longer needed.
-  const scene = new Scene(canvas, {
-    maxFPS: SHELL_MAX_FPS,
-    maxDPR: 2,
-    a11ySyncInterval: 0,
-  });
+  const scene = new Scene(canvas, GALLERY_SCENE_OPTIONS);
 
   let currentEntity: Entity | null = null;
   let currentPlate: CaptionPlate | null = null;

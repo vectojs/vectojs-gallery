@@ -21,6 +21,13 @@
     // the upstream `@vectojs/*` packages this app consumes — keeping the two
     // sides consistent matters more than the rule. Same disposition as
     // vectojs#356.
-    "no-underscore-dangle": "off"
+    "no-underscore-dangle": "off",
+
+    // Sequential `await` in a loop is the *intent* in an e2e driver: `e2e/` runs
+    // Chromium and then Firefox one after the other, and `Promise.all`-ing two
+    // headed browser launches would have them contend for the same GPU and CPU,
+    // corrupting exactly what the suite exists to observe. Matches the monorepo's
+    // disposition, which turns this off for the same reason (`vectojs/.oxlintrc.json`).
+    "no-await-in-loop": "off"
   }
 }
