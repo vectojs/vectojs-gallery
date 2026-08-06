@@ -30,7 +30,7 @@
  * buffering and per-frame coalescing, and `write()` goes through the same
  * reconciler as a one-shot parse.
  */
-import { Entity } from '@vectojs/core';
+import { Entity, Group } from '@vectojs/core';
 import { Markdown, type MarkdownTheme, type StreamController } from '@vectojs/markdown';
 import { createStreamState, rewindStream, tickStream, tokenize, type StreamState } from './state';
 import { ACCEPTED_EXTENSIONS, isAcceptedFile, loadFile } from './parser';
@@ -94,6 +94,25 @@ class StreamReader extends Entity {
   private dropZone: DropZone;
   private scrollBar: ScrollBar;
   private canvasEl: HTMLCanvasElement | null;
+
+  /**
+   * Selection regions.
+   *
+   * `@vectojs/core@1.32.1` bands the a11y projection per *region*, where a region
+   * is the nearest `clipChildren` ancestor, so a DOM selection cannot run out of
+   * one and into the next. Before this, the transcript, the control panel and the
+   * floating perf panel were flat siblings, which made them a single implicit
+   * region: dragging through the transcript also selected the panel rows whose
+   * boxes happened to fall in the same horizontal bands. The panel sits at
+   * `x = w - 202` with the document at `x = 32`, so every vertical drag crossed it.
+   *
+   * The transcript clipper is load-bearing beyond ordering: scrolling moves
+   * `markdownView.y` negative, so a viewport that clips is what the document was
+   * already conceptually scrolling inside.
+   */
+  private docRegion: Group;
+  private chromeRegion: Group;
+  private perfRegion: Group;
 
   /**
    * The library's writer for the current document, or `null` when nothing is
@@ -167,11 +186,24 @@ class StreamReader extends Entity {
     });
     this.setMarkdownShown(false);
 
-    this.add(this.markdownView);
+    // Each region is its own clipper so a drag-selection stays inside it. Order
+    // here is both paint order and the order a screen reader meets the regions,
+    // because the engine emits regions in the order its depth-first walk first
+    // reaches their clipper.
+    this.docRegion = new Group(this.markdownView);
+    this.docRegion.clipChildren = true;
+
+    this.chromeRegion = new Group(this.controlPanel);
+    this.chromeRegion.clipChildren = true;
+
+    this.perfRegion = new Group(this.perfPanel);
+    this.perfRegion.clipChildren = true;
+
+    this.add(this.docRegion);
     this.add(this.scrollBar); // over the document, under the chrome/drop layers
     this.add(this.dropZone);
-    this.add(this.controlPanel);
-    this.add(this.perfPanel);
+    this.add(this.chromeRegion);
+    this.add(this.perfRegion);
 
     document.addEventListener('dragover', this.onDragOver);
     document.addEventListener('drop', this.onDrop);
@@ -281,6 +313,16 @@ class StreamReader extends Entity {
     this.dropZone.width = w;
     this.dropZone.height = h;
 
+    // The document region is the scroll viewport: it spans the area above the
+    // control panel, and the transcript scrolls *inside* it. Sizing it is not
+    // cosmetic — `clipChildren` clips to this box, so a zero-height region would
+    // hide the document, and the engine ignores a zero-area clipper entirely,
+    // which would silently put the transcript back in the root region.
+    this.docRegion.x = 0;
+    this.docRegion.y = 0;
+    this.docRegion.width = w;
+    this.docRegion.height = h - ctrlH;
+
     if (this.isDocumentShown()) {
       this.setMarkdownShown(true);
       this.markdownView.x = DOC_INSET;
@@ -307,14 +349,27 @@ class StreamReader extends Entity {
       this.scrollBar.opacity = 0;
     }
 
+    // Each region carries the placement; its child sits at the region origin.
+    // `Group` composes its own transform onto its children, so leaving a child at
+    // its old absolute offset would double the translation.
+    this.chromeRegion.x = 0;
+    this.chromeRegion.y = h - ctrlH;
+    this.chromeRegion.width = w;
+    this.chromeRegion.height = ctrlH;
+
     this.controlPanel.x = 0;
-    this.controlPanel.y = h - ctrlH;
+    this.controlPanel.y = 0;
     this.controlPanel.width = w;
     this.controlPanel.height = ctrlH;
     this.controlPanel.state = this.state;
 
-    this.perfPanel.x = w - PERF_W - PERF_PAD;
-    this.perfPanel.y = PERF_TOP;
+    this.perfRegion.x = w - PERF_W - PERF_PAD;
+    this.perfRegion.y = PERF_TOP;
+    this.perfRegion.width = PERF_W;
+    this.perfRegion.height = PERF_H;
+
+    this.perfPanel.x = 0;
+    this.perfPanel.y = 0;
     this.perfPanel.width = PERF_W;
     this.perfPanel.height = PERF_H;
 
@@ -327,10 +382,14 @@ class StreamReader extends Entity {
     const rect = this.canvasEl.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
     const scale = rect.width / window.innerWidth;
-    const g = this.getGlobalPosition();
+    // Read the panel's OWN global position rather than adding its local offset to
+    // this entity's. The panel now hangs off `chromeRegion`, which carries the
+    // placement, so `this.getGlobalPosition() + panel.x` would drop the region's
+    // translation and put the <input> at the top of the canvas.
+    const g = this.controlPanel.getGlobalPosition();
     const anchor = this.controlPanel.getInputLocalAnchor();
-    const cssLeft = rect.left + (g.x + this.controlPanel.x + anchor.x) * scale;
-    const cssTop = rect.top + (g.y + this.controlPanel.y + anchor.y) * scale;
+    const cssLeft = rect.left + (g.x + anchor.x) * scale;
+    const cssTop = rect.top + (g.y + anchor.y) * scale;
     this.controlPanel.positionInput(cssLeft, cssTop);
   }
 
