@@ -32,6 +32,7 @@ export class PerfPanel extends Entity {
    */
   public sample: PerfSample = {
     fps: NaN,
+    renderMode: 'onDemand',
     displayHz: NaN,
     rafHz: NaN,
     frameMs: NaN,
@@ -82,7 +83,7 @@ export class PerfPanel extends Entity {
     // Health is the rendered cadence against the *measured* display rate. Both
     // must be known for the comparison to mean anything; with either missing the
     // value is drawn neutral rather than being scored against a guess.
-    const fpsColor = fpsHealthColor(s.fps, s.displayHz);
+    const fpsColor = fpsHealthColor(s.fps, s.displayHz, s.renderMode);
 
     row('FPS', formatRate(s.fps), 22, fpsColor);
     // `DISPLAY` is the panel's capability. When the page is not actually being
@@ -98,11 +99,17 @@ export class PerfPanel extends Entity {
 /**
  * Colors the rendered rate against the measured display rate.
  *
- * Returns the neutral color unless both are known: an `onDemand` scene parked
- * between renders legitimately reports a fraction of the display rate, so this
- * only scores the ratio when there is a real rate to score against.
+ * Returns the neutral color when either rate is unknown, **or** when the scene
+ * is in `onDemand` mode: a parked document legitimately redraws a few times a
+ * second, so scoring `fps / displayHz` would paint healthy idle red. Neutral
+ * rather than green — the row reports a fact, it does not pass a check.
  */
-export function fpsHealthColor(fps: number, displayHz: number): string {
+export function fpsHealthColor(
+  fps: number,
+  displayHz: number,
+  renderMode: 'always' | 'onDemand' = 'always',
+): string {
+  if (renderMode === 'onDemand') return COLOR_UNKNOWN;
   if (!Number.isFinite(fps) || !Number.isFinite(displayHz) || displayHz <= 0) {
     return COLOR_UNKNOWN;
   }

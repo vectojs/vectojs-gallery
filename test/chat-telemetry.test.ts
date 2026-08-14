@@ -253,30 +253,38 @@ describe('panel formatting never fabricates a reading', () => {
 
 describe('fps health is scored against the measured display rate', () => {
   test('is neutral when either rate is unknown', () => {
-    const neutral = fpsHealthColor(NaN, 240);
-    expect(fpsHealthColor(120, NaN)).toBe(neutral);
-    expect(fpsHealthColor(120, 0)).toBe(neutral);
+    const neutral = fpsHealthColor(NaN, 240, 'always');
+    expect(fpsHealthColor(120, NaN, 'always')).toBe(neutral);
+    expect(fpsHealthColor(120, 0, 'always')).toBe(neutral);
+  });
+
+  test('is neutral on a parked onDemand scene even at a low rate', () => {
+    // 4 Hz against 240 Hz is ratio 0.017 — under always-mode that is COLOR_BAD.
+    // onDemand idle is correct behaviour; paint it neutral, not red or green.
+    const neutral = fpsHealthColor(NaN, 240, 'always');
+    expect(fpsHealthColor(4, 240, 'onDemand')).toBe(neutral);
+    expect(fpsHealthColor(4, 240, 'always')).not.toBe(neutral);
   });
 
   test('a high rate on a faster display is not scored as healthy', () => {
     // 120fps is excellent against 60Hz and mediocre against 240Hz. Scoring
     // against a hardcoded 60 would call both cases green.
-    const on60 = fpsHealthColor(120, 60);
-    const on240 = fpsHealthColor(120, 240);
+    const on60 = fpsHealthColor(120, 60, 'always');
+    const on240 = fpsHealthColor(120, 240, 'always');
     expect(on60).not.toBe(on240);
   });
 
   test('grades by ratio, not by absolute rate', () => {
     // Same ratio at two very different absolute rates must grade identically.
-    expect(fpsHealthColor(58, 60)).toBe(fpsHealthColor(232, 240));
-    expect(fpsHealthColor(40, 60)).toBe(fpsHealthColor(160, 240));
-    expect(fpsHealthColor(12, 60)).toBe(fpsHealthColor(48, 240));
+    expect(fpsHealthColor(58, 60, 'always')).toBe(fpsHealthColor(232, 240, 'always'));
+    expect(fpsHealthColor(40, 60, 'always')).toBe(fpsHealthColor(160, 240, 'always'));
+    expect(fpsHealthColor(12, 60, 'always')).toBe(fpsHealthColor(48, 240, 'always'));
   });
 
   test('the three bands are distinct', () => {
-    const good = fpsHealthColor(240, 240);
-    const warn = fpsHealthColor(150, 240);
-    const bad = fpsHealthColor(30, 240);
+    const good = fpsHealthColor(240, 240, 'always');
+    const warn = fpsHealthColor(150, 240, 'always');
+    const bad = fpsHealthColor(30, 240, 'always');
     expect(new Set([good, warn, bad]).size).toBe(3);
   });
 });

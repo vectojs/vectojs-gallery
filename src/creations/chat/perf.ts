@@ -46,6 +46,15 @@ export interface PerfSample {
    */
   fps: number;
   /**
+   * Scene loop mode, sampled every frame.
+   *
+   * Threaded into the panel so FPS health can stay neutral on a parked
+   * `onDemand` scene (low fps is correct idle behaviour there, not a stall).
+   * Sampled per frame rather than captured once because the shell flips the
+   * mode when mounting/unmounting creations.
+   */
+  renderMode: 'always' | 'onDemand';
+  /**
    * Measured display refresh rate in Hz from the rAF calibration, or `NaN`
    * until it completes.
    *
@@ -249,6 +258,7 @@ export class PerfMonitor {
 
     return {
       fps: round1(fps),
+      renderMode: stats.renderMode,
       displayHz: round1(displayHz),
       rafHz: round1(this.probe.currentHz),
       frameMs: round1(frameMs),
