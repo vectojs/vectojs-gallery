@@ -659,17 +659,11 @@ class StreamReader extends Entity {
     return false;
   }
 
-  // `continuousRedraw: false` (registry.ts) switches the shared Scene to
-  // `renderMode: 'onDemand'` while this creation is mounted (see main.ts) — it
-  // skips the entire update/render walk once idle (no dirty flag, no pending
-  // animation). Active streaming only re-marks the scene dirty from INSIDE
-  // update() — if update() itself stops being called because a single tick
-  // happened to add zero characters (the accumulator hadn't crossed a full
-  // token yet) while nothing else was marking the scene dirty, that silence is
-  // self-perpetuating: no update() call means no chance to mark dirty again, so
-  // the stream would stall until some unrelated interaction nudged the scene
-  // awake. Without this override (the default reports "not animating"), core
-  // has no way to know streaming is still in flight.
+  // The gallery shell currently keeps this Creation in `always` mode so its FPS
+  // panel holds the display cadence even while idle. Still report streaming as
+  // pending animation: the entity remains correct when embedded in an
+  // `onDemand` Scene, where a sub-token accumulator tick must not park the loop
+  // before the next token becomes available.
   override hasPendingAnimations(): boolean {
     return this.state.status === 'streaming';
   }
