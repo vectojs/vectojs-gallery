@@ -39,14 +39,24 @@ export class LinePool extends Entity {
 
   /** Replace the visible line set. Reuses existing Text children in order. */
   setLines(lines: PooledLine[]): void {
+    const rebuildOrder = lines.some((line, i) => {
+      const text = this.pool[i];
+      return text && (text.font !== line.font || text.lineHeight !== (line.lineHeight ?? 20));
+    });
+    if (rebuildOrder) {
+      for (let i = 0; i < this.mounted; i++) this.remove(this.pool[i]);
+    }
+
     for (let i = 0; i < lines.length; i++) {
       const l = lines[i];
+      const lineHeight = l.lineHeight ?? 20;
       let t = this.pool[i];
-      if (!t) {
+      if (!t || t.font !== l.font || t.lineHeight !== lineHeight) {
+        if (t?.parent === this) this.remove(t);
         t = new Text(l.text, {
           font: l.font,
           color: l.color,
-          lineHeight: l.lineHeight ?? 20,
+          lineHeight,
           selectable: true,
         });
         this.pool[i] = t;
@@ -54,15 +64,13 @@ export class LinePool extends Entity {
         // Text.setText re-measures (cold) only when the string changed.
         t.setText(l.text);
       }
-      t.font = l.font;
       t.color = l.color;
-      if (l.lineHeight !== undefined) t.lineHeight = l.lineHeight;
       t.setPosition(l.x, l.y);
-      if (i >= this.mounted) this.add(t);
+      if (i >= this.mounted || t.parent !== this) this.add(t);
     }
     // Unmount any leftover pooled lines so they don't project selectable text.
     for (let i = lines.length; i < this.mounted; i++) {
-      this.remove(this.pool[i]);
+      if (this.pool[i].parent === this) this.remove(this.pool[i]);
     }
     this.mounted = lines.length;
   }

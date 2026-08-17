@@ -35,6 +35,7 @@ import {
   type Point,
   type Rect,
 } from '../shared/wrap-geometry';
+import { timelineProgress } from '../shared/timing';
 
 const BODY_FONT = '18px Georgia, "Times New Roman", serif';
 const BODY_LINE_HEIGHT = 28;
@@ -81,6 +82,7 @@ class DynamicLayoutDemo extends Entity {
   private headlineLines: PositionedLine[] = [];
   private creditLine: PositionedLine | null = null;
   private anySpinning = false;
+  private timelineTime = Number.NaN;
   // Selectable text is projected through pooled Text entities (raw fillText
   // projects nothing selectable); chrome + obstacles stay on the canvas.
   private textPool = new LinePool('DynamicLayoutText');
@@ -137,7 +139,7 @@ class DynamicLayoutDemo extends Entity {
       if (isPointInPolygon(this.hullOf(o), x, y)) {
         o.spinFrom = o.angle;
         o.spinTo = o.angle + Math.PI * (o.kind === 'poly-a' ? 1 : -1);
-        o.spinStart = performance.now();
+        o.spinStart = this.timelineTime;
         this.anySpinning = true;
         this.scene?.markDirty();
         return;
@@ -147,12 +149,13 @@ class DynamicLayoutDemo extends Entity {
 
   update(dt: number, time: number): void {
     super.update(dt, time);
+    this.timelineTime = time;
     if (!this.anySpinning) return;
-    const now = performance.now();
     let stillSpinning = false;
     for (const o of this.obstacles) {
       if (o.spinStart < 0) continue;
-      const t = Math.min(1, (now - o.spinStart) / SPIN_DURATION);
+      if (Number.isNaN(o.spinStart)) o.spinStart = time;
+      const t = timelineProgress(time, o.spinStart, SPIN_DURATION);
       const ease = 1 - (1 - t) ** 3;
       o.angle = o.spinFrom + (o.spinTo - o.spinFrom) * ease;
       if (t >= 1) o.spinStart = -1;
