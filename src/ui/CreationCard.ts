@@ -85,6 +85,8 @@ export class CreationCard extends EditorialCard {
       ? new Image(preview.src, {
           width: mediaWidth,
           height: this.thumbH,
+          fit: 'cover',
+          focalPoint: preview.focalPoint,
           alt: preview.alt,
           placeholder: COLOR.groundSunk,
           radius: 10,

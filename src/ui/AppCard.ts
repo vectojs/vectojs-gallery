@@ -9,37 +9,6 @@ import { COLOR, FONT } from './tokens';
 const PADDING = 14;
 const SHOT_RATIO = 9 / 16;
 
-export interface AppMediaFrame {
-  width: number;
-  height: number;
-  x: number;
-  y: number;
-}
-
-export function getAppMediaFrame(
-  media: ForgeApp['screenshotMedia'],
-  frameWidth: number,
-  frameHeight: number,
-): AppMediaFrame {
-  if (media.fit === 'contain') {
-    const scale = Math.min(frameWidth / media.width, frameHeight / media.height);
-    return {
-      width: media.width * scale,
-      height: media.height * scale,
-      x: (frameWidth - media.width * scale) / 2,
-      y: (frameHeight - media.height * scale) / 2,
-    };
-  }
-
-  const scale = Math.max(frameWidth / media.width, frameHeight / media.height);
-  const width = media.width * scale;
-  const height = media.height * scale;
-  const focal = media.focalPoint ?? { x: 0.5, y: 0.5 };
-  const cropX = Math.max(0, Math.min(width - frameWidth, width * focal.x - frameWidth / 2));
-  const cropY = Math.max(0, Math.min(height - frameHeight, height * focal.y - frameHeight / 2));
-  return { width, height, x: -cropX, y: -cropY };
-}
-
 /**
  * A "Built on VectoJS" card: live-deployment screenshot, app name, canonical
  * domain, and a short tagline. The whole card is clickable and opens the
@@ -53,7 +22,6 @@ export class AppCard extends EditorialCard {
   private readonly appName: Text;
   private readonly tagline: Text;
   private readonly urlText: Text;
-  private readonly media: ForgeApp['screenshotMedia'];
 
   constructor(
     width: number,
@@ -72,14 +40,14 @@ export class AppCard extends EditorialCard {
       invalidate,
     );
     this.width = width;
-    this.media = app.screenshotMedia;
 
     const shotW = width - PADDING * 2;
     this.shotH = Math.round(shotW * SHOT_RATIO);
-    const imageFrame = getAppMediaFrame(this.media, shotW, this.shotH);
     const shot = new Image(app.screenshot, {
-      width: imageFrame.width,
-      height: imageFrame.height,
+      width: shotW,
+      height: this.shotH,
+      fit: app.screenshotMedia.fit,
+      focalPoint: app.screenshotMedia.focalPoint,
       alt: `${app.name} screenshot`,
       placeholder: COLOR.groundSunk,
       radius: 8,
@@ -87,7 +55,6 @@ export class AppCard extends EditorialCard {
     });
     this.mountMedia(shot);
     this.resizeMediaFrame(PADDING, PADDING, shotW, this.shotH);
-    shot.setPosition(imageFrame.x, imageFrame.y);
     this.shot = shot;
 
     const nameY = PADDING + this.shotH + 16;
@@ -124,10 +91,8 @@ export class AppCard extends EditorialCard {
     this.width = width;
     const shotW = width - PADDING * 2;
     this.shotH = Math.round(shotW * SHOT_RATIO);
-    const imageFrame = getAppMediaFrame(this.media, shotW, this.shotH);
-    this.shot.width = imageFrame.width;
-    this.shot.height = imageFrame.height;
-    this.shot.setPosition(imageFrame.x, imageFrame.y);
+    this.shot.width = shotW;
+    this.shot.height = this.shotH;
     this.resizeMediaFrame(PADDING, PADDING, shotW, this.shotH);
     this.appName.setPosition(PADDING, PADDING + this.shotH + 16);
     this.urlText.setPosition(width - PADDING - this.urlText.width, this.appName.y + 4);
