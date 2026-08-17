@@ -42,6 +42,7 @@ import { ScrollBar, SCROLLBAR_HIT_BAND } from './ScrollBar';
 import { SearchBar } from './SearchBar';
 import { collectDocumentText, findMatches, type DocText, type SearchMatch } from './search';
 import type { RawRenderer } from './raw-renderer';
+import { AsyncGeneration } from './async-generation';
 
 const MD_THEME: MarkdownTheme = {
   textColor: '#2d2015',
@@ -148,6 +149,7 @@ class StreamReader extends Entity {
    * single-use: `close()` settles it, and it cannot rewind.
    */
   private stream: StreamController | null = null;
+  private readonly asyncGeneration = new AsyncGeneration();
 
   private mdScrollY = 0;
   private mdAutoScroll = true;
@@ -616,10 +618,12 @@ class StreamReader extends Entity {
   }
 
   private async openFile(file: File): Promise<void> {
+    const generation = this.asyncGeneration.next();
     this.dropZone.loadingLabel = `Parsing ${file.name} …`;
     this.scene?.markDirty();
 
     const loaded = await loadFile(file);
+    if (!this.asyncGeneration.isCurrent(generation)) return;
 
     this.state.content = loaded.source;
     this.state.tokens = tokenize(loaded.source);
@@ -724,7 +728,9 @@ class StreamReader extends Entity {
       // unwinds the optimistic tail guess.
       const finishing = this.stream;
       this.stream = null;
+      const generation = this.asyncGeneration.next();
       void finishing?.close().then(() => {
+        if (!this.asyncGeneration.isCurrent(generation)) return;
         if (this.state.loop && this.state.status === 'done') {
           rewindStream(this.state);
           this.resetDocument();
@@ -740,6 +746,7 @@ class StreamReader extends Entity {
   }
 
   override destroy(): void {
+    this.asyncGeneration.destroy();
     document.removeEventListener('dragover', this.onDragOver);
     document.removeEventListener('drop', this.onDrop);
     document.removeEventListener('dragstart', this.onDragStart);
