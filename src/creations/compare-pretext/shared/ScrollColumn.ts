@@ -12,6 +12,7 @@
  * the pointer; a body drag still starts a native text selection.
  */
 import { Entity, type IRenderer } from '@vectojs/core';
+import type { A11yAttributes } from '@vectojs/core';
 
 const SCROLLBAR_W = 8;
 const SCROLLBAR_PAD = 3;
@@ -84,12 +85,17 @@ export class ScrollColumn extends Entity {
     });
   }
 
-  /** Only claim the pointer over the scrollbar thumb — body clicks select text. */
+  /** Only claim the scrollbar drag band — body clicks select text. */
   override isPointInside(globalX: number, globalY: number): boolean {
     const local = this.worldToLocal(globalX, globalY);
     if (!local) return false;
-    // Claim wheel over the whole viewport but pointerdown only over the thumb.
-    return local.x >= 0 && local.x <= this.viewW && local.y >= 0 && local.y <= this.viewH;
+    const bandStart = this.viewW - SCROLLBAR_W - SCROLLBAR_PAD - 4;
+    return local.x >= bandStart && local.x <= this.viewW && local.y >= 0 && local.y <= this.viewH;
+  }
+
+  /** The canvas handles the scrollbar; projected content must remain selectable. */
+  override getA11yAttributes(): A11yAttributes {
+    return { pointerEvents: 'none' };
   }
 
   setViewport(width: number, height: number): void {
