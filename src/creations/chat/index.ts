@@ -39,6 +39,9 @@ import { ControlPanel } from './ControlPanel';
 import { PerfPanel } from './PerfPanel';
 import { DropZone } from './DropZone';
 import { ScrollBar, SCROLLBAR_HIT_BAND } from './ScrollBar';
+import { SearchBar } from './SearchBar';
+import { collectDocumentText, findMatches, type DocText, type SearchMatch } from './search';
+import type { RawRenderer } from './raw-renderer';
 
 const MD_THEME: MarkdownTheme = {
   textColor: '#2d2015',
@@ -85,6 +88,31 @@ const DOC_INSET = 32;
 /** Extra scrollable slack below the document so the last line clears the panel. */
 const DOC_TAIL = 64;
 
+/**
+ * Transient translucent bar marking the current search match's line. Lives as
+ * a child of `markdownView` so it scrolls with the document; `opacity: 0` hides
+ * it until a match is active.
+ */
+class MatchHighlight extends Entity {
+  constructor() {
+    super('MatchHighlight');
+    this.interactive = false;
+    this.opacity = 0;
+  }
+
+  override isPointInside(): boolean {
+    return false;
+  }
+
+  render(renderer: RawRenderer): void {
+    const ctx = renderer.ctx;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, this.width, this.height, 4);
+    ctx.fillStyle = 'rgba(255, 196, 48, 0.28)';
+    ctx.fill();
+  }
+}
+
 class StreamReader extends Entity {
   private state: StreamState;
   private perf = new PerfMonitor();
@@ -130,6 +158,15 @@ class StreamReader extends Entity {
   private thumbDragging = false;
   private thumbStartClientY = 0;
   private thumbStartScroll = 0;
+
+  // ── Search (Ctrl+F) ──
+  private searchBar: SearchBar;
+  private searchHighlight: MatchHighlight;
+  /** Cached rendered-text index; rebuilt lazily when the document changes. */
+  private searchIndex: DocText | null = null;
+  private searchIndexDirty = true;
+  private searchMatches: SearchMatch[] = [];
+  private searchCurrent = -1;
 
   constructor() {
     super('StreamReader');
@@ -204,6 +241,18 @@ class StreamReader extends Entity {
     this.add(this.dropZone);
     this.add(this.chromeRegion);
     this.add(this.perfRegion);
+
+    this.searchBar = new SearchBar({
+      onQuery: (q) => this.onSearchQuery(q),
+      onNext: () => this.stepSearch(1),
+      onPrev: () => this.stepSearch(-1),
+      onClose: () => this.closeSearch(),
+    });
+    this.add(this.searchBar);
+    this.searchBar.close(); // hidden until Ctrl+F
+
+    this.searchHighlight = new MatchHighlight();
+    this.markdownView.add(this.searchHighlight);
 
     document.addEventListener('dragover', this.onDragOver);
     document.addEventListener('drop', this.onDrop);
@@ -373,7 +422,15 @@ class StreamReader extends Entity {
     this.perfPanel.width = PERF_W;
     this.perfPanel.height = PERF_H;
 
+    // Search bar floats top-center, clear of the perf panel (right) and the
+    // shell's back chip (left).
+    const barW = Math.min(560, w - 2 * PERF_TOP);
+    this.searchBar.x = (w - barW) / 2;
+    this.searchBar.y = PERF_TOP;
+    this.searchBar.width = barW;
+
     this.positionRateInput();
+    this.positionSearchInput();
   }
 
   /** Places the ControlPanel's DOM `<input>` in real CSS pixels — see ControlPanel.getInputLocalAnchor. */
@@ -391,6 +448,102 @@ class StreamReader extends Entity {
     const cssLeft = rect.left + (g.x + anchor.x) * scale;
     const cssTop = rect.top + (g.y + anchor.y) * scale;
     this.controlPanel.positionInput(cssLeft, cssTop);
+  }
+
+  // ── Search (Ctrl+F) ─────────────────────────────────────────────────────────
+
+  /** Places the SearchBar's DOM `<input>` in real CSS pixels — see SearchBar.getInputAnchor. */
+  private positionSearchInput(): void {
+    if (!this.searchBar.visible || !this.canvasEl) return;
+    const rect = this.canvasEl.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const scale = rect.width / window.innerWidth;
+    const g = this.searchBar.getGlobalPosition();
+    const anchor = this.searchBar.getInputAnchor();
+    const cssLeft = rect.left + (g.x + anchor.x) * scale;
+    const cssTop = rect.top + (g.y + anchor.y) * scale;
+    this.searchBar.positionInput(cssLeft, cssTop);
+  }
+
+  private rebuildSearchIndex(): void {
+    this.searchIndex = collectDocumentText(this.markdownView);
+    this.searchIndexDirty = false;
+  }
+
+  private openSearch(): void {
+    if (!this.isDocumentShown()) return;
+    this.searchBar.open();
+    this.positionSearchInput();
+    if (this.searchIndexDirty) this.rebuildSearchIndex();
+    this.searchMatches = this.searchIndex
+      ? findMatches(this.searchIndex, this.searchBar.query)
+      : [];
+    this.searchCurrent = this.searchMatches.length > 0 ? 0 : -1;
+    this.searchBar.setResults(this.searchMatches.length, this.searchCurrent);
+    this.scrollToMatch(this.searchCurrent);
+    this.scene?.markDirty();
+  }
+
+  private closeSearch(): void {
+    this.searchBar.close();
+    this.searchHighlight.opacity = 0;
+    this.scene?.markDirty();
+  }
+
+  /** Close the bar and forget the query, index, and matches — a new document. */
+  private clearSearch(): void {
+    this.searchBar.close();
+    this.searchBar.clearQuery();
+    this.searchIndex = null;
+    this.searchIndexDirty = true;
+    this.searchMatches = [];
+    this.searchCurrent = -1;
+    this.searchBar.setResults(0, -1);
+    this.searchHighlight.opacity = 0;
+  }
+
+  private onSearchQuery(query: string): void {
+    if (this.searchIndexDirty) this.rebuildSearchIndex();
+    this.searchMatches = this.searchIndex ? findMatches(this.searchIndex, query) : [];
+    this.searchCurrent = this.searchMatches.length > 0 ? 0 : -1;
+    this.searchBar.setResults(this.searchMatches.length, this.searchCurrent);
+    this.scrollToMatch(this.searchCurrent);
+    this.scene?.markDirty();
+  }
+
+  private stepSearch(delta: number): void {
+    if (this.searchIndexDirty) {
+      this.rebuildSearchIndex();
+      const index = this.searchIndex;
+      this.searchMatches = index ? findMatches(index, this.searchBar.query) : [];
+      if (this.searchMatches.length === 0) {
+        this.searchCurrent = -1;
+        this.searchBar.setResults(0, -1);
+        this.searchHighlight.opacity = 0;
+        return;
+      }
+      this.searchCurrent = Math.min(this.searchCurrent, this.searchMatches.length - 1);
+    }
+    if (this.searchMatches.length === 0) return;
+    const n = this.searchMatches.length;
+    this.searchCurrent = (this.searchCurrent + delta + n) % n;
+    this.searchBar.setResults(n, this.searchCurrent);
+    this.scrollToMatch(this.searchCurrent);
+  }
+
+  /** Scroll so the current match's line sits near the viewport center, and mark its line. */
+  private scrollToMatch(index: number): void {
+    const m = this.searchMatches[index];
+    if (!m) {
+      this.searchHighlight.opacity = 0;
+      return;
+    }
+    const viewportH = this.height - this.controlPanel.panelHeight;
+    this.scrollMarkdownTo(m.y + DOC_INSET - viewportH / 2);
+    this.searchHighlight.y = m.y - 2;
+    this.searchHighlight.height = m.height + 4;
+    this.searchHighlight.width = this.markdownView.width;
+    this.searchHighlight.opacity = 1;
   }
 
   private openFilePicker(): void {
@@ -459,6 +612,7 @@ class StreamReader extends Entity {
     });
     this.mdScrollY = 0;
     this.mdAutoScroll = true;
+    this.clearSearch();
   }
 
   private async openFile(file: File): Promise<void> {
@@ -496,6 +650,7 @@ class StreamReader extends Entity {
     this.mdScrollY = 0;
     this.mdAutoScroll = true;
 
+    this.clearSearch();
     this.layout();
     this.scene?.markDirty();
   }
@@ -558,6 +713,9 @@ class StreamReader extends Entity {
         this.failStream(error);
       });
 
+      // The rendered text just changed, so the search index is stale.
+      this.searchIndexDirty = true;
+
       if (this.mdAutoScroll) {
         const h = this.height - this.controlPanel.panelHeight;
         this.mdScrollY = this.markdownMaxScroll(h);
@@ -605,6 +763,8 @@ class StreamReader extends Entity {
     // Entity.destroy() doesn't cascade to children (see Nexus/Dimension for
     // the same reasoning), so this has to happen explicitly.
     this.controlPanel.destroy();
+    // SearchBar owns a real DOM <input> too.
+    this.searchBar.destroy();
     super.destroy();
   }
 
@@ -718,10 +878,24 @@ class StreamReader extends Entity {
     }
   };
 
-  // ── Keyboard shortcuts: Space = play/pause, Esc = stop, L = toggle loop ────
+  // ── Keyboard shortcuts: Ctrl/Cmd+F = find, Space = play/pause, Esc = stop, L = toggle loop ──
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if ((e.target as HTMLElement).tagName === 'INPUT') return;
+
+    // Ctrl/Cmd+F opens the reader's own find. The native browser bar would
+    // scroll the projected DOM instead of the canvas, so it is never what the
+    // user wants here.
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyF') {
+      e.preventDefault();
+      if (this.searchBar.visible) {
+        this.searchBar.focusInput();
+      } else {
+        this.openSearch();
+      }
+      return;
+    }
+
     if (e.code === 'Space') {
       e.preventDefault();
       if (this.state.status === 'streaming') {
@@ -733,6 +907,10 @@ class StreamReader extends Entity {
       this.scene?.markDirty();
     }
     if (e.code === 'Escape') {
+      if (this.searchBar.visible) {
+        this.closeSearch();
+        return;
+      }
       this.stopAndClear();
     }
     if (e.code === 'KeyL') {
