@@ -29,12 +29,12 @@ export class DotGridBackground extends Entity {
     drawBloom(r, this.width * 0.82, this.height * 0.12, 260, BRAND_GRADIENT.b);
     drawBloom(r, this.width * 0.1, this.height * 0.9, 220, BRAND_GRADIENT.a);
 
+    r.beginPath();
     for (let x = DOT_SPACING; x < this.width; x += DOT_SPACING) {
       for (let y = DOT_SPACING; y < this.height; y += DOT_SPACING) {
-        r.beginPath();
         r.roundRect(x - 0.5, y - 0.5, 1, 1, 0);
-        r.fill(COLOR.gridDot);
       }
     }
+    r.fill(COLOR.gridDot);
   }
 }

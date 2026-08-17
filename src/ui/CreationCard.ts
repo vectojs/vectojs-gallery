@@ -76,6 +76,7 @@ export class CreationCard extends Entity {
     private readonly creation: Creation,
     seed: number,
     private readonly onOpen: (creation: Creation) => void,
+    private readonly invalidate: () => void = () => {},
   ) {
     super(`CreationCard:${creation.id}`);
     this.width = width;
@@ -131,11 +132,15 @@ export class CreationCard extends Entity {
     this.on('hover', () => {
       this.hovered = true;
       this.springTo({ y: this.baseY - LIFT });
+      this.invalidate();
     });
     this.on('pointerleave', () => {
       this.hovered = false;
       this.springTo({ y: this.baseY });
+      this.invalidate();
     });
+    this.on('focus', this.invalidate);
+    this.on('blur', this.invalidate);
     this.on('click', () => this.onOpen(this.creation));
   }
 

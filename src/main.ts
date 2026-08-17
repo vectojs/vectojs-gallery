@@ -93,14 +93,18 @@ function initGallery(): void {
   // brand strip so the cards / creation get the width back.
   let railCollapsed = shellLayout.mode === 'medium';
   let loadSeq = 0;
+  let stopLivePump: (() => void) | null = null;
   // `undefined` (not `null`) so the very first call to loadCreation(null) —
   // the fresh-page-load, no-hash case — never short-circuits against this
   // sentinel; `null` is a legitimate `id` value (the catalog view itself),
   // so it can't double as "nothing has loaded yet".
   let activeId: string | null | undefined = undefined;
 
-  const bed = new Bed(shellLayout.contentWidth, shellLayout.contentHeight, (creation) =>
-    navigateTo(creation),
+  const bed = new Bed(
+    shellLayout.contentWidth,
+    shellLayout.contentHeight,
+    (creation) => navigateTo(creation),
+    () => scene.markDirty(),
   );
   scene.add(bed);
   // Every ported creation before Chat happened to paint an opaque full-bleed
@@ -135,6 +139,8 @@ function initGallery(): void {
   const workspaceH = (): number => shellLayout.contentHeight;
 
   const teardownCurrent = (): void => {
+    stopLivePump?.();
+    stopLivePump = null;
     if (currentPlate) {
       scene.remove(currentPlate);
       currentPlate = null;
@@ -200,6 +206,7 @@ function initGallery(): void {
 
   const showCatalog = (): void => {
     teardownCurrent();
+    scene.renderMode = 'onDemand';
     if (!bedMounted) {
       scene.add(bed);
       bedMounted = true;
@@ -269,6 +276,7 @@ function initGallery(): void {
         // creation keeps the default `always` mode set in `teardownCurrent`.
         // See forge/findings.md 2026-07-19.
         scene.renderMode = creation.continuousRedraw === false ? 'onDemand' : 'always';
+        if (creation.continuousRedraw !== false) stopLivePump = keepSceneLive(scene);
         currentPlate = new CaptionPlate(creation);
         currentPlate.x = workspaceX() + 16;
         currentPlate.setBottomAnchor(window.innerHeight - 16 - (creation.bottomInset ?? 0));
@@ -372,17 +380,6 @@ function initGallery(): void {
   const initialCreation = initialId ? (CREATIONS.find((c) => c.id === initialId) ?? null) : null;
   loadCreation(initialCreation);
 
-  // Some ported entries animate purely by mutating their own state in
-  // update() without ever calling scene.markDirty() themselves, which the
-  // core idle-throttle would otherwise starve. Forcing this unconditionally
-  // for every entry was assumed to cost nothing extra, but a canvas
-  // renderer repaints everything on any dirty frame — the real cost scales
-  // with total on-screen content, so an explicitly event-driven creation can
-  // opt out with `continuousRedraw: false`. Stream Reader deliberately opts
-  // in because its visible FPS panel is a live display-cadence monitor; its
-  // idle document repaint cost is intentional. Default to `true` (unset) so
-  // every other creation keeps today's behavior unchanged.
-  keepSceneLive(scene, () => currentCreation?.continuousRedraw !== false);
   scene.start();
 
   // Install the WASM particle kernel for the CPU simulation path. This is the

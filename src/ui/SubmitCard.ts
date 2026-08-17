@@ -15,7 +15,11 @@ const REPO_URL = 'https://github.com/vectojs/vectojs-gallery';
 export class SubmitCard extends Entity {
   private hovered = false;
 
-  constructor(width: number, height: number) {
+  constructor(
+    width: number,
+    height: number,
+    private readonly invalidate: () => void = () => {},
+  ) {
     super('SubmitCard');
     this.width = width;
     this.height = height;
@@ -23,10 +27,14 @@ export class SubmitCard extends Entity {
 
     this.on('hover', () => {
       this.hovered = true;
+      this.invalidate();
     });
     this.on('pointerleave', () => {
       this.hovered = false;
+      this.invalidate();
     });
+    this.on('focus', this.invalidate);
+    this.on('blur', this.invalidate);
     this.on('click', () => {
       window.open(REPO_URL, '_blank', 'noopener,noreferrer');
     });

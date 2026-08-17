@@ -33,7 +33,7 @@ export class AppCard extends Entity {
   constructor(
     width: number,
     private readonly app: ForgeApp,
-    onLoad: () => void,
+    private readonly invalidate: () => void = () => {},
   ) {
     super(`AppCard:${app.id}`);
     this.width = width;
@@ -47,7 +47,7 @@ export class AppCard extends Entity {
       alt: `${app.name} screenshot`,
       placeholder: COLOR.groundSunk,
       radius: 8,
-      onLoad,
+      onLoad: this.invalidate,
     });
     shot.setPosition(PADDING, PADDING);
     this.add(shot);
@@ -85,11 +85,15 @@ export class AppCard extends Entity {
     this.on('hover', () => {
       this.hovered = true;
       this.springTo({ y: this.baseY - LIFT });
+      this.invalidate();
     });
     this.on('pointerleave', () => {
       this.hovered = false;
       this.springTo({ y: this.baseY });
+      this.invalidate();
     });
+    this.on('focus', this.invalidate);
+    this.on('blur', this.invalidate);
     this.on('click', () => {
       window.open(this.app.url, '_blank', 'noopener,noreferrer');
     });

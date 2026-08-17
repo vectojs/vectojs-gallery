@@ -1,5 +1,5 @@
 import { Entity, Group, type IRenderer } from '@vectojs/core';
-import { ScrollView, Text } from '@vectojs/ui';
+import { DOCUMENT_SCROLL_PHYSICS, ScrollView, Text } from '@vectojs/ui';
 import type { Creation } from '../registry';
 import { APPS } from '../apps';
 import { DotGridBackground } from './DotGridBackground';
@@ -40,13 +40,21 @@ export class Bed extends Entity {
     width: number,
     height: number,
     private readonly onOpen: (creation: Creation) => void,
+    private readonly invalidate: () => void = () => {},
   ) {
     super('Bed');
     this.width = width;
     this.height = height;
     this.background = new DotGridBackground(width, height);
     this.add(this.background);
-    this.scroll = new ScrollView({ width, height });
+    this.scroll = new ScrollView({
+      width,
+      height,
+      scrollPhysics: DOCUMENT_SCROLL_PHYSICS,
+    });
+    for (const event of ['wheel', 'pointerdown', 'pointermove', 'pointerup'] as const) {
+      this.scroll.on(event, this.invalidate);
+    }
     this.add(this.scroll);
   }
 
@@ -156,7 +164,7 @@ export class Bed extends Entity {
         existing.resizeTo(cardW);
         return existing;
       }
-      const card = new CreationCard(cardW, creation, i + 1, this.onOpen);
+      const card = new CreationCard(cardW, creation, i + 1, this.onOpen, this.invalidate);
       this.scroll.add(card);
       return card;
     });
@@ -164,7 +172,7 @@ export class Bed extends Entity {
     const rowH = Math.max(...cards.map((c) => c.height));
     let bottom = startY;
     if (!this.submitCard) {
-      this.submitCard = new SubmitCard(cardW, rowH);
+      this.submitCard = new SubmitCard(cardW, rowH, this.invalidate);
       this.scroll.add(this.submitCard);
     }
     this.submitCard.resizeTo(cardW, rowH);
@@ -190,7 +198,7 @@ export class Bed extends Entity {
         existing.resizeTo(cardW);
         return existing;
       }
-      const card = new AppCard(cardW, app, () => this.scene?.markDirty());
+      const card = new AppCard(cardW, app, this.invalidate);
       this.scroll.add(card);
       return card;
     });
