@@ -529,6 +529,10 @@ class CanvasStudio extends Entity {
     }
   }
 
+  override hasPendingAnimations(): boolean {
+    return this.toast.t > 0 || super.hasPendingAnimations();
+  }
+
   // --- rendering -----------------------------------------------------------
 
   render(r: IRenderer): void {
