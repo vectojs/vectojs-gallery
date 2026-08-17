@@ -16,7 +16,17 @@ export interface ForgeApp {
   /** Canonical URL the card opens (and displays, sans protocol). */
   url: string;
   screenshot: string;
+  screenshotMedia: ForgeAppMedia;
   accent: Accent;
+}
+
+export type ForgeAppFit = 'cover' | 'contain';
+
+export interface ForgeAppMedia {
+  width: number;
+  height: number;
+  fit: ForgeAppFit;
+  focalPoint?: { x: number; y: number };
 }
 
 // Ordered alphabetically by `name` — the Rail and the Bed's "Built on VectoJS"
@@ -29,6 +39,12 @@ export const APPS: ForgeApp[] = [
       'A canvas-native danmaku playground and stress bench — 5,000 concurrent comments on a slate console.',
     url: 'https://bakudan.vectojs.org',
     screenshot: '/apps/bakudan.webp',
+    screenshotMedia: {
+      width: 720,
+      height: 450,
+      fit: 'cover',
+      focalPoint: { x: 0.5, y: 0.5 },
+    },
     accent: { a: '#38bdf8', b: '#818cf8', glow: '#38bdf8' },
   },
   {
@@ -38,6 +54,12 @@ export const APPS: ForgeApp[] = [
       'A local-first vector design editor — pages, frames, shapes, and selection on an infinite canvas.',
     url: 'https://brings-website.vectojs.org',
     screenshot: '/apps/brings.webp',
+    screenshotMedia: {
+      width: 1440,
+      height: 780,
+      fit: 'cover',
+      focalPoint: { x: 0.5, y: 0.5 },
+    },
     accent: { a: '#6d5ef2', b: '#a78bfa', glow: '#7c5cff' },
   },
   {
@@ -47,6 +69,12 @@ export const APPS: ForgeApp[] = [
       'The component and effect gallery — every @vectojs/ui component demoed live, with source.',
     url: 'https://motif.vectojs.org',
     screenshot: '/apps/motif.webp',
+    screenshotMedia: {
+      width: 1440,
+      height: 780,
+      fit: 'cover',
+      focalPoint: { x: 0.5, y: 0.5 },
+    },
     accent: { a: '#d97757', b: '#f2b880', glow: '#d97757' },
   },
   {
@@ -58,6 +86,12 @@ export const APPS: ForgeApp[] = [
     // this to the canonical domain once it resolves.
     url: 'https://numera-website.pages.dev',
     screenshot: '/apps/numera.webp',
+    screenshotMedia: {
+      width: 1440,
+      height: 780,
+      fit: 'cover',
+      focalPoint: { x: 0.5, y: 0.45 },
+    },
     accent: { a: '#2563eb', b: '#7dd3fc', glow: '#3b82f6' },
   },
   {
@@ -67,6 +101,12 @@ export const APPS: ForgeApp[] = [
       'An interactive 3D map of the Kubernetes resource model, rendered with @vectojs/graph3d.',
     url: 'https://unisol.vectojs.org',
     screenshot: '/apps/unisol.webp',
+    screenshotMedia: {
+      width: 1440,
+      height: 780,
+      fit: 'cover',
+      focalPoint: { x: 0.5, y: 0.5 },
+    },
     accent: { a: '#155e75', b: '#22d3ee', glow: '#06b6d4' },
   },
   {
@@ -76,6 +116,12 @@ export const APPS: ForgeApp[] = [
       'A canvas-native Vim-style modal editor — buffers, splits, a file explorer, and a plugin lab.',
     url: 'https://vem.run',
     screenshot: '/apps/vem.webp',
+    screenshotMedia: {
+      width: 1440,
+      height: 780,
+      fit: 'cover',
+      focalPoint: { x: 0.5, y: 0.5 },
+    },
     accent: { a: '#334155', b: '#60a5fa', glow: '#3b82f6' },
   },
 ];
