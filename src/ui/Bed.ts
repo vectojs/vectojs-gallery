@@ -17,6 +17,28 @@ const PADDING = 32;
 const SECTION_GAP = 40;
 const BOTTOM_PAD = 56;
 
+export function layoutCardRows<T extends Entity>(
+  cells: T[],
+  columns: number,
+  cardWidth: number,
+  startY: number,
+  setRowHeight: (cell: T, height: number) => void,
+): number {
+  let bottom = startY;
+  let rowY = startY;
+  for (let rowStart = 0; rowStart < cells.length; rowStart += columns) {
+    const row = cells.slice(rowStart, rowStart + columns);
+    const rowHeight = Math.max(...row.map((cell) => cell.height));
+    row.forEach((cell, column) => {
+      setRowHeight(cell, rowHeight);
+      cell.setPosition(PADDING + column * (cardWidth + GAP), rowY);
+    });
+    bottom = rowY + rowHeight;
+    rowY = bottom + GAP;
+  }
+  return bottom + GAP;
+}
+
 /**
  * The scrollable hub surface: hero masthead, the creations grid (with the
  * submit CTA as its last cell), and the "Built on VectoJS" forge-app cards —
@@ -169,22 +191,17 @@ export class Bed extends Entity {
       return card;
     });
     this.creationCards = cards;
-    const rowH = Math.max(...cards.map((c) => c.height));
-    let bottom = startY;
+    const submitHeight = Math.max(...cards.map((card) => card.height));
     if (!this.submitCard) {
-      this.submitCard = new SubmitCard(cardW, rowH, this.invalidate);
+      this.submitCard = new SubmitCard(cardW, submitHeight, this.invalidate);
       this.scroll.add(this.submitCard);
     }
-    this.submitCard.resizeTo(cardW, rowH);
+    this.submitCard.resizeTo(cardW, submitHeight);
     const cells: Entity[] = [...cards, this.submitCard];
-    cells.forEach((cell, i) => {
-      if (cell instanceof CreationCard) cell.setUniformHeight(rowH);
-      const col = i % columns;
-      const row = Math.floor(i / columns);
-      cell.setPosition(PADDING + col * (cardW + GAP), startY + row * (rowH + GAP));
-      bottom = Math.max(bottom, startY + row * (rowH + GAP) + rowH);
+    return layoutCardRows(cells, columns, cardW, startY, (cell, rowHeight) => {
+      if (cell instanceof CreationCard) cell.setUniformHeight(rowHeight);
+      else if (cell instanceof SubmitCard) cell.resizeTo(cardW, rowHeight);
     });
-    return bottom + GAP;
   }
 
   /** Lays out the forge-app cards; returns the next free Y. */
@@ -203,16 +220,9 @@ export class Bed extends Entity {
       return card;
     });
     this.appCards = cards;
-    const rowH = Math.max(...cards.map((c) => c.height));
-    let bottom = startY;
-    cards.forEach((card, i) => {
-      card.setUniformHeight(rowH);
-      const col = i % columns;
-      const row = Math.floor(i / columns);
-      card.setPosition(PADDING + col * (cardW + GAP), startY + row * (rowH + GAP));
-      bottom = Math.max(bottom, startY + row * (rowH + GAP) + rowH);
+    return layoutCardRows(cards, columns, cardW, startY, (card, rowHeight) => {
+      card.setUniformHeight(rowHeight);
     });
-    return bottom + GAP;
   }
 
   override isPointInside(_globalX: number, _globalY: number): boolean {
