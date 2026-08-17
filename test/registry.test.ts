@@ -13,4 +13,9 @@ describe('creation registry', () => {
     const sorted = [...titles].sort((a, b) => a.localeCompare(b));
     expect(titles).toEqual(sorted);
   });
+
+  test('Stream Reader stays on the continuous display-cadence pump', () => {
+    const chat = CREATIONS.find((creation) => creation.id === 'chat');
+    expect(chat?.continuousRedraw).toBe(true);
+  });
 });

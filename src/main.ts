@@ -152,9 +152,8 @@ function initGallery(): void {
       currentStage = null;
     }
     currentCreation = null;
-    // Restore the defaults every creation but `chat` relies on (see the
-    // `renderMode = 'onDemand'` assignment in `loadCreation` below) before
-    // whatever mounts next gets a chance to run.
+    // Restore shell defaults before whatever mounts next gets a chance to run.
+    // A creation may have switched the shared Scene to `onDemand` below.
     //
     // `maxFPS` is restored here rather than by the creation that changed it:
     // `nexus` exposes a max-FPS dropdown that writes the shared Scene, and
@@ -358,12 +357,11 @@ function initGallery(): void {
   // core idle-throttle would otherwise starve. Forcing this unconditionally
   // for every entry was assumed to cost nothing extra, but a canvas
   // renderer repaints everything on any dirty frame — the real cost scales
-  // with total on-screen content, so for a content-heavy creation that
-  // already calls scene.markDirty() itself whenever it actually needs to
-  // redraw (see the `chat` registry entry's `continuousRedraw: false`),
-  // forcing it forever wastes real per-frame cost once the content is fully
-  // loaded and idle (see forge/findings.md 2026-07-19). Default to `true`
-  // (unset) so every other creation keeps today's behavior unchanged.
+  // with total on-screen content, so an explicitly event-driven creation can
+  // opt out with `continuousRedraw: false`. Stream Reader deliberately opts
+  // in because its visible FPS panel is a live display-cadence monitor; its
+  // idle document repaint cost is intentional. Default to `true` (unset) so
+  // every other creation keeps today's behavior unchanged.
   keepSceneLive(scene, () => currentCreation?.continuousRedraw !== false);
   scene.start();
 
