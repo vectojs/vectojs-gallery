@@ -22,6 +22,7 @@ import type { IRenderer } from '@vectojs/core';
 import { Card, Text } from '@vectojs/ui';
 import { WARM, FONT, DEMO_CARDS } from './shared/theme';
 import { BACK_CHIP_X, BACK_CHIP_Y } from './shared/chrome';
+import { AsyncGeneration } from './shared/async-generation';
 
 const GRID_MAX_WIDTH = 940;
 const GRID_TOP = 148;
@@ -55,7 +56,7 @@ class ComparePretext extends Entity {
   private H = 0;
   private launcher: Group;
   private activeDemo: Entity | null = null;
-  private loadSeq = 0;
+  private readonly asyncGeneration = new AsyncGeneration();
   private backChip: Card;
 
   constructor() {
@@ -77,6 +78,11 @@ class ComparePretext extends Entity {
       radius: 17,
       label: 'Back to all demos',
       onClick: () => this.closeDemo(),
+    });
+    this.backChip.getA11yAttributes = () => ({
+      tag: 'button',
+      role: 'button',
+      label: 'Back to all demos',
     });
     const backLabel = new Text('← All demos', {
       font: FONT.sans(13, 600),
@@ -125,6 +131,11 @@ class ComparePretext extends Entity {
         radius: CARD_RADIUS,
         label: card.title,
         onClick: built ? () => void this.openDemo(card.id) : undefined,
+      });
+      tile.getA11yAttributes = () => ({
+        tag: 'button',
+        role: 'button',
+        label: card.title,
       });
       tile.opacity = built ? 1 : 0.55;
       const title = new Text(card.title, {
@@ -198,9 +209,9 @@ class ComparePretext extends Entity {
   private async openDemo(id: string): Promise<void> {
     const loader = LOADERS[id];
     if (!loader) return;
-    const seq = ++this.loadSeq;
+    const generation = this.asyncGeneration.next();
     const { default: DemoClass } = await loader();
-    if (seq !== this.loadSeq) return;
+    if (!this.asyncGeneration.isCurrent(generation)) return;
 
     this.launcher.opacity = 0;
     this.launcher.setPosition(-100000, -100000); // park off-tree so its Cards stop being hit-testable while a demo is open
@@ -219,7 +230,7 @@ class ComparePretext extends Entity {
       this.remove(this.activeDemo);
       this.activeDemo = null;
     }
-    this.loadSeq++;
+    this.asyncGeneration.next();
     this.remove(this.backChip);
     this.backChip.opacity = 0;
     this.launcher.opacity = 1;
@@ -228,6 +239,7 @@ class ComparePretext extends Entity {
   }
 
   override destroy(): void {
+    this.asyncGeneration.destroy();
     this.activeDemo?.destroy();
     super.destroy();
   }

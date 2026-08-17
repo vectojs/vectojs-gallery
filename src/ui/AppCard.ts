@@ -1,53 +1,94 @@
-import { Entity, type IRenderer } from '@vectojs/core';
+import { type A11yAttributes, type IRenderer } from '@vectojs/core';
 import { Image, Text } from '@vectojs/ui';
 import type { ForgeApp } from '../apps';
 import { displayUrl } from '../apps';
 import { clampTextToLines } from './clamp';
+import { EditorialCard } from './EditorialCard';
 import { COLOR, FONT } from './tokens';
 
 const PADDING = 14;
-const CARD_RADIUS = 14;
-const LIFT = 8;
 const SHOT_RATIO = 9 / 16;
 
-function clamp01(v: number): number {
-  return Math.max(0, Math.min(1, v));
+export interface AppMediaFrame {
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+}
+
+export function getAppMediaFrame(
+  media: ForgeApp['screenshotMedia'],
+  frameWidth: number,
+  frameHeight: number,
+): AppMediaFrame {
+  if (media.fit === 'contain') {
+    const scale = Math.min(frameWidth / media.width, frameHeight / media.height);
+    return {
+      width: media.width * scale,
+      height: media.height * scale,
+      x: (frameWidth - media.width * scale) / 2,
+      y: (frameHeight - media.height * scale) / 2,
+    };
+  }
+
+  const scale = Math.max(frameWidth / media.width, frameHeight / media.height);
+  const width = media.width * scale;
+  const height = media.height * scale;
+  const focal = media.focalPoint ?? { x: 0.5, y: 0.5 };
+  const cropX = Math.max(0, Math.min(width - frameWidth, width * focal.x - frameWidth / 2));
+  const cropY = Math.max(0, Math.min(height - frameHeight, height * focal.y - frameHeight / 2));
+  return { width, height, x: -cropX, y: -cropY };
 }
 
 /**
  * A "Built on VectoJS" card: live-deployment screenshot, app name, canonical
  * domain, and a short tagline. The whole card is clickable and opens the
  * app's canonical URL in a new tab — forge apps are linked, never embedded.
- * Shares CreationCard's hover language (spring lift + accent glow) so the two
+ * Shares CreationCard's fixed shell and inner-media hover language so the two
  * tiers read as one family.
  */
-export class AppCard extends Entity {
-  private hovered = false;
-  private baseY = 0;
-  private readonly shotH: number;
+export class AppCard extends EditorialCard {
+  private shotH: number;
+  private readonly shot: Image;
+  private readonly appName: Text;
+  private readonly tagline: Text;
   private readonly urlText: Text;
+  private readonly media: ForgeApp['screenshotMedia'];
 
   constructor(
     width: number,
     private readonly app: ForgeApp,
-    onLoad: () => void,
+    invalidate: () => void = () => {},
   ) {
-    super(`AppCard:${app.id}`);
+    super(
+      `AppCard:${app.id}`,
+      app.accent,
+      (event) => {
+        const currentTarget = (event as { nativeEvent?: { currentTarget?: { tagName?: string } } })
+          .nativeEvent?.currentTarget;
+        if (currentTarget?.tagName === 'A') return;
+        window.open(app.url, '_blank', 'noopener,noreferrer');
+      },
+      invalidate,
+    );
     this.width = width;
-    this.interactive = true;
+    this.media = app.screenshotMedia;
 
     const shotW = width - PADDING * 2;
     this.shotH = Math.round(shotW * SHOT_RATIO);
+    const imageFrame = getAppMediaFrame(this.media, shotW, this.shotH);
     const shot = new Image(app.screenshot, {
-      width: shotW,
-      height: this.shotH,
+      width: imageFrame.width,
+      height: imageFrame.height,
       alt: `${app.name} screenshot`,
       placeholder: COLOR.groundSunk,
       radius: 8,
-      onLoad,
+      onLoad: invalidate,
     });
-    shot.setPosition(PADDING, PADDING);
-    this.add(shot);
+    this.mountMedia(shot);
+    this.resizeMediaFrame(PADDING, PADDING, shotW, this.shotH);
+    shot.setPosition(imageFrame.x, imageFrame.y);
+    this.shot = shot;
 
     const nameY = PADDING + this.shotH + 16;
     const name = new Text(app.name, {
@@ -56,6 +97,7 @@ export class AppCard extends Entity {
     });
     name.setPosition(PADDING, nameY);
     this.add(name);
+    this.appName = name;
 
     this.urlText = new Text(`${displayUrl(app.url)} ↗`, {
       font: FONT.mono(10),
@@ -73,26 +115,26 @@ export class AppCard extends Entity {
     clampTextToLines(tagline, app.tagline, 2);
     tagline.setPosition(PADDING, nameY + name.height + 8);
     this.add(tagline);
+    this.tagline = tagline;
 
     this.height = nameY + name.height + 8 + tagline.height + PADDING + 4;
-
-    this.on('hover', () => {
-      this.hovered = true;
-      this.springTo({ y: this.baseY - LIFT });
-    });
-    this.on('pointerleave', () => {
-      this.hovered = false;
-      this.springTo({ y: this.baseY });
-    });
-    this.on('click', () => {
-      window.open(this.app.url, '_blank', 'noopener,noreferrer');
-    });
   }
 
-  /** See CreationCard.setPosition — capture the laid-out Y as the spring's rest. */
-  override setPosition(x: number, y: number): this {
-    this.baseY = y;
-    return super.setPosition(x, y);
+  resizeTo(width: number): void {
+    this.width = width;
+    const shotW = width - PADDING * 2;
+    this.shotH = Math.round(shotW * SHOT_RATIO);
+    const imageFrame = getAppMediaFrame(this.media, shotW, this.shotH);
+    this.shot.width = imageFrame.width;
+    this.shot.height = imageFrame.height;
+    this.shot.setPosition(imageFrame.x, imageFrame.y);
+    this.resizeMediaFrame(PADDING, PADDING, shotW, this.shotH);
+    this.appName.setPosition(PADDING, PADDING + this.shotH + 16);
+    this.urlText.setPosition(width - PADDING - this.urlText.width, this.appName.y + 4);
+    this.tagline.setMaxWidth(width - PADDING * 2);
+    clampTextToLines(this.tagline, this.app.tagline, 2);
+    this.tagline.setPosition(PADDING, this.appName.y + this.appName.height + 8);
+    this.height = this.appName.y + this.appName.height + 8 + this.tagline.height + PADDING + 4;
   }
 
   /** Bottom-aligns metadata when the grid stretches this card taller than natural. */
@@ -100,52 +142,17 @@ export class AppCard extends Entity {
     this.height = h;
   }
 
-  override isPointInside(globalX: number, globalY: number): boolean {
-    const local = this.worldToLocal(globalX, globalY);
-    if (!local) return false;
-    return local.x >= 0 && local.x <= this.width && local.y >= 0 && local.y <= this.height;
+  override getA11yAttributes(): A11yAttributes {
+    return {
+      tag: 'a',
+      role: 'link',
+      label: `Open ${this.app.name}`,
+      href: this.app.url,
+      target: '_blank',
+    };
   }
 
   override render(r: IRenderer): void {
-    const t = clamp01((this.baseY - this.y) / LIFT);
-
-    if (t > 0.01) {
-      const layers = 4;
-      for (let i = layers; i >= 1; i--) {
-        const spread = 6 + i * 5;
-        r.setGlobalAlpha(0.05 * t);
-        r.beginPath();
-        r.roundRect(
-          -spread,
-          -spread,
-          this.width + spread * 2,
-          this.height + spread * 2,
-          CARD_RADIUS + spread,
-        );
-        r.fill(this.app.accent.glow);
-      }
-      r.setGlobalAlpha(1);
-    }
-
-    r.beginPath();
-    r.roundRect(0, 0, this.width, this.height, CARD_RADIUS);
-    r.fill(this.hovered ? COLOR.groundSunk : COLOR.groundRaised);
-    r.stroke(t > 0.01 ? COLOR.ruleBright : COLOR.rule, 1);
-
-    // Hairline frame over the screenshot so light app UIs don't bleed into
-    // the card ground, plus the accent rule under it (family trait shared
-    // with CreationCard).
-    r.beginPath();
-    r.roundRect(PADDING, PADDING, this.width - PADDING * 2, this.shotH, 8);
-    r.stroke(COLOR.rule, 1);
-
-    const barY = PADDING + this.shotH + 6;
-    const barGrad = r.createLinearGradient(PADDING, barY, this.width - PADDING, barY, [
-      { stop: 0, color: this.app.accent.a },
-      { stop: 1, color: this.app.accent.b },
-    ]);
-    r.beginPath();
-    r.roundRect(PADDING, barY, this.width - PADDING * 2, 3, 1.5);
-    r.fill(barGrad);
+    super.render(r);
   }
 }

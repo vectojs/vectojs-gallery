@@ -18,4 +18,27 @@ describe('creation registry', () => {
     const chat = CREATIONS.find((creation) => creation.id === 'chat');
     expect(chat?.continuousRedraw).toBe(true);
   });
+
+  test('representative creations expose stable intrinsic previews', () => {
+    const expectedIds = ['studio', 'dimension', 'catch', 'nexus', 'compare-pretext', 'chat'];
+    const previews = new Map(CREATIONS.map((creation) => [creation.id, creation.preview]));
+
+    for (const id of expectedIds) {
+      const preview = previews.get(id);
+      expect(preview).toBeDefined();
+      expect(preview?.src).toBe(`/previews/${id}.svg`);
+      expect(preview?.width).toBeGreaterThan(0);
+      expect(preview?.height).toBeGreaterThan(0);
+      expect(preview?.alt.length).toBeGreaterThan(10);
+    }
+  });
+
+  test('preview identity is keyed by creation id, not registry position', () => {
+    const reordered = [...CREATIONS].reverse();
+    const byId = new Map(CREATIONS.map((creation) => [creation.id, creation.preview?.src]));
+
+    for (const creation of reordered) {
+      expect(creation.preview?.src).toBe(byId.get(creation.id));
+    }
+  });
 });

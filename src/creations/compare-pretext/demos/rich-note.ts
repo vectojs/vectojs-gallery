@@ -17,7 +17,7 @@
  */
 
 import { Entity, type A11yAttributes, type IRenderer } from '@vectojs/core';
-import { Card, RichText } from '@vectojs/ui';
+import { Card, RichText, Slider } from '@vectojs/ui';
 import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from '../shared/chrome';
 import { FONT, WARM } from '../shared/theme';
 import { clearChipRasterCache } from './rich-note-chips';
@@ -36,6 +36,14 @@ const BODY_LINE_HEIGHT = 34;
 
 const SLIDER_TRACK_MAX = 260;
 
+class WidthSlider extends Slider {
+  override getA11yAttributes(): A11yAttributes {
+    return { ...super.getA11yAttributes(), pointerEvents: 'none' };
+  }
+
+  override render(): void {}
+}
+
 export class RichNoteDemo extends Entity {
   private W = 0;
   private H = 0;
@@ -46,6 +54,20 @@ export class RichNoteDemo extends Entity {
   private dragging = false;
   private sliderTrackX = PAGE_MARGIN + 320;
   private sliderTrackW = SLIDER_TRACK_MAX;
+  private readonly widthSlider = new WidthSlider({
+    min: BODY_MIN_WIDTH,
+    max: BODY_MAX_WIDTH,
+    value: BODY_DEFAULT_WIDTH,
+    step: 1,
+    label: 'Text width',
+    width: SLIDER_TRACK_MAX,
+    height: 24,
+    onChange: (value: number) => {
+      this.requestedWidth = value;
+      this.applyWidth();
+      this.scene?.markDirty();
+    },
+  });
 
   constructor() {
     super('RichNoteDemo');
@@ -72,6 +94,7 @@ export class RichNoteDemo extends Entity {
     // together; keeping them as siblings previously let them desync.
     this.noteCard.add(this.body);
     this.add(this.noteCard);
+    this.add(this.widthSlider);
 
     this.interactive = true;
     // `localX`/`localY` are already entity-local — the engine resolves them for
@@ -124,6 +147,7 @@ export class RichNoteDemo extends Entity {
     const t = Math.max(0, Math.min(1, (localX - this.sliderTrackX) / this.sliderTrackW));
     const max = this.maxBodyWidthFor(this.W);
     this.requestedWidth = Math.round(BODY_MIN_WIDTH + t * (max - BODY_MIN_WIDTH));
+    this.widthSlider.value = this.requestedWidth;
     this.applyWidth();
     this.scene?.markDirty();
   }
@@ -160,6 +184,10 @@ export class RichNoteDemo extends Entity {
     this.height = height;
     this.sliderTrackX = PAGE_MARGIN + 320;
     this.sliderTrackW = Math.min(SLIDER_TRACK_MAX, Math.max(140, width - this.sliderTrackX - 40));
+    this.widthSlider.setPosition(this.sliderTrackX, HEADER_TITLE_Y - 16);
+    this.widthSlider.width = this.sliderTrackW;
+    this.widthSlider.max = this.maxBodyWidthFor(width);
+    this.widthSlider.value = Math.min(this.widthSlider.max, this.bodyWidth);
     this.applyWidth();
   }
 

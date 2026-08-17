@@ -15,6 +15,7 @@ import { Entity, type IRenderer } from '@vectojs/core';
 import { DARK, FONT as UIFONT } from '../shared/theme';
 import { CONTENT_TOP, drawDemoHeader } from '../shared/chrome';
 import { LinePool, type PooledLine } from '../shared/LinePool';
+import { advanceFixedSteps, PHYSICS_STEP_MS } from '../shared/timing';
 
 const COLS = 44;
 const ROWS = 26;
@@ -82,6 +83,7 @@ class VariableTypographicAsciiDemo extends Entity {
   private largeStamp!: FieldStamp;
   private smallStamp!: FieldStamp;
   private time = 0;
+  private physicsRemainder = 0;
   // reusable per-frame cell buffers (avoid per-frame allocation)
   private monoGrid: string[] = Array.from({ length: COLS * ROWS }, () => ' ');
   private propGrid: (PaletteEntry | null)[] = Array.from({ length: COLS * ROWS }, () => null);
@@ -254,9 +256,8 @@ class VariableTypographicAsciiDemo extends Entity {
     return true; // continuously animated swarm
   }
 
-  update(dt: number): void {
-    super.update(dt, 0);
-    this.time += dt;
+  private stepPhysics(): void {
+    this.time += PHYSICS_STEP_MS;
     const now = this.time;
     const a1x = Math.cos(now * 0.0007) * SIM_W * 0.25 + SIM_W / 2;
     const a1y = Math.sin(now * 0.0011) * SIM_H * 0.3 + SIM_H / 2;
@@ -290,6 +291,11 @@ class VariableTypographicAsciiDemo extends Entity {
     for (const p of this.particles) this.splat(p.x, p.y, this.particleStamp);
     this.splat(a1x, a1y, this.largeStamp);
     this.splat(a2x, a2y, this.smallStamp);
+  }
+
+  update(dt: number, time: number): void {
+    super.update(dt, time);
+    this.physicsRemainder = advanceFixedSteps(this.physicsRemainder, dt, () => this.stepPhysics());
 
     // downsample field → grids
     for (let row = 0; row < ROWS; row++) {

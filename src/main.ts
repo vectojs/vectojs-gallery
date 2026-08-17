@@ -3,14 +3,15 @@ import { coreWasmUrl } from '@vectojs/core/wasm';
 import { CREATIONS, type Creation } from './registry';
 import { APPS } from './apps';
 import { Bed } from './ui/Bed';
-import { Rail, COLLAPSED_RAIL_WIDTH } from './ui/Rail';
+import { Rail } from './ui/Rail';
 import { CaptionPlate } from './ui/CaptionPlate';
 import { Stage } from './ui/Stage';
 import { BackChip } from './ui/BackChip';
 import { keepSceneLive } from './keep-live';
 import { GALLERY_SCENE_OPTIONS, SHELL_MAX_FPS } from './shell-config';
-
-const RAIL_WIDTH = 280;
+import { FULL_RAIL_WIDTH, getShellLayout, type ShellLayout } from './ui/shell-layout';
+import { CreationLoadCoordinator } from './creation-loader';
+import { CreationStatus } from './ui/CreationStatus';
 
 const HASH_PREFIX = '#/creation/';
 
@@ -88,19 +89,21 @@ function initGallery(): void {
   let currentPlate: CaptionPlate | null = null;
   let currentStage: Stage | null = null;
   let currentBackChip: BackChip | null = null;
+  let currentStatus: CreationStatus | null = null;
   let currentCreation: Creation | null = null;
+  let shellLayout: ShellLayout = getShellLayout(window.innerWidth, window.innerHeight);
   // Catalog + creation views both let the user collapse the rail to a thin
   // brand strip so the cards / creation get the width back.
-  let railCollapsed = false;
-  let loadSeq = 0;
-  // `undefined` (not `null`) so the very first call to loadCreation(null) —
-  // the fresh-page-load, no-hash case — never short-circuits against this
-  // sentinel; `null` is a legitimate `id` value (the catalog view itself),
-  // so it can't double as "nothing has loaded yet".
-  let activeId: string | null | undefined = undefined;
+  let railCollapsed = shellLayout.mode === 'medium';
+  let stopLivePump: (() => void) | null = null;
+  let hasNavigated = false;
+  const creationLoader = new CreationLoadCoordinator<Awaited<ReturnType<Creation['load']>>>();
 
-  const bed = new Bed(window.innerWidth - RAIL_WIDTH, window.innerHeight, (creation) =>
-    navigateTo(creation),
+  const bed = new Bed(
+    shellLayout.contentWidth,
+    shellLayout.contentHeight,
+    (creation) => navigateTo(creation),
+    () => scene.markDirty(),
   );
   scene.add(bed);
   // Every ported creation before Chat happened to paint an opaque full-bleed
@@ -112,7 +115,7 @@ function initGallery(): void {
   let bedMounted = true;
 
   const rail = new Rail(
-    RAIL_WIDTH,
+    FULL_RAIL_WIDTH,
     window.innerHeight,
     CREATIONS,
     APPS,
@@ -129,11 +132,14 @@ function initGallery(): void {
   // that don't override it.
   // Workspace origin/width depend on whether the rail is collapsed to its thin
   // brand strip.
-  const railWidth = (): number => (railCollapsed ? COLLAPSED_RAIL_WIDTH : RAIL_WIDTH);
-  const workspaceX = (): number => railWidth();
-  const workspaceW = (): number => window.innerWidth - railWidth();
+  const workspaceX = (): number => shellLayout.contentX;
+  const workspaceY = (): number => shellLayout.contentY;
+  const workspaceW = (): number => shellLayout.contentWidth;
+  const workspaceH = (): number => shellLayout.contentHeight;
 
   const teardownCurrent = (): void => {
+    stopLivePump?.();
+    stopLivePump = null;
     if (currentPlate) {
       scene.remove(currentPlate);
       currentPlate = null;
@@ -141,6 +147,11 @@ function initGallery(): void {
     if (currentBackChip) {
       scene.remove(currentBackChip);
       currentBackChip = null;
+    }
+    if (currentStatus) {
+      currentStatus.destroy();
+      scene.remove(currentStatus);
+      currentStatus = null;
     }
     if (currentEntity) {
       currentEntity.destroy();
@@ -181,21 +192,25 @@ function initGallery(): void {
       // Clip only the portion that actually overlaps the rail: a creation-
       // owned canvas already positioned at the workspace offset (e.g.
       // Dimension's Three.js canvas) must NOT lose its left edge.
-      const overlap = railWidth() - el.getBoundingClientRect().left;
-      el.style.clipPath = overlap > 0 ? `inset(0 0 0 ${overlap}px)` : '';
+      const rect = el.getBoundingClientRect();
+      const overlapX = Math.max(0, shellLayout.contentX - rect.left);
+      const overlapY = Math.max(0, shellLayout.contentY - rect.top);
+      el.style.clipPath =
+        overlapX > 0 || overlapY > 0 ? `inset(${overlapY}px 0 0 ${overlapX}px)` : '';
     }
   };
 
   // Positions + sizes the catalog Bed to the current workspace band (right of
   // whatever width the rail currently occupies).
   const layoutBed = (): void => {
-    bed.setPosition(railWidth(), 0);
-    bed.resize(workspaceW(), window.innerHeight, CREATIONS);
+    bed.setPosition(workspaceX(), workspaceY());
+    bed.resize(workspaceW(), workspaceH(), CREATIONS);
   };
   layoutBed();
 
   const showCatalog = (): void => {
     teardownCurrent();
+    scene.renderMode = 'onDemand';
     if (!bedMounted) {
       scene.add(bed);
       bedMounted = true;
@@ -209,6 +224,9 @@ function initGallery(): void {
   const setRailCollapsed = (collapsed: boolean): void => {
     if (railCollapsed === collapsed) return;
     railCollapsed = collapsed;
+    shellLayout = collapsed
+      ? getShellLayout(window.innerWidth, window.innerHeight, 'medium')
+      : getShellLayout(window.innerWidth, window.innerHeight);
     if (bedMounted) {
       layoutBed();
     } else {
@@ -218,14 +236,14 @@ function initGallery(): void {
     scene.markDirty();
   };
 
-  const loadCreation = (creation: Creation | null): void => {
+  const loadCreation = (creation: Creation | null, retry = false): void => {
     const id = creation?.id ?? null;
-    if (id === activeId) return;
-    activeId = id;
-
-    const seq = ++loadSeq;
+    const state = creationLoader.state;
+    if (!retry && hasNavigated && id === (state.kind === 'catalog' ? null : state.id)) return;
+    hasNavigated = true;
 
     if (!creation) {
+      creationLoader.showCatalog();
       showCatalog();
       return;
     }
@@ -239,17 +257,33 @@ function initGallery(): void {
     // Dark backdrop behind the creation (see Stage). Added before the creation
     // entity so it always paints behind it; sized to the workspace area right
     // of the rail.
-    currentStage = new Stage(workspaceW(), window.innerHeight, creation.stage);
-    currentStage.setPosition(workspaceX(), 0);
+    currentStage = new Stage(workspaceW(), workspaceH(), creation.stage);
+    currentStage.setPosition(workspaceX(), workspaceY());
     scene.add(currentStage);
 
-    creation
-      .load()
-      .then(({ default: EntityClass }) => {
-        if (seq !== loadSeq) return; // superseded by a later selection
+    currentStatus = new CreationStatus(workspaceW(), workspaceH(), creation, () => {
+      loadCreation(creation, true);
+    });
+    currentStatus.setPosition(workspaceX(), workspaceY());
+    scene.add(currentStatus);
+
+    currentBackChip = new BackChip(() => navigateTo(null));
+    currentBackChip.setPosition(workspaceX() + 16, workspaceY() + 16);
+    scene.add(currentBackChip);
+    scene.renderMode = 'onDemand';
+    scene.markDirty();
+
+    void creationLoader.load(creation.id, creation.load).then((outcome) => {
+      if (outcome.kind === 'loaded') {
+        const { default: EntityClass } = outcome.value;
+        if (currentStatus) {
+          currentStatus.destroy();
+          scene.remove(currentStatus);
+          currentStatus = null;
+        }
         currentEntity = new EntityClass();
-        currentEntity.setPosition(workspaceX(), 0);
-        applySize(currentEntity, workspaceW(), window.innerHeight);
+        currentEntity.setPosition(workspaceX(), workspaceY());
+        applySize(currentEntity, workspaceW(), workspaceH());
         scene.add(currentEntity);
 
         currentCreation = creation;
@@ -262,14 +296,18 @@ function initGallery(): void {
         // creation keeps the default `always` mode set in `teardownCurrent`.
         // See forge/findings.md 2026-07-19.
         scene.renderMode = creation.continuousRedraw === false ? 'onDemand' : 'always';
+        if (creation.continuousRedraw !== false) stopLivePump = keepSceneLive(scene);
         currentPlate = new CaptionPlate(creation);
         currentPlate.x = workspaceX() + 16;
         currentPlate.setBottomAnchor(window.innerHeight - 16 - (creation.bottomInset ?? 0));
         scene.add(currentPlate);
 
-        currentBackChip = new BackChip(() => navigateTo(null));
-        currentBackChip.setPosition(workspaceX() + 16, 16);
-        scene.add(currentBackChip);
+        // Keep Back above creation-owned content after it was usable throughout
+        // the pending import.
+        if (currentBackChip) {
+          scene.remove(currentBackChip);
+          scene.add(currentBackChip);
+        }
 
         // Lazily-created GPU canvases appear after the entity's first frame.
         clipStackedCanvases();
@@ -277,11 +315,13 @@ function initGallery(): void {
         setTimeout(clipStackedCanvases, 600);
 
         scene.markDirty();
-      })
-      .catch((err: unknown) => {
-        if (seq !== loadSeq) return;
-        console.error(`Failed to load creation "${creation.id}":`, err);
-      });
+        return;
+      }
+      if (outcome.kind === 'failed') {
+        console.error(`Failed to load creation "${creation.id}":`, outcome.error);
+        currentStatus?.setFailed();
+      }
+    });
   };
 
   // Reposition + resize the mounted creation, its Stage backdrop, and the
@@ -289,16 +329,20 @@ function initGallery(): void {
   // Used by the rail-collapse toggle.
   function layoutWorkspaceEntity(): void {
     if (currentStage) {
-      currentStage.setPosition(workspaceX(), 0);
+      currentStage.setPosition(workspaceX(), workspaceY());
       currentStage.width = workspaceW();
-      currentStage.height = window.innerHeight;
+      currentStage.height = workspaceH();
     }
     if (currentEntity) {
-      currentEntity.setPosition(workspaceX(), 0);
-      applySize(currentEntity, workspaceW(), window.innerHeight);
+      currentEntity.setPosition(workspaceX(), workspaceY());
+      applySize(currentEntity, workspaceW(), workspaceH());
+    }
+    if (currentStatus) {
+      currentStatus.setPosition(workspaceX(), workspaceY());
+      currentStatus.resizeTo(workspaceW(), workspaceH());
     }
     if (currentPlate) currentPlate.x = workspaceX() + 16;
-    if (currentBackChip) currentBackChip.setPosition(workspaceX() + 16, 16);
+    if (currentBackChip) currentBackChip.setPosition(workspaceX() + 16, workspaceY() + 16);
   }
 
   const setHash = (id: string | null): void => {
@@ -319,17 +363,27 @@ function initGallery(): void {
     const H = window.innerHeight;
     scene.resize(W, H);
 
-    rail.height = H;
-    bed.setPosition(railWidth(), 0);
-    bed.resize(workspaceW(), H, CREATIONS);
+    shellLayout = getShellLayout(W, H);
+    if (shellLayout.mode !== 'compact') {
+      railCollapsed = shellLayout.mode === 'medium';
+      rail.setCollapsed(railCollapsed);
+    }
+    rail.setCompact(shellLayout.mode === 'compact', W, H);
+    bed.setPosition(workspaceX(), workspaceY());
+    bed.resize(workspaceW(), workspaceH(), CREATIONS);
 
     if (currentStage) {
-      currentStage.setPosition(workspaceX(), 0);
+      currentStage.setPosition(workspaceX(), workspaceY());
       currentStage.width = workspaceW();
-      currentStage.height = H;
+      currentStage.height = workspaceH();
     }
     if (currentEntity) {
-      applySize(currentEntity, workspaceW(), H);
+      currentEntity.setPosition(workspaceX(), workspaceY());
+      applySize(currentEntity, workspaceW(), workspaceH());
+    }
+    if (currentStatus) {
+      currentStatus.setPosition(workspaceX(), workspaceY());
+      currentStatus.resizeTo(workspaceW(), workspaceH());
     }
     if (currentPlate) {
       currentPlate.setBottomAnchor(H - 16 - (currentCreation?.bottomInset ?? 0));
@@ -339,7 +393,14 @@ function initGallery(): void {
     scene.markDirty();
   };
 
-  window.addEventListener('resize', resize);
+  let resizeFrame = 0;
+  window.addEventListener('resize', () => {
+    if (resizeFrame) return;
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = 0;
+      resize();
+    });
+  });
 
   window.addEventListener('hashchange', () => {
     const id = creationIdFromHash();
@@ -352,17 +413,6 @@ function initGallery(): void {
   const initialCreation = initialId ? (CREATIONS.find((c) => c.id === initialId) ?? null) : null;
   loadCreation(initialCreation);
 
-  // Some ported entries animate purely by mutating their own state in
-  // update() without ever calling scene.markDirty() themselves, which the
-  // core idle-throttle would otherwise starve. Forcing this unconditionally
-  // for every entry was assumed to cost nothing extra, but a canvas
-  // renderer repaints everything on any dirty frame — the real cost scales
-  // with total on-screen content, so an explicitly event-driven creation can
-  // opt out with `continuousRedraw: false`. Stream Reader deliberately opts
-  // in because its visible FPS panel is a live display-cadence monitor; its
-  // idle document repaint cost is intentional. Default to `true` (unset) so
-  // every other creation keeps today's behavior unchanged.
-  keepSceneLive(scene, () => currentCreation?.continuousRedraw !== false);
   scene.start();
 
   // Install the WASM particle kernel for the CPU simulation path. This is the
@@ -393,9 +443,21 @@ function initGallery(): void {
 function whenFontsReady(): Promise<void> {
   const fonts = document.fonts;
   if (!fonts) return Promise.resolve();
+  const fontDescriptors = [
+    '400 16px "Archivo Black"',
+    '300 16px Inter',
+    '400 16px Inter',
+    '500 16px Inter',
+    '600 16px Inter',
+    '700 16px Inter',
+  ];
   try {
-    void fonts.load('400 16px "Archivo Black"');
-    void fonts.load('400 16px Inter');
+    return Promise.race([
+      Promise.all(fontDescriptors.map((descriptor) => fonts.load(descriptor)))
+        .then(() => undefined)
+        .catch(() => undefined),
+      new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+    ]);
   } catch {
     // `load()` throws on malformed descriptors only; ignore and fall through.
   }

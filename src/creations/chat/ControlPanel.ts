@@ -9,16 +9,40 @@
  *   - Arrow keys (±10)
  *   - Mouse drag on the slider track
  *
- * We use a real <input type="number"> element for the rate field so the OS
- * handles IME, clipboard, and keyboard routing — as mandated by the VectoJS
- * paradigm ("the ONE place a real DOM element is correct").
- * Everything else is pure Canvas2D Entity rendering.
+ * The rate field is an @vectojs/ui Input, whose projected native input lets the
+ * OS handle IME, clipboard, and keyboard routing. Buttons and the Slider are
+ * retained child entities; this class owns only the surrounding painted chrome.
  */
 
 import { Entity } from '@vectojs/core';
+import { Button, Input, Slider } from '@vectojs/ui';
 import type { StreamState } from './state';
 import { isInsideBox } from './hitTest';
 import type { RawRenderer } from './raw-renderer';
+
+class SemanticButton extends Button {
+  override getA11yAttributes() {
+    return { ...super.getA11yAttributes(), pointerEvents: 'none' as const };
+  }
+}
+
+class SemanticSlider extends Slider {
+  override getA11yAttributes() {
+    return { ...super.getA11yAttributes(), pointerEvents: 'none' as const };
+  }
+}
+
+class RateInput extends Input {
+  override getA11yAttributes() {
+    return {
+      ...super.getA11yAttributes(),
+      inputType: 'number',
+      label: 'Token rate value',
+      valuemin: '0',
+      valuemax: '10000',
+    };
+  }
+}
 
 type Callback = () => void;
 
@@ -49,12 +73,14 @@ export class ControlPanel extends Entity {
   public state!: StreamState;
   private cbs: ControlCallbacks;
   private btns: Btn[] = [];
-  private _rateInput: HTMLInputElement;
   // slider drag
   private _sliderDragging = false;
+  private semanticButtons: Button[] = [];
+  private rateSlider: Slider;
+  private rateInput: RateInput;
 
   get isMobile(): boolean {
-    return (this.width || 800) < 640;
+    return (this.width || 800) < 760;
   }
 
   get btnW(): number {
@@ -65,12 +91,16 @@ export class ControlPanel extends Entity {
     return this.isMobile ? 90 : 56;
   }
 
+  get semanticControls(): readonly (Button | Input | Slider)[] {
+    return [this.rateInput, this.rateSlider, ...this.semanticButtons];
+  }
+
   // Computed deterministically from this.width — no need to wait for render.
   private computeSliderGeom(): { sliderX: number; sliderW: number } {
     const isMob = this.isMobile;
     const bw = this.btnW;
     const gap = isMob ? 6 : GAP;
-    const sliderX = isMob ? PAD + 16 : PAD + 4 * (bw + gap) + 32;
+    const sliderX = isMob ? PAD + 16 : PAD + 5 * (bw + gap) + 32;
     const sliderW = isMob
       ? Math.max(100, (this.width || 375) - sliderX - PAD - 150)
       : Math.max(150, Math.min(350, (this.width || 800) - sliderX - 220));
@@ -83,43 +113,48 @@ export class ControlPanel extends Entity {
     this.interactive = true;
     this.height = this.panelHeight;
 
-    // Real <input> for rate — positioned via CSS, synced with canvas state
-    this._rateInput = document.createElement('input');
-    this._rateInput.type = 'number';
-    this._rateInput.min = '0';
-    this._rateInput.max = '10000';
-    this._rateInput.step = '10';
-    this._rateInput.value = '100';
-    Object.assign(this._rateInput.style, {
-      position: 'fixed',
-      background: 'rgba(255,255,255,0.9)',
+    this.rateSlider = new SemanticSlider({
+      min: 0,
+      max: 10000,
+      value: 100,
+      step: 10,
+      label: 'Token rate slider',
+      onChange: (value: number) => this.cbs.onRateChange(value),
+    });
+    this.rateSlider.opacity = 0;
+    this.add(this.rateSlider);
+    this.rateInput = new RateInput({
+      width: 80,
+      height: 28,
+      value: '100',
+      font: '13px monospace',
       color: '#3d2e1a',
-      border: '1px solid rgba(0,0,0,0.12)',
-      borderRadius: '6px',
-      padding: '4px 8px',
-      fontFamily: 'monospace',
-      fontSize: '13px',
-      width: '80px',
-      outline: 'none',
-      zIndex: '100',
-      display: 'none',
+      bg: 'rgba(255,255,255,0.9)',
+      border: 'rgba(0,0,0,0.12)',
+      onChange: (value) => {
+        const rate = Math.max(0, Math.min(10000, Number(value)));
+        if (Number.isFinite(rate)) this.cbs.onRateChange(rate);
+      },
     });
-    document.body.appendChild(this._rateInput);
-
-    this._rateInput.addEventListener('input', () => {
-      const v = Math.max(0, Math.min(10000, Number(this._rateInput.value)));
-      cbs.onRateChange(v);
+    this.rateInput.on('keydown', (event) => {
+      const key = event.nativeEvent?.key;
+      if (key !== 'ArrowUp' && key !== 'ArrowDown') return;
+      const delta = key === 'ArrowUp' ? 10 : -10;
+      this.cbs.onRateChange(Math.max(0, Math.min(10000, (this.state?.tokenRate ?? 100) + delta)));
+      event.preventDefault?.();
     });
-    this._rateInput.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowUp') {
-        cbs.onRateChange(Math.min(10000, (this.state?.tokenRate ?? 100) + 10));
-        e.preventDefault();
-      }
-      if (e.key === 'ArrowDown') {
-        cbs.onRateChange(Math.max(0, (this.state?.tokenRate ?? 100) - 10));
-        e.preventDefault();
-      }
-    });
+    this.add(this.rateInput);
+    this.semanticButtons = [
+      new SemanticButton('Open file', { onClick: cbs.onFileOpen }),
+      new SemanticButton('Play', { onClick: cbs.onPlay }),
+      new SemanticButton('Pause', { onClick: cbs.onPause }),
+      new SemanticButton('Clean', { onClick: cbs.onStop }),
+      new SemanticButton('Toggle loop', { onClick: cbs.onToggleLoop }),
+    ];
+    for (const button of this.semanticButtons) {
+      button.opacity = 0;
+      this.add(button);
+    }
 
     // Buttons: use 'click' which is the most reliable VectoJS event from the a11y overlay.
     // Slider drag: use pointerdown/pointermove/pointerup.
@@ -148,7 +183,7 @@ export class ControlPanel extends Entity {
    * caller's own global position + canvas scale — kept out of this class so
    * it doesn't need to know about the shell it's embedded in.
    */
-  getInputLocalAnchor(): { x: number; y: number } {
+  private getRateInputAnchor(): { x: number; y: number } {
     const { sliderX, sliderW } = this.computeSliderGeom();
     const isMob = this.isMobile;
     const y = isMob
@@ -157,25 +192,30 @@ export class ControlPanel extends Entity {
     return { x: sliderX + sliderW + 40, y };
   }
 
-  /** Place the DOM rate input at explicit CSS pixel coordinates. */
-  positionInput(cssLeft: number, cssTop: number): void {
-    Object.assign(this._rateInput.style, {
-      left: `${cssLeft}px`,
-      top: `${cssTop}px`,
-      display: 'block',
+  private layoutSemanticControls(): void {
+    const isMob = this.isMobile;
+    const bw = this.btnW;
+    const gap = isMob ? 6 : GAP;
+    const btnY = isMob ? (45 - BTN_H) / 2 : (this.panelHeight - BTN_H) / 2;
+    this.semanticButtons.forEach((button, index) => {
+      const x = PAD + index * (bw + gap);
+      button.setPosition(x, btnY);
+      button.width = bw;
+      button.height = BTN_H;
     });
-  }
-
-  /** Hide the DOM rate input (e.g. while another creation is mounted). */
-  hideInput(): void {
-    this._rateInput.style.display = 'none';
+    this.semanticButtons[4]?.setLabel(`Loop: ${this.state?.loop ? 'on' : 'off'}`);
+    const { sliderX, sliderW } = this.computeSliderGeom();
+    this.rateSlider.setPosition(sliderX, isMob ? 45 + 45 / 2 - 12 : this.panelHeight / 2 - 12);
+    this.rateSlider.width = sliderW;
+    this.rateSlider.height = 24;
+    this.rateSlider.value = this.state?.tokenRate ?? this.rateSlider.value;
+    this.rateInput.setPosition(sliderX + sliderW + 40, this.getRateInputAnchor().y);
   }
 
   /** Sync input value from state */
   syncRate(rate: number) {
-    if (document.activeElement !== this._rateInput) {
-      this._rateInput.value = String(rate);
-    }
+    if (!this.rateInput.focused) this.rateInput.value = String(rate);
+    this.rateSlider.value = rate;
   }
 
   private buildButtons() {
@@ -219,19 +259,30 @@ export class ControlPanel extends Entity {
         action: this.cbs.onStop,
         hovered: false,
       },
+      {
+        id: 'loop',
+        label: isMob ? '↻' : '↻ Loop',
+        x: PAD + 4 * (bw + gap),
+        color: '#59442c',
+        hoverColor: '#765b3a',
+        action: this.cbs.onToggleLoop,
+        hovered: false,
+      },
     ];
   }
 
   // No manual localPos() needed — VectoJSEvent.localX/localY are already
   // transformed into this entity's local coordinate space.
 
-  private handleMove(e: { localX?: number; localY?: number }) {
+  private handleMove(e: { localX?: number; localY?: number; target?: Entity }) {
+    if (e.target && e.target !== this) return;
     const x = e.localX ?? 0;
     const y = e.localY ?? 0;
     const isMob = this.isMobile;
     const btnY = isMob ? (45 - BTN_H) / 2 : (this.panelHeight - BTN_H) / 2;
     const bw = this.btnW;
-    for (const b of this.btns) {
+    for (let index = 0; index < this.btns.length; index++) {
+      const b = this.btns[index];
       b.hovered = x >= b.x && x <= b.x + bw && y >= btnY && y <= btnY + BTN_H;
     }
     if (this._sliderDragging) {
@@ -242,13 +293,15 @@ export class ControlPanel extends Entity {
   }
 
   /** Handles button clicks via 'click' event only (no slider). */
-  private handleClick(e: { localX?: number; localY?: number }) {
+  private handleClick(e: { localX?: number; localY?: number; target?: Entity }) {
+    if (e.target && e.target !== this) return;
     const x = e.localX ?? 0;
     const y = e.localY ?? 0;
     const isMob = this.isMobile;
     const btnY = isMob ? (45 - BTN_H) / 2 : (this.panelHeight - BTN_H) / 2;
     const bw = this.btnW;
-    for (const b of this.btns) {
+    for (let index = 0; index < this.btns.length; index++) {
+      const b = this.btns[index];
       if (x >= b.x && x <= b.x + bw && y >= btnY && y <= btnY + BTN_H) {
         b.action();
         return;
@@ -257,7 +310,8 @@ export class ControlPanel extends Entity {
   }
 
   /** Handles slider drag start via 'pointerdown' only (no buttons). */
-  private handleSliderDown(e: { localX?: number; localY?: number }) {
+  private handleSliderDown(e: { localX?: number; localY?: number; target?: Entity }) {
+    if (e.target && e.target !== this) return;
     const x = e.localX ?? 0;
     const y = e.localY ?? 0;
     const isMob = this.isMobile;
@@ -271,6 +325,7 @@ export class ControlPanel extends Entity {
   }
 
   render(renderer: RawRenderer) {
+    this.layoutSemanticControls();
     this.buildButtons();
 
     const ctx = renderer.ctx;
@@ -305,14 +360,16 @@ export class ControlPanel extends Entity {
     const bw = this.btnW;
 
     // Buttons
-    for (const b of this.btns) {
+    for (let index = 0; index < this.btns.length; index++) {
+      const b = this.btns[index];
       ctx.save();
       ctx.beginPath();
       ctx.roundRect(b.x, btnY, bw, BTN_H, 8);
       ctx.fillStyle = b.hovered ? b.hoverColor : b.color;
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = 1;
+      const semantic = this.semanticButtons[index];
+      ctx.strokeStyle = semantic?.focused ? '#b4823c' : 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = semantic?.focused ? 2 : 1;
       ctx.stroke();
 
       ctx.font = isMob ? 'bold 14px sans-serif' : 'bold 12px sans-serif';
@@ -350,6 +407,13 @@ export class ControlPanel extends Entity {
     ctx.strokeStyle = 'rgba(0,0,0,0.15)';
     ctx.lineWidth = 1;
     ctx.stroke();
+    if (this.rateSlider.focused) {
+      ctx.beginPath();
+      ctx.arc(sliderLeft + sliderW * t, sliderY, 11, 0, Math.PI * 2);
+      ctx.strokeStyle = '#9a6d30';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
     // Label
     ctx.font = '11px monospace';
@@ -384,7 +448,9 @@ export class ControlPanel extends Entity {
   }
 
   destroy() {
-    this._rateInput.remove();
+    this.rateInput.destroy();
+    this.rateSlider.destroy();
+    for (const button of this.semanticButtons) button.destroy();
     super.destroy();
   }
 }

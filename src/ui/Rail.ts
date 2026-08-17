@@ -43,6 +43,9 @@ export class Rail extends Entity {
   private readonly root: Stack;
   private readonly toggleBtn: Button;
   private collapsed = false;
+  private compact = false;
+  private compactOpen = false;
+  private compactViewportHeight = 0;
   private readonly fullWidth: number;
 
   constructor(
@@ -138,6 +141,15 @@ export class Rail extends Entity {
   }
 
   private toggle(): void {
+    if (this.compact) {
+      this.compactOpen = !this.compactOpen;
+      this.height = this.compactOpen ? this.compactViewportHeight : 64;
+      if (this.compactOpen) this.add(this.root);
+      else this.remove(this.root);
+      this.toggleBtn.label = this.compactOpen ? 'Close' : 'Menu';
+      this.scene?.markDirty();
+      return;
+    }
     this.setCollapsed(!this.collapsed);
     this.onToggleCollapse(this.collapsed);
   }
@@ -151,6 +163,23 @@ export class Rail extends Entity {
     else this.add(this.root);
     this.toggleBtn.label = collapsed ? '»' : '«';
     this.positionToggle();
+    this.scene?.markDirty();
+  }
+
+  setCompact(compact: boolean, width: number, viewportHeight: number): void {
+    if (this.compact !== compact) this.compactOpen = false;
+    this.compact = compact;
+    this.compactViewportHeight = viewportHeight;
+    this.width = compact ? width : this.collapsed ? COLLAPSED_RAIL_WIDTH : this.fullWidth;
+    this.height = compact && !this.compactOpen ? 64 : viewportHeight;
+    if (compact && !this.compactOpen) this.remove(this.root);
+    else if (!compact && this.collapsed) this.remove(this.root);
+    else if (!this.root.parent) this.add(this.root);
+    this.toggleBtn.opacity = 1;
+    if (compact) {
+      this.toggleBtn.label = this.compactOpen ? 'Close' : 'Menu';
+      this.toggleBtn.setPosition(width - 72, 16);
+    } else this.positionToggle();
     this.scene?.markDirty();
   }
 
@@ -168,7 +197,7 @@ export class Rail extends Entity {
     // projects a real `<img alt>` shadow node; nothing is drawn for it here.
 
     // The brand word-mark is only drawn when there's room for it.
-    if (this.collapsed) return;
+    if (this.collapsed && !this.compact) return;
     const textX = TILE_X + TILE + 14;
     r.fillText('Gallery', textX, TILE_Y + 18, FONT.display(18), COLOR.textPrimary);
     r.fillText('VECTOJS · CANVAS-NATIVE', textX, TILE_Y + 35, FONT.mono(9), COLOR.textFaint);

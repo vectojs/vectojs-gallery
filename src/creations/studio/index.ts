@@ -1,5 +1,6 @@
 import { Entity } from '@vectojs/core';
-import type { IRenderer } from '@vectojs/core';
+import type { A11yAttributes, IRenderer } from '@vectojs/core';
+import { Button } from '@vectojs/ui';
 import { centerX, textWidth } from '../../ui/text-metrics';
 import { COLOR } from '../../ui/tokens';
 
@@ -76,6 +77,63 @@ interface ToolButton {
   w: number;
 }
 
+/** A semantic-only child; the parent paints the themed toolbar and focus ring. */
+class StudioButton extends Button {
+  private readonly semanticLabel: string;
+
+  constructor(label: string, semanticLabel: string, onClick: () => void) {
+    super(label, { width: 1, height: 1, onClick });
+    this.semanticLabel = semanticLabel;
+  }
+
+  override getA11yAttributes(): A11yAttributes {
+    return {
+      ...super.getA11yAttributes(),
+      label: this.semanticLabel,
+      pointerEvents: 'none',
+    };
+  }
+
+  override isPointInside(): boolean {
+    return false;
+  }
+
+  override render(): void {
+    // CanvasStudio owns the visual button so the proxy cannot create a second UI.
+  }
+}
+
+class StudioWorkspace extends Entity {
+  focused = false;
+
+  constructor() {
+    super('StudioWorkspace');
+    this.interactive = true;
+    this.on('focus', () => {
+      this.focused = true;
+      this.scene?.markDirty();
+    });
+    this.on('blur', () => {
+      this.focused = false;
+      this.scene?.markDirty();
+    });
+  }
+
+  override getA11yAttributes(): A11yAttributes {
+    return {
+      role: 'application',
+      label: 'Canvas Studio workspace. Use arrow keys to move the selected object.',
+      pointerEvents: 'none',
+    };
+  }
+
+  override isPointInside(): boolean {
+    return false;
+  }
+
+  override render(): void {}
+}
+
 /** Canvas2D font shorthand for this creation's UI text. */
 const uiFont = (px: number, weight = 600): string => `${weight} ${px}px Inter, system-ui`;
 
@@ -111,6 +169,9 @@ class CanvasStudio extends Entity {
   private moveOrigins = new Map<number, { cx: number; cy: number }>();
   private marquee = { x0: 0, y0: 0, x1: 0, y1: 0 };
   private hoverCursor = 'default';
+  private activePointerId: number | null = null;
+  private readonly semanticButtons: StudioButton[] = [];
+  private readonly workspaceProxy = new StudioWorkspace();
 
   private savedBytes = 0;
   private toast = { msg: '', t: 0 };
@@ -128,8 +189,11 @@ class CanvasStudio extends Entity {
       this.canvas.addEventListener('dblclick', this.repaintAfter(this.onDblClick));
       window.addEventListener('pointermove', this.repaintAfter(this.onPointerMove));
       window.addEventListener('pointerup', this.repaintAfter(this.onPointerUp));
+      window.addEventListener('pointercancel', this.repaintAfter(this.onPointerCancel));
       window.addEventListener('keydown', this.repaintAfter(this.onKeyDown));
     }
+    this.add(this.workspaceProxy);
+    this.createSemanticControls();
   }
 
   /**
@@ -162,6 +226,7 @@ class CanvasStudio extends Entity {
       this.initDefault();
       this.inited = true;
     }
+    this.layoutSemanticControls();
   }
 
   getBounds(): { x: number; y: number; width: number; height: number } {
@@ -182,8 +247,59 @@ class CanvasStudio extends Entity {
     }
     window.removeEventListener('pointermove', this.repaintAfter(this.onPointerMove));
     window.removeEventListener('pointerup', this.repaintAfter(this.onPointerUp));
+    window.removeEventListener('pointercancel', this.repaintAfter(this.onPointerCancel));
     window.removeEventListener('keydown', this.repaintAfter(this.onKeyDown));
+    this.releasePointerCapture();
     super.destroy();
+  }
+
+  private createSemanticControls(): void {
+    const controls: Array<[string, string, () => void]> = [
+      ['Add rectangle', '+ Rect', () => this.onTool('rect')],
+      ['Add ellipse', '+ Ellipse', () => this.onTool('ellipse')],
+      ['Add text', '+ Text', () => this.onTool('text')],
+      ['Bring selection to front', 'Front', () => this.onTool('front')],
+      ['Send selection to back', 'Back', () => this.onTool('back')],
+      ['Delete selection', 'Delete', () => this.onTool('delete')],
+      ['Save Studio scene', 'Save', () => this.onTool('save')],
+      ['Load Studio scene', 'Load', () => this.onTool('load')],
+    ];
+    for (const [label, visualLabel, onClick] of controls) {
+      const button = new StudioButton(visualLabel, label, onClick);
+      this.semanticButtons.push(button);
+      this.add(button);
+    }
+    for (const [index, color] of PALETTE.entries()) {
+      const button = new StudioButton(`Color ${index + 1}`, `Set fill color ${index + 1}`, () =>
+        this.applyFill(color),
+      );
+      this.semanticButtons.push(button);
+      this.add(button);
+    }
+  }
+
+  private layoutSemanticControls(): void {
+    this.workspaceProxy.setPosition(0, 0);
+    this.workspaceProxy.width = this.W;
+    this.workspaceProxy.height = this.H;
+    const buttons = this.semanticButtons;
+    const toolCount = 8;
+    const visual = this.toolButtons();
+    for (let i = 0; i < toolCount; i++) {
+      const box = visual[i];
+      buttons[i]?.setPosition(box.x, CanvasStudio.TOOL_Y);
+      if (buttons[i]) {
+        buttons[i].width = box.w;
+        buttons[i].height = CanvasStudio.TOOL_H;
+      }
+    }
+    let sx = this.swatchStartX();
+    const sy = CanvasStudio.TOOL_Y + (CanvasStudio.TOOL_H - CanvasStudio.SWATCH) / 2;
+    for (let i = 0; i < PALETTE.length; i++) {
+      const button = buttons[toolCount + i];
+      button?.setPosition(sx, sy);
+      sx += CanvasStudio.SWATCH + 6;
+    }
   }
 
   // --- model helpers -------------------------------------------------------
@@ -529,6 +645,10 @@ class CanvasStudio extends Entity {
     }
   }
 
+  override hasPendingAnimations(): boolean {
+    return this.toast.t > 0 || super.hasPendingAnimations();
+  }
+
   // --- rendering -----------------------------------------------------------
 
   render(r: IRenderer): void {
@@ -539,6 +659,11 @@ class CanvasStudio extends Entity {
     this.drawToolbar(r);
     this.drawHint(r);
     if (this.toast.t > 0) this.drawToast(r);
+    if (this.workspaceProxy.focused) {
+      r.beginPath();
+      r.roundRect(3, 3, Math.max(0, this.W - 6), Math.max(0, this.H - 6), 8);
+      r.stroke(COLOR.ink, 2);
+    }
   }
 
   private drawGrid(r: IRenderer): void {
@@ -687,10 +812,17 @@ class CanvasStudio extends Entity {
         600,
       );
     }
+    for (let i = 0; i < btns.length; i++) {
+      if (!this.semanticButtons[i]?.focused) continue;
+      const b = btns[i];
+      r.beginPath();
+      r.roundRect(b.x - 2, ty + 2, b.w + 4, CanvasStudio.TOOL_H - 4, 9);
+      r.stroke(COLOR.ink, 2);
+    }
     // Swatches.
     let sx = this.swatchStartX();
     const sy = ty + (CanvasStudio.TOOL_H - CanvasStudio.SWATCH) / 2;
-    for (const col of PALETTE) {
+    for (const [i, col] of PALETTE.entries()) {
       r.beginPath();
       r.roundRect(sx, sy, CanvasStudio.SWATCH, CanvasStudio.SWATCH, 5);
       r.fill(col);
@@ -698,6 +830,11 @@ class CanvasStudio extends Entity {
         col === this.currentFill ? COLOR.ink : COLOR.ruleBright,
         col === this.currentFill ? 2.5 : 1,
       );
+      if (this.semanticButtons[btns.length + i]?.focused) {
+        r.beginPath();
+        r.roundRect(sx - 2, sy - 2, CanvasStudio.SWATCH + 4, CanvasStudio.SWATCH + 4, 7);
+        r.stroke(COLOR.ink, 2);
+      }
       sx += CanvasStudio.SWATCH + 6;
     }
   }
@@ -753,10 +890,14 @@ class CanvasStudio extends Entity {
   }
 
   private readonly onPointerDown = (e: PointerEvent): void => {
+    if (this.activePointerId !== null) return;
     const p = this.scenePt(e.clientX, e.clientY);
     if (p.x < 0 || p.y < 0 || p.x > this.W || p.y > this.H) return;
     if (this.overChip(p.x, p.y)) return;
     if (this.hitToolbar(p.x, p.y)) return;
+
+    this.activePointerId = e.pointerId;
+    this.canvas?.setPointerCapture?.(e.pointerId);
 
     this.dragStart = { x: p.x, y: p.y };
 
@@ -799,6 +940,7 @@ class CanvasStudio extends Entity {
   };
 
   private readonly onPointerMove = (e: PointerEvent): void => {
+    if (this.activePointerId !== null && this.activePointerId !== e.pointerId) return;
     const p = this.scenePt(e.clientX, e.clientY);
     if (this.drag === 'none') {
       this.updateCursor(p.x, p.y);
@@ -856,7 +998,8 @@ class CanvasStudio extends Entity {
     // Text font size derives from `h` (see fontSizeOf), so it scales for free.
   }
 
-  private readonly onPointerUp = (): void => {
+  private readonly onPointerUp = (e: PointerEvent): void => {
+    if (this.activePointerId !== e.pointerId) return;
     if (this.drag === 'marquee') {
       const x0 = Math.min(this.marquee.x0, this.marquee.x1);
       const y0 = Math.min(this.marquee.y0, this.marquee.y1);
@@ -869,7 +1012,20 @@ class CanvasStudio extends Entity {
       }
     }
     this.drag = 'none';
+    this.releasePointerCapture(e.pointerId);
   };
+
+  private readonly onPointerCancel = (e: PointerEvent): void => {
+    if (this.activePointerId !== e.pointerId) return;
+    this.drag = 'none';
+    this.releasePointerCapture(e.pointerId);
+  };
+
+  private releasePointerCapture(pointerId = this.activePointerId): void {
+    if (pointerId === null) return;
+    this.canvas?.releasePointerCapture?.(pointerId);
+    this.activePointerId = null;
+  }
 
   private updateCursor(x: number, y: number): void {
     let cursor = 'default';

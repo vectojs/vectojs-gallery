@@ -56,6 +56,12 @@ const PAD_V = 8;
 const BUBBLE_MAX_RATIO = 0.8;
 const SLIDER_MIN = 220;
 const SLIDER_MAX = 760;
+
+export function clampSliderMaximum(slider: Slider, maximum: number): number {
+  slider.max = maximum;
+  slider.value = Math.max(slider.min, Math.min(maximum, slider.value));
+  return slider.value;
+}
 const PANEL_GAP = 24;
 const PANEL_HEADER_H = 92;
 const BUBBLE_GAP = 8;
@@ -260,8 +266,7 @@ class BubblesDemo extends Entity {
     }
 
     const maxChatWidth = Math.max(SLIDER_MIN, Math.min(SLIDER_MAX, colWidth - 40));
-    this.slider.max = maxChatWidth;
-    this.applyWidth(Math.min(this.slider.value, maxChatWidth));
+    this.applyWidth(clampSliderMaximum(this.slider, maxChatWidth));
   }
 
   render(r: IRenderer): void {

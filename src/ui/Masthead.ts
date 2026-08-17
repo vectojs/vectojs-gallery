@@ -18,6 +18,7 @@ export const TITLE_SIZE_MIN = 20;
 const TITLE_PREFIX = 'Made with ';
 const TITLE_WORD = 'VectoJS';
 const TITLE_FULL = TITLE_PREFIX + TITLE_WORD;
+const EYEBROW = 'THE CANVAS YEARBOOK  /  2026 EDITION';
 const TITLE_BASELINE = 58;
 const TAGLINE_DY = 34;
 const TAGLINE_LINE_H = 20;
@@ -51,33 +52,36 @@ export type Measurer = (text: string, font: string) => number;
  * strings come straight from package.json dependencies so they can never
  * drift from what the bundle actually ships.
  *
- * Layout is resolved in the constructor, not in `render`. Both the headline size
- * and the badge row depend on `width`, and `Bed` rebuilds this entity on every
- * resize, so `width` is fixed for the lifetime of the instance — measuring per
- * frame would repeat identical work (up to 22 `measureText` calls for the title
- * fit alone) and could not feed `height`, which the caller reads immediately
- * after construction to stack the sections below.
+ * Layout is resolved at construction and when `resizeTo` receives a new width,
+ * never in `render`. This keeps the entity persistent across shell relayouts
+ * without repeating text measurement every frame.
  */
 export class Masthead extends Entity {
-  private readonly titleSize: number;
-  private readonly taglineLines: readonly string[];
-  private readonly badgeBoxes: readonly BadgeBox[];
+  private titleSize = TITLE_SIZE;
+  private taglineLines: readonly string[] = [];
+  private badgeBoxes: readonly BadgeBox[] = [];
+  private readonly labels: readonly string[];
 
   constructor(width: number, creationCount: number, appCount: number) {
     super('Masthead');
     this.width = width;
 
     const deps = (pkg as { dependencies: Record<string, string> }).dependencies;
-    const labels = [
+    this.labels = [
       `core ${deps['@vectojs/core']}`,
       `ui ${deps['@vectojs/ui']}`,
       `${creationCount} creations`,
       `${appCount} apps`,
     ];
 
+    this.resizeTo(width);
+  }
+
+  resizeTo(width: number): void {
+    this.width = width;
     this.titleSize = fittedTitleSize(width);
     this.taglineLines = wrapTagline(TAGLINE, width);
-    this.badgeBoxes = layOutBadges(labels, width, undefined, this.badgeTop());
+    this.badgeBoxes = layOutBadges(this.labels, width, undefined, this.badgeTop());
 
     const lastRowY = this.badgeBoxes.length
       ? this.badgeBoxes[this.badgeBoxes.length - 1].y
@@ -96,6 +100,12 @@ export class Masthead extends Entity {
   }
 
   override render(r: IRenderer): void {
+    r.fillText(EYEBROW, 0, 14, FONT.mono(10), COLOR.inkDim);
+    r.beginPath();
+    r.moveTo(0, 24);
+    r.lineTo(Math.min(this.width, 132), 24);
+    r.stroke(COLOR.ruleBright, 1);
+
     const titleFont = FONT.display(this.titleSize);
     r.fillText(TITLE_PREFIX, 0, TITLE_BASELINE, titleFont, COLOR.ink);
     const wordX = measureText(TITLE_PREFIX, titleFont);
