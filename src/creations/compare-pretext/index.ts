@@ -79,6 +79,11 @@ class ComparePretext extends Entity {
       label: 'Back to all demos',
       onClick: () => this.closeDemo(),
     });
+    this.backChip.getA11yAttributes = () => ({
+      tag: 'button',
+      role: 'button',
+      label: 'Back to all demos',
+    });
     const backLabel = new Text('← All demos', {
       font: FONT.sans(13, 600),
       color: WARM.ink,
@@ -126,6 +131,11 @@ class ComparePretext extends Entity {
         radius: CARD_RADIUS,
         label: card.title,
         onClick: built ? () => void this.openDemo(card.id) : undefined,
+      });
+      tile.getA11yAttributes = () => ({
+        tag: 'button',
+        role: 'button',
+        label: card.title,
       });
       tile.opacity = built ? 1 : 0.55;
       const title = new Text(card.title, {

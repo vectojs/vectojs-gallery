@@ -9,7 +9,7 @@
     "format:check": "oxfmt --check \"{src,test,e2e}/**/*.{js,ts,jsx,tsx,mjs,cjs,json}\"",
     "lint": "oxlint --deny-warnings src test e2e",
     "test": "bun test",
-    "test:e2e": "bun run e2e/semantic-margin.e2e.ts",
+    "test:e2e": "bun run e2e/semantic-margin.e2e.ts && bun run e2e/gallery-lifecycle.e2e.ts",
     "format": "oxfmt --write \"{src,test,e2e}/**/*.{js,ts,jsx,tsx,mjs,cjs,json}\"",
     "lint:biome": "biome lint",
     "lint:md": "markdownlint-cli2 \"**/*.md\"",
