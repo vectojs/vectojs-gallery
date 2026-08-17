@@ -2,6 +2,14 @@ import { describe, expect, test } from 'bun:test';
 import { clampTagsToWidth, type MeasurableText } from '../src/ui/clamp';
 import { fittedTitleSize, layOutBadges, wrapTagline, TITLE_SIZE_MIN } from '../src/ui/Masthead';
 import { CREATIONS } from '../src/registry';
+import { Bed } from '../src/ui/Bed';
+import {
+  COLLAPSED_RAIL_WIDTH,
+  COMPACT_NAV_HEIGHT,
+  FULL_RAIL_WIDTH,
+  getShellLayout,
+  shellMode,
+} from '../src/ui/shell-layout';
 
 /**
  * A `Text` stand-in whose width is a deterministic function of the string, so
@@ -176,5 +184,64 @@ describe('layOutBadges', () => {
     for (let i = 1; i < ys.length; i++) {
       expect(ys[i] - ys[i - 1]).toBe(24 + 8);
     }
+  });
+});
+
+describe('responsive shell layout', () => {
+  test('uses the three editorial shell modes at their boundaries', () => {
+    expect(shellMode(320)).toBe('compact');
+    expect(shellMode(767)).toBe('compact');
+    expect(shellMode(768)).toBe('medium');
+    expect(shellMode(1439)).toBe('medium');
+    expect(shellMode(1440)).toBe('wide');
+  });
+
+  test('keeps every content band inside the viewport', () => {
+    for (const width of [320, 360, 560, 768, 1024, 1440, 1920]) {
+      const layout = getShellLayout(width, 800);
+      expect(layout.contentX).toBeGreaterThanOrEqual(0);
+      expect(layout.contentY).toBeGreaterThanOrEqual(0);
+      expect(layout.contentX + layout.contentWidth).toBeLessThanOrEqual(width);
+      expect(layout.contentY + layout.contentHeight).toBeLessThanOrEqual(800);
+      if (layout.mode === 'compact') expect(layout.railHeight).toBe(COMPACT_NAV_HEIGHT);
+      if (layout.mode === 'medium') expect(layout.railWidth).toBe(COLLAPSED_RAIL_WIDTH);
+      if (layout.mode === 'wide') expect(layout.railWidth).toBe(FULL_RAIL_WIDTH);
+    }
+  });
+
+  test('supports a compact viewport shorter than the top navigation', () => {
+    const layout = getShellLayout(360, 40);
+    expect(layout.railHeight).toBe(40);
+    expect(layout.contentHeight).toBe(0);
+  });
+
+  test('keeps the ScrollView, cards, and scroll offset across relayouts', () => {
+    const bed = new Bed(1000, 100, () => {});
+    bed.resize(1000, 100, CREATIONS);
+
+    const internals = bed as unknown as {
+      scroll: {
+        content: { y: number; children: { id: string }[] };
+        scrollTo(y: number): void;
+      };
+    };
+    const scroll = internals.scroll;
+    const card = scroll.content.children.find((child) => child.id === 'CreationCard:studio');
+    const childCount = scroll.content.children.length;
+    scroll.scrollTo(200);
+    for (let frame = 0; frame < 300; frame++) {
+      (scroll.content as unknown as { update(dt: number, time: number): void }).update(
+        16,
+        frame * 16,
+      );
+    }
+
+    bed.resize(648, 100, CREATIONS);
+    bed.resize(1096, 100, CREATIONS);
+
+    expect(internals.scroll).toBe(scroll);
+    expect(scroll.content.children.find((child) => child.id === 'CreationCard:studio')).toBe(card);
+    expect(scroll.content.children.length).toBe(childCount);
+    expect(scroll.content.y).toBe(-200);
   });
 });

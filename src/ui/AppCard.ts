@@ -24,7 +24,10 @@ function clamp01(v: number): number {
 export class AppCard extends Entity {
   private hovered = false;
   private baseY = 0;
-  private readonly shotH: number;
+  private shotH: number;
+  private readonly shot: Image;
+  private readonly appName: Text;
+  private readonly tagline: Text;
   private readonly urlText: Text;
 
   constructor(
@@ -48,6 +51,7 @@ export class AppCard extends Entity {
     });
     shot.setPosition(PADDING, PADDING);
     this.add(shot);
+    this.shot = shot;
 
     const nameY = PADDING + this.shotH + 16;
     const name = new Text(app.name, {
@@ -56,6 +60,7 @@ export class AppCard extends Entity {
     });
     name.setPosition(PADDING, nameY);
     this.add(name);
+    this.appName = name;
 
     this.urlText = new Text(`${displayUrl(app.url)} ↗`, {
       font: FONT.mono(10),
@@ -73,6 +78,7 @@ export class AppCard extends Entity {
     clampTextToLines(tagline, app.tagline, 2);
     tagline.setPosition(PADDING, nameY + name.height + 8);
     this.add(tagline);
+    this.tagline = tagline;
 
     this.height = nameY + name.height + 8 + tagline.height + PADDING + 4;
 
@@ -87,6 +93,20 @@ export class AppCard extends Entity {
     this.on('click', () => {
       window.open(this.app.url, '_blank', 'noopener,noreferrer');
     });
+  }
+
+  resizeTo(width: number): void {
+    this.width = width;
+    const shotW = width - PADDING * 2;
+    this.shotH = Math.round(shotW * SHOT_RATIO);
+    this.shot.width = shotW;
+    this.shot.height = this.shotH;
+    this.appName.setPosition(PADDING, PADDING + this.shotH + 16);
+    this.urlText.setPosition(width - PADDING - this.urlText.width, this.appName.y + 4);
+    this.tagline.setMaxWidth(width - PADDING * 2);
+    clampTextToLines(this.tagline, this.app.tagline, 2);
+    this.tagline.setPosition(PADDING, this.appName.y + this.appName.height + 8);
+    this.height = this.appName.y + this.appName.height + 8 + this.tagline.height + PADDING + 4;
   }
 
   /** See CreationCard.setPosition — capture the laid-out Y as the spring's rest. */

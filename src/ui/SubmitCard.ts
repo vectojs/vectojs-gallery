@@ -32,6 +32,11 @@ export class SubmitCard extends Entity {
     });
   }
 
+  resizeTo(width: number, height: number): void {
+    this.width = width;
+    this.height = height;
+  }
+
   override isPointInside(globalX: number, globalY: number): boolean {
     const local = this.worldToLocal(globalX, globalY);
     if (!local) return false;

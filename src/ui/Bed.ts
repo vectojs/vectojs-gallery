@@ -27,6 +27,14 @@ export class Bed extends Entity {
   private background: DotGridBackground;
   private scroll: ScrollView;
   private creations: Creation[] = [];
+  private creationCards: CreationCard[] = [];
+  private appCards: AppCard[] = [];
+  private submitCard: SubmitCard | null = null;
+  private masthead: Masthead | null = null;
+  private creationsHeader: SectionHeader | null = null;
+  private appsHeader: SectionHeader | null = null;
+  private spacer: Group | null = null;
+  private documentBuilt = false;
 
   constructor(
     width: number,
@@ -43,17 +51,19 @@ export class Bed extends Entity {
   }
 
   resize(width: number, height: number, creations: Creation[]): void {
+    const scrollY = -this.scroll.content.y;
     this.width = width;
     this.height = height;
     this.background.width = width;
     this.background.height = height;
-    // Rebuild the ScrollView wholesale: its viewport box is a construction
-    // input, and resizes are rare enough that resetting scroll position is a
-    // fair trade for not depending on internal re-clamp behavior.
-    this.remove(this.scroll);
-    this.scroll = new ScrollView({ width, height });
-    this.add(this.scroll);
-    this.setCreations(creations);
+    this.scroll.width = width;
+    this.scroll.height = height;
+    if (!this.documentBuilt || this.creations !== creations) this.setCreations(creations);
+    else {
+      this.layoutDocument();
+      this.scroll.updateContentSize();
+      this.scroll.scrollTo(scrollY);
+    }
   }
 
   setCreations(creations: Creation[]): void {
@@ -61,46 +71,68 @@ export class Bed extends Entity {
     const content = this.scroll.content;
     while (content.children.length) this.scroll.remove(content.children[0]);
 
-    const innerW = this.width - PADDING * 2;
+    this.creationCards = [];
+    this.appCards = [];
+    this.submitCard = null;
+    this.masthead = null;
+    this.creationsHeader = null;
+    this.appsHeader = null;
+    this.spacer = null;
+    this.documentBuilt = true;
+    this.layoutDocument();
+  }
+
+  private layoutDocument(): void {
+    const innerW = Math.max(0, this.width - PADDING * 2);
     let y = PADDING;
 
-    const masthead = new Masthead(innerW, this.creations.length, APPS.length);
-    masthead.setPosition(PADDING, y);
-    this.scroll.add(masthead);
-    y += masthead.height;
+    if (!this.masthead) {
+      this.masthead = new Masthead(innerW, this.creations.length, APPS.length);
+      this.scroll.add(this.masthead);
+    }
+    this.masthead.resizeTo(innerW);
+    this.masthead.setPosition(PADDING, y);
+    y += this.masthead.height;
 
-    const creationsHeader = new SectionHeader(
-      innerW,
-      'Creations',
-      'Single-entity showcase pieces — click one to run it live, right here.',
-    );
-    creationsHeader.setPosition(PADDING, y);
-    this.scroll.add(creationsHeader);
-    y += creationsHeader.height + 8;
+    if (!this.creationsHeader) {
+      this.creationsHeader = new SectionHeader(
+        innerW,
+        'Creations',
+        'Single-entity showcase pieces — click one to run it live, right here.',
+      );
+      this.scroll.add(this.creationsHeader);
+    }
+    this.creationsHeader.width = innerW;
+    this.creationsHeader.setPosition(PADDING, y);
+    y += this.creationsHeader.height + 8;
 
-    y = this.layoutCreationGrid(creations, innerW, y);
+    y = this.layoutCreationGrid(this.creations, innerW, y);
 
     y += SECTION_GAP;
-    const appsHeader = new SectionHeader(
-      innerW,
-      'Built on VectoJS',
-      'Full applications from the forge program — real products stress-testing the engine.',
-    );
-    appsHeader.setPosition(PADDING, y);
-    this.scroll.add(appsHeader);
-    y += appsHeader.height + 8;
+    if (!this.appsHeader) {
+      this.appsHeader = new SectionHeader(
+        innerW,
+        'Built on VectoJS',
+        'Full applications from the forge program — real products stress-testing the engine.',
+      );
+      this.scroll.add(this.appsHeader);
+    }
+    this.appsHeader.width = innerW;
+    this.appsHeader.setPosition(PADDING, y);
+    y += this.appsHeader.height + 8;
 
     y = this.layoutAppGrid(innerW, y);
 
     // Invisible spacer so updateContentSize sees the bottom padding.
-    const spacer = new Group();
-    spacer.setPosition(PADDING, y + BOTTOM_PAD - GAP);
-    spacer.width = 1;
-    spacer.height = 1;
-    this.scroll.add(spacer);
+    if (!this.spacer) {
+      this.spacer = new Group();
+      this.spacer.width = 1;
+      this.spacer.height = 1;
+      this.scroll.add(this.spacer);
+    }
+    this.spacer.setPosition(PADDING, y + BOTTOM_PAD - GAP);
 
     this.scroll.updateContentSize();
-    this.scroll.scrollTo(0);
   }
 
   /** Lays out creation cards + the submit CTA; returns the next free Y. */
@@ -118,18 +150,30 @@ export class Bed extends Entity {
     const columns = Math.max(1, Math.floor((innerW + GAP) / (CARD_MIN_WIDTH + GAP)));
     const cardW = (innerW - GAP * (columns - 1)) / columns;
 
-    const cards = creations.map(
-      (creation, i) => new CreationCard(cardW, creation, i + 1, this.onOpen),
-    );
+    const cards = creations.map((creation, i) => {
+      const existing = this.creationCards[i];
+      if (existing && existing.id === `CreationCard:${creation.id}`) {
+        existing.resizeTo(cardW);
+        return existing;
+      }
+      const card = new CreationCard(cardW, creation, i + 1, this.onOpen);
+      this.scroll.add(card);
+      return card;
+    });
+    this.creationCards = cards;
     const rowH = Math.max(...cards.map((c) => c.height));
     let bottom = startY;
-    const cells: Entity[] = [...cards, new SubmitCard(cardW, rowH)];
+    if (!this.submitCard) {
+      this.submitCard = new SubmitCard(cardW, rowH);
+      this.scroll.add(this.submitCard);
+    }
+    this.submitCard.resizeTo(cardW, rowH);
+    const cells: Entity[] = [...cards, this.submitCard];
     cells.forEach((cell, i) => {
       if (cell instanceof CreationCard) cell.setUniformHeight(rowH);
       const col = i % columns;
       const row = Math.floor(i / columns);
       cell.setPosition(PADDING + col * (cardW + GAP), startY + row * (rowH + GAP));
-      this.scroll.add(cell);
       bottom = Math.max(bottom, startY + row * (rowH + GAP) + rowH);
     });
     return bottom + GAP;
@@ -140,7 +184,17 @@ export class Bed extends Entity {
     const columns = Math.max(1, Math.floor((innerW + GAP) / (APP_MIN_WIDTH + GAP)));
     const cardW = (innerW - GAP * (columns - 1)) / columns;
 
-    const cards = APPS.map((app) => new AppCard(cardW, app, () => this.scene?.markDirty()));
+    const cards = APPS.map((app, i) => {
+      const existing = this.appCards[i];
+      if (existing && existing.id === `AppCard:${app.id}`) {
+        existing.resizeTo(cardW);
+        return existing;
+      }
+      const card = new AppCard(cardW, app, () => this.scene?.markDirty());
+      this.scroll.add(card);
+      return card;
+    });
+    this.appCards = cards;
     const rowH = Math.max(...cards.map((c) => c.height));
     let bottom = startY;
     cards.forEach((card, i) => {
@@ -148,7 +202,6 @@ export class Bed extends Entity {
       const col = i % columns;
       const row = Math.floor(i / columns);
       card.setPosition(PADDING + col * (cardW + GAP), startY + row * (rowH + GAP));
-      this.scroll.add(card);
       bottom = Math.max(bottom, startY + row * (rowH + GAP) + rowH);
     });
     return bottom + GAP;

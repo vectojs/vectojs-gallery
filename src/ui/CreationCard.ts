@@ -64,8 +64,12 @@ export class CreationCard extends Entity {
   private hovered = false;
   private baseY = 0;
   private readonly accent: Accent;
-  private readonly thumbH: number;
+  private thumbH: number;
+  private readonly thumb: ThumbDoodle;
+  private readonly titleText: Text;
+  private readonly descText: Text;
   private readonly tagsText: Text;
+  private readonly badge: PlayBadge;
 
   constructor(
     width: number,
@@ -81,6 +85,7 @@ export class CreationCard extends Entity {
 
     this.thumbH = Math.round((width - PADDING * 2) * THUMB_RATIO);
     const thumb = new ThumbDoodle(width - PADDING * 2, this.thumbH, seed, this.accent);
+    this.thumb = thumb;
     thumb.setPosition(PADDING, PADDING);
     this.add(thumb);
 
@@ -92,6 +97,7 @@ export class CreationCard extends Entity {
     });
     titleText.setPosition(PADDING, titleY);
     this.add(titleText);
+    this.titleText = titleText;
 
     const descY = titleY + titleText.height + 10;
     const descText = new Text(creation.description, {
@@ -102,6 +108,7 @@ export class CreationCard extends Entity {
     clampTextToLines(descText, creation.description, 2);
     descText.setPosition(PADDING, descY);
     this.add(descText);
+    this.descText = descText;
 
     this.tagsText = new Text('', {
       font: FONT.mono(11),
@@ -117,6 +124,7 @@ export class CreationCard extends Entity {
     this.setUniformHeight(descY + descText.height + 14 + 26 + PADDING);
 
     const badge = new PlayBadge(() => clamp01((this.baseY - this.y) / LIFT));
+    this.badge = badge;
     badge.setPosition(this.width / 2, PADDING + this.thumbH / 2);
     this.add(badge);
 
@@ -129,6 +137,25 @@ export class CreationCard extends Entity {
       this.springTo({ y: this.baseY });
     });
     this.on('click', () => this.onOpen(this.creation));
+  }
+
+  resizeTo(width: number): void {
+    const naturalY = this.y;
+    this.width = width;
+    this.thumbH = Math.round((width - PADDING * 2) * THUMB_RATIO);
+    this.thumb.width = width - PADDING * 2;
+    this.thumb.height = this.thumbH;
+    this.titleText.setMaxWidth(width - PADDING * 2);
+    const titleY = PADDING + this.thumbH + 20;
+    this.titleText.setPosition(PADDING, titleY);
+    this.descText.setMaxWidth(width - PADDING * 2);
+    clampTextToLines(this.descText, this.creation.description, 2);
+    this.descText.setPosition(PADDING, titleY + this.titleText.height + 10);
+    this.setUniformHeight(this.descText.y + this.descText.height + 14 + 26 + PADDING);
+    this.thumb.setPosition(PADDING, PADDING);
+    this.badge.setPosition(this.width / 2, PADDING + this.thumbH / 2);
+    clampTagsToWidth(this.tagsText, this.creation.tags, TAG_SEPARATOR, tagsBudget(width));
+    this.baseY = naturalY;
   }
 
   /**
