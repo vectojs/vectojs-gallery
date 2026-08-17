@@ -4,6 +4,7 @@ import { COLOR, FONT } from './tokens';
 
 const REPO_URL = 'https://github.com/vectojs/vectojs-gallery';
 const HEIGHT = 92;
+const COMPACT_HEIGHT = 124;
 const RADIUS = 14;
 
 /** A full-width editorial invitation placed after the creation rows. */
@@ -42,7 +43,7 @@ export class ContributionBanner extends Entity {
 
   resizeTo(width: number): void {
     this.width = width;
-    this.height = HEIGHT;
+    this.height = width < 480 ? COMPACT_HEIGHT : HEIGHT;
   }
 
   override getA11yAttributes(): A11yAttributes {
@@ -67,17 +68,26 @@ export class ContributionBanner extends Entity {
     r.fill(this.hovered ? COLOR.groundRaised : COLOR.groundSunk);
     r.stroke(this.focused ? COLOR.ink : COLOR.ruleBright, this.focused ? 2 : 1);
 
+    const compact = this.height === COMPACT_HEIGHT;
     r.beginPath();
-    r.roundRect(20, 20, 4, this.height - 40, 2);
+    r.roundRect(20, 20, 4, compact ? 84 : this.height - 40, 2);
     r.fill(COLOR.ink);
 
     const title = 'Have a creation to share?';
-    const subtitle = 'Submit a canvas-native piece to the VectoJS gallery.';
-    r.fillText(title, 40, 37, FONT.display(16), COLOR.textPrimary);
+    const subtitle = compact
+      ? 'Share a canvas-native piece.'
+      : 'Submit a canvas-native piece to the VectoJS gallery.';
+    r.fillText(title, 40, 37, FONT.display(compact ? 14 : 16), COLOR.textPrimary);
     r.fillText(subtitle, 40, 61, FONT.body(12), COLOR.textMuted);
 
     const action = 'Read the contribution guide  ↗';
     const actionWidth = measureText(action, FONT.mono(11));
-    r.fillText(action, this.width - actionWidth - 24, 49, FONT.mono(11), COLOR.inkDim);
+    r.fillText(
+      action,
+      compact ? 40 : this.width - actionWidth - 24,
+      compact ? 96 : 49,
+      FONT.mono(11),
+      COLOR.inkDim,
+    );
   }
 }

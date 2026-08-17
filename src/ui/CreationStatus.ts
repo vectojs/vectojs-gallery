@@ -96,5 +96,19 @@ export class CreationStatus extends Entity {
     r.fillText(eyebrow, x + 28, y + 56, FONT.mono(10), COLOR.textFaint);
     r.fillText(title, x + 28, y + 94, FONT.display(22), COLOR.textPrimary);
     r.fillText(summary, x + 28, y + 126, FONT.body(14), COLOR.textMuted);
+
+    if (this.status === 'loading') {
+      r.beginPath();
+      r.roundRect(x + 28, y + 150, panelWidth - 56, 3, 1.5);
+      r.fill(COLOR.rule);
+      r.beginPath();
+      r.roundRect(x + 28, y + 150, Math.min(112, panelWidth - 56), 3, 1.5);
+      r.fill(
+        r.createLinearGradient(x + 28, y + 150, x + 140, y + 150, [
+          { stop: 0, color: accent.a },
+          { stop: 1, color: accent.b },
+        ]),
+      );
+    }
   }
 }

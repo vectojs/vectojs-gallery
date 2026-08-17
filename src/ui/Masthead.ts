@@ -18,6 +18,7 @@ export const TITLE_SIZE_MIN = 20;
 const TITLE_PREFIX = 'Made with ';
 const TITLE_WORD = 'VectoJS';
 const TITLE_FULL = TITLE_PREFIX + TITLE_WORD;
+const EYEBROW = 'THE CANVAS YEARBOOK  /  2026 EDITION';
 const TITLE_BASELINE = 58;
 const TAGLINE_DY = 34;
 const TAGLINE_LINE_H = 20;
@@ -99,6 +100,12 @@ export class Masthead extends Entity {
   }
 
   override render(r: IRenderer): void {
+    r.fillText(EYEBROW, 0, 14, FONT.mono(10), COLOR.inkDim);
+    r.beginPath();
+    r.moveTo(0, 24);
+    r.lineTo(Math.min(this.width, 132), 24);
+    r.stroke(COLOR.ruleBright, 1);
+
     const titleFont = FONT.display(this.titleSize);
     r.fillText(TITLE_PREFIX, 0, TITLE_BASELINE, titleFont, COLOR.ink);
     const wordX = measureText(TITLE_PREFIX, titleFont);

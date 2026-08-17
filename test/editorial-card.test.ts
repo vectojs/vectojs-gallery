@@ -151,6 +151,15 @@ describe('ContributionBanner', () => {
     expect(banner.isPointInside(716, 512)).toBe(true);
   });
 
+  test('stacks its action below the copy at compact widths', () => {
+    const banner = new ContributionBanner();
+    banner.resizeTo(280);
+
+    expect(banner.width).toBe(280);
+    expect(banner.height).toBe(124);
+    expect(banner.isPointInside(280, 124)).toBe(true);
+  });
+
   test('does not duplicate navigation for a projected anchor click', () => {
     let opened = 0;
     const bannerRuntime = globalThis as typeof globalThis & {
@@ -187,8 +196,8 @@ describe('ContributionBanner', () => {
     );
 
     expect(narrowBanner).toBeDefined();
-    expect(narrowBanner?.x).toBe(32);
-    expect(narrowBanner?.width).toBe(556);
+    expect(narrowBanner?.x).toBe(28);
+    expect(narrowBanner?.width).toBe(564);
     expect(narrowCreations.every((card) => card.y + card.height < (narrowBanner?.y ?? 0))).toBe(
       true,
     );

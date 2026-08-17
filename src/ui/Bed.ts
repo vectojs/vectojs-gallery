@@ -17,12 +17,33 @@ const PADDING = 32;
 const SECTION_GAP = 40;
 const BOTTOM_PAD = 56;
 
+export interface CatalogMetrics {
+  padding: number;
+  gap: number;
+  sectionGap: number;
+  bottomPad: number;
+}
+
+/** Responsive editorial density, resolved from the Bed's logical width. */
+export function getCatalogMetrics(width: number): CatalogMetrics {
+  if (width < 560) return { padding: 20, gap: 14, sectionGap: 32, bottomPad: 40 };
+  if (width < 900) return { padding: 28, gap: 16, sectionGap: 36, bottomPad: 48 };
+  return {
+    padding: PADDING,
+    gap: GAP,
+    sectionGap: SECTION_GAP,
+    bottomPad: BOTTOM_PAD,
+  };
+}
+
 export function layoutCardRows<T extends Entity>(
   cells: T[],
   columns: number,
   cardWidth: number,
   startY: number,
   setRowHeight: (cell: T, height: number) => void,
+  padding = PADDING,
+  gap = GAP,
 ): number {
   let bottom = startY;
   let rowY = startY;
@@ -31,12 +52,12 @@ export function layoutCardRows<T extends Entity>(
     const rowHeight = Math.max(...row.map((cell) => cell.height));
     row.forEach((cell, column) => {
       setRowHeight(cell, rowHeight);
-      cell.setPosition(PADDING + column * (cardWidth + GAP), rowY);
+      cell.setPosition(padding + column * (cardWidth + gap), rowY);
     });
     bottom = rowY + rowHeight;
-    rowY = bottom + GAP;
+    rowY = bottom + gap;
   }
-  return bottom + GAP;
+  return bottom + gap;
 }
 
 /**
@@ -113,15 +134,16 @@ export class Bed extends Entity {
   }
 
   private layoutDocument(): void {
-    const innerW = Math.max(0, this.width - PADDING * 2);
-    let y = PADDING;
+    const metrics = getCatalogMetrics(this.width);
+    const innerW = Math.max(0, this.width - metrics.padding * 2);
+    let y = metrics.padding;
 
     if (!this.masthead) {
       this.masthead = new Masthead(innerW, this.creations.length, APPS.length);
       this.scroll.add(this.masthead);
     }
     this.masthead.resizeTo(innerW);
-    this.masthead.setPosition(PADDING, y);
+    this.masthead.setPosition(metrics.padding, y);
     y += this.masthead.height;
 
     if (!this.creationsHeader) {
@@ -132,21 +154,21 @@ export class Bed extends Entity {
       );
       this.scroll.add(this.creationsHeader);
     }
-    this.creationsHeader.width = innerW;
-    this.creationsHeader.setPosition(PADDING, y);
+    this.creationsHeader.resizeTo(innerW);
+    this.creationsHeader.setPosition(metrics.padding, y);
     y += this.creationsHeader.height + 8;
 
-    y = this.layoutCreationGrid(this.creations, innerW, y);
+    y = this.layoutCreationGrid(this.creations, innerW, y, metrics);
 
     if (!this.contributionBanner) {
       this.contributionBanner = new ContributionBanner(this.invalidate);
       this.scroll.add(this.contributionBanner);
     }
     this.contributionBanner.resizeTo(innerW);
-    this.contributionBanner.setPosition(PADDING, y);
+    this.contributionBanner.setPosition(metrics.padding, y);
     y += this.contributionBanner.height;
 
-    y += SECTION_GAP;
+    y += metrics.sectionGap;
     if (!this.appsHeader) {
       this.appsHeader = new SectionHeader(
         innerW,
@@ -155,11 +177,11 @@ export class Bed extends Entity {
       );
       this.scroll.add(this.appsHeader);
     }
-    this.appsHeader.width = innerW;
-    this.appsHeader.setPosition(PADDING, y);
+    this.appsHeader.resizeTo(innerW);
+    this.appsHeader.setPosition(metrics.padding, y);
     y += this.appsHeader.height + 8;
 
-    y = this.layoutAppGrid(innerW, y);
+    y = this.layoutAppGrid(innerW, y, metrics);
 
     // Invisible spacer so updateContentSize sees the bottom padding.
     if (!this.spacer) {
@@ -168,25 +190,33 @@ export class Bed extends Entity {
       this.spacer.height = 1;
       this.scroll.add(this.spacer);
     }
-    this.spacer.setPosition(PADDING, y + BOTTOM_PAD - GAP);
+    this.spacer.setPosition(metrics.padding, y + metrics.bottomPad - metrics.gap);
 
     this.scroll.updateContentSize();
   }
 
   /** Lays out creation cards and returns the next free Y. */
-  private layoutCreationGrid(creations: Creation[], innerW: number, startY: number): number {
+  private layoutCreationGrid(
+    creations: Creation[],
+    innerW: number,
+    startY: number,
+    metrics: CatalogMetrics,
+  ): number {
     if (creations.length === 0) {
       const empty = new Text('No matches — try a different search or fewer tags.', {
         font: FONT.body(14),
         color: COLOR.textMuted,
       });
-      empty.setPosition(PADDING, startY + 8);
+      empty.setPosition(metrics.padding, startY + 8);
       this.scroll.add(empty);
-      return startY + 8 + empty.height + GAP;
+      return startY + 8 + empty.height + metrics.gap;
     }
 
-    const columns = Math.max(1, Math.floor((innerW + GAP) / (CARD_MIN_WIDTH + GAP)));
-    const cardW = (innerW - GAP * (columns - 1)) / columns;
+    const columns = Math.max(
+      1,
+      Math.floor((innerW + metrics.gap) / (CARD_MIN_WIDTH + metrics.gap)),
+    );
+    const cardW = (innerW - metrics.gap * (columns - 1)) / columns;
 
     const cards = creations.map((creation, i) => {
       const existing = this.creationCards[i];
@@ -199,15 +229,23 @@ export class Bed extends Entity {
       return card;
     });
     this.creationCards = cards;
-    return layoutCardRows(cards, columns, cardW, startY, (cell, rowHeight) => {
-      if (cell instanceof CreationCard) cell.setUniformHeight(rowHeight);
-    });
+    return layoutCardRows(
+      cards,
+      columns,
+      cardW,
+      startY,
+      (cell, rowHeight) => {
+        if (cell instanceof CreationCard) cell.setUniformHeight(rowHeight);
+      },
+      metrics.padding,
+      metrics.gap,
+    );
   }
 
   /** Lays out the forge-app cards; returns the next free Y. */
-  private layoutAppGrid(innerW: number, startY: number): number {
-    const columns = Math.max(1, Math.floor((innerW + GAP) / (APP_MIN_WIDTH + GAP)));
-    const cardW = (innerW - GAP * (columns - 1)) / columns;
+  private layoutAppGrid(innerW: number, startY: number, metrics: CatalogMetrics): number {
+    const columns = Math.max(1, Math.floor((innerW + metrics.gap) / (APP_MIN_WIDTH + metrics.gap)));
+    const cardW = (innerW - metrics.gap * (columns - 1)) / columns;
 
     const cards = APPS.map((app, i) => {
       const existing = this.appCards[i];
@@ -220,9 +258,17 @@ export class Bed extends Entity {
       return card;
     });
     this.appCards = cards;
-    return layoutCardRows(cards, columns, cardW, startY, (card, rowHeight) => {
-      card.setUniformHeight(rowHeight);
-    });
+    return layoutCardRows(
+      cards,
+      columns,
+      cardW,
+      startY,
+      (card, rowHeight) => {
+        card.setUniformHeight(rowHeight);
+      },
+      metrics.padding,
+      metrics.gap,
+    );
   }
 
   override isPointInside(_globalX: number, _globalY: number): boolean {
