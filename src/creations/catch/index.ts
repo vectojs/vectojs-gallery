@@ -1,5 +1,6 @@
 import { Entity } from '@vectojs/core';
-import type { IRenderer } from '@vectojs/core';
+import type { A11yAttributes, IRenderer } from '@vectojs/core';
+import { Button } from '@vectojs/ui';
 import { centerX } from '../../ui/text-metrics';
 
 type FruitKey = 'apple' | 'grape' | 'orange' | 'lime';
@@ -76,6 +77,68 @@ function drawFruit(r: IRenderer, x: number, y: number, rad: number, key: FruitKe
 
 type Phase = 'ready' | 'play' | 'win' | 'fail';
 
+class CatchButton extends Button {
+  override getA11yAttributes(): A11yAttributes {
+    return { ...super.getA11yAttributes(), pointerEvents: 'none' };
+  }
+
+  override isPointInside(): boolean {
+    return false;
+  }
+
+  override render(): void {}
+}
+
+class CatchWorkspace extends Entity {
+  focused = false;
+
+  constructor() {
+    super('CatchWorkspace');
+    this.interactive = true;
+    this.on('focus', () => {
+      this.focused = true;
+      this.scene?.markDirty();
+    });
+    this.on('blur', () => {
+      this.focused = false;
+      this.scene?.markDirty();
+    });
+  }
+
+  override getA11yAttributes(): A11yAttributes {
+    return {
+      role: 'application',
+      label: 'Fruit Catch game. Use the left and right arrow keys to move the plate.',
+      pointerEvents: 'none',
+    };
+  }
+
+  override isPointInside(): boolean {
+    return false;
+  }
+
+  override render(): void {}
+}
+
+class CatchStatus extends Entity {
+  label = 'Fruit Catch ready';
+
+  constructor() {
+    super('CatchStatus');
+    this.interactive = true;
+  }
+
+  override getA11yAttributes(): A11yAttributes {
+    return { role: 'status', label: this.label, pointerEvents: 'none' };
+  }
+
+  override isPointInside(): boolean {
+    return false;
+  }
+
+  override render(): void {}
+}
+
 class CatchGame extends Entity {
   W = 0;
   H = 0;
@@ -92,6 +155,18 @@ class CatchGame extends Entity {
   private flash = 0;
   private flashOk = true;
   private t = 0; // free-running clock for idle animation (the Start-button pulse)
+  private readonly workspaceProxy = new CatchWorkspace();
+  private readonly statusProxy = new CatchStatus();
+  private readonly startButton = new CatchButton('Start', {
+    width: 1,
+    height: 1,
+    onClick: () => this.activatePrimary(),
+  });
+  private readonly restartButton = new CatchButton('Restart', {
+    width: 1,
+    height: 1,
+    onClick: () => this.reset(),
+  });
 
   private get fruitR(): number {
     return Math.max(15, Math.min(30, this.H * 0.05));
@@ -127,6 +202,8 @@ class CatchGame extends Entity {
     this.H = h;
     const half = this.plateW / 2;
     this.plateX = Math.min(w - half, Math.max(half, this.plateX || w / 2));
+    this.layoutSemantics();
+    this.updateStatus();
   }
 
   reset(): void {
@@ -140,10 +217,50 @@ class CatchGame extends Entity {
     this.overlayT = 0;
     this.flash = 0;
     this.plateX = this.W / 2;
+    this.layoutSemantics();
+    this.updateStatus();
   }
 
   begin(): void {
     if (this.phase === 'ready') this.phase = 'play';
+    this.layoutSemantics();
+    this.updateStatus();
+  }
+
+  private activatePrimary(): void {
+    if (this.phase === 'ready') this.begin();
+    else this.reset();
+  }
+
+  private updateStatus(): void {
+    const def = defOf(this.goalKey);
+    this.statusProxy.label =
+      this.phase === 'ready'
+        ? `Fruit Catch ready. Catch ${this.goalNeed} ${def.name}.`
+        : this.phase === 'play'
+          ? `Fruit Catch in progress. ${this.goalGot} of ${this.goalNeed} ${def.name} caught. ${this.catchesLeft} catches remaining.`
+          : this.phase === 'win'
+            ? `Fruit Catch complete. Caught ${this.goalGot} of ${this.goalNeed} ${def.name}.`
+            : `Fruit Catch over. Caught ${this.goalGot} of ${this.goalNeed} ${def.name}.`;
+    this.scene?.markDirty();
+  }
+
+  private layoutSemantics(): void {
+    this.workspaceProxy.setPosition(0, 0);
+    this.workspaceProxy.width = this.W;
+    this.workspaceProxy.height = this.H;
+    this.statusProxy.setPosition(8, CatchGame.HUD_Y);
+    this.statusProxy.width = Math.max(0, this.W - 16);
+    this.statusProxy.height = 46;
+    const b = this.startRect();
+    this.startButton.setPosition(b.x, b.y);
+    this.startButton.width = b.w;
+    this.startButton.height = b.h;
+    this.restartButton.setPosition(this.W / 2 - b.w / 2, this.H * 0.4 + 150);
+    this.restartButton.width = b.w;
+    this.restartButton.height = b.h;
+    this.startButton.interactive = this.phase === 'ready';
+    this.restartButton.interactive = this.phase !== 'ready';
   }
 
   // Centered Start button (canvas-drawn, so the game stays zero-DOM). One geometry
@@ -226,6 +343,8 @@ class CatchGame extends Entity {
           this.phase = 'fail';
           this.overlayT = 0;
         }
+        this.layoutSemantics();
+        this.updateStatus();
       } else if (f.y - f.r > this.H) {
         this.fruits.splice(i, 1); // missed — no penalty
       }
@@ -275,6 +394,7 @@ class CatchGame extends Entity {
     r.roundRect(b.x, b.y, b.w, b.h, b.h / 2);
     r.fill('#22c55e');
     r.stroke(`rgba(134,239,172,${(0.35 + pulse * 0.5).toFixed(3)})`, 2);
+    if (this.startButton.focused) r.stroke('#f8fafc', 3);
     const cyb = b.y + b.h / 2;
     const cxb = b.x + b.w / 2;
     r.beginPath();
@@ -419,6 +539,11 @@ class CatchGame extends Entity {
       '600 13px Inter, system-ui',
       '#7dd3fc',
     );
+    if (this.restartButton.focused) {
+      r.beginPath();
+      r.roundRect(cx - 120, cy + 150, 240, 58, 29);
+      r.stroke('#f8fafc', 3);
+    }
     r.restore();
   }
 
@@ -433,6 +558,10 @@ class CatchGame extends Entity {
       window.addEventListener('keydown', this.onKeyDown);
       window.addEventListener('keyup', this.onKeyUp);
     }
+    this.add(this.workspaceProxy);
+    this.add(this.statusProxy);
+    this.add(this.startButton);
+    this.add(this.restartButton);
     this.reset();
   }
 
@@ -464,10 +593,8 @@ class CatchGame extends Entity {
     const rect = this.canvas.getBoundingClientRect();
     const scaleX = window.innerWidth / rect.width;
     const scaleY = window.innerHeight / rect.height;
-    return {
-      x: (clientX - rect.left) * scaleX - this.x,
-      y: (clientY - rect.top) * scaleY - this.y,
-    };
+    const local = this.worldToLocal((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
+    return local ?? { x: 0, y: 0 };
   }
 
   private readonly onPointerMove = (e: PointerEvent): void => {
@@ -487,6 +614,7 @@ class CatchGame extends Entity {
   };
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
+    if (!this.workspaceProxy.focused) return;
     if (this.phase === 'ready') {
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
@@ -511,6 +639,7 @@ class CatchGame extends Entity {
   };
 
   private readonly onKeyUp = (e: KeyboardEvent): void => {
+    if (!this.workspaceProxy.focused) return;
     if (e.key === 'ArrowLeft' && this.keyDir === -1) this.keyDir = 0;
     if (e.key === 'ArrowRight' && this.keyDir === 1) this.keyDir = 0;
   };
