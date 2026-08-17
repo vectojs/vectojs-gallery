@@ -1,5 +1,5 @@
 import { Entity, type A11yAttributes, type IRenderer } from '@vectojs/core';
-import { Text } from '@vectojs/ui';
+import { Image, Text } from '@vectojs/ui';
 import type { Creation } from '../registry';
 import { ThumbDoodle } from './ThumbDoodle';
 import { clampTagsToWidth, clampTextToLines } from './clamp';
@@ -58,6 +58,7 @@ class PlayBadge extends Entity {
 export class CreationCard extends EditorialCard {
   private thumbH: number;
   private readonly thumb: ThumbDoodle;
+  private readonly previewImage: Image | null;
   private readonly titleText: Text;
   private readonly descText: Text;
   private readonly tagsText: Text;
@@ -76,9 +77,21 @@ export class CreationCard extends EditorialCard {
     this.height = 0; // natural height set below; grid may stretch it after
 
     this.thumbH = Math.round((width - PADDING * 2) * THUMB_RATIO);
-    const thumb = new ThumbDoodle(width - PADDING * 2, this.thumbH, seed, accent);
+    const preview = creation.preview;
+    const mediaWidth = width - PADDING * 2;
+    const thumb = new ThumbDoodle(mediaWidth, this.thumbH, seed, accent);
     this.thumb = thumb;
-    this.mountMedia(thumb);
+    this.previewImage = preview
+      ? new Image(preview.src, {
+          width: mediaWidth,
+          height: this.thumbH,
+          alt: preview.alt,
+          placeholder: COLOR.groundSunk,
+          radius: 10,
+          onLoad: invalidate,
+        })
+      : null;
+    this.mountMedia(this.previewImage ?? thumb);
     this.resizeMediaFrame(PADDING, PADDING, width - PADDING * 2, this.thumbH);
 
     const titleY = PADDING + this.thumbH + 20;
@@ -126,6 +139,10 @@ export class CreationCard extends EditorialCard {
     this.thumbH = Math.round((width - PADDING * 2) * THUMB_RATIO);
     this.thumb.width = width - PADDING * 2;
     this.thumb.height = this.thumbH;
+    if (this.previewImage) {
+      this.previewImage.width = width - PADDING * 2;
+      this.previewImage.height = this.thumbH;
+    }
     this.titleText.setMaxWidth(width - PADDING * 2);
     const titleY = PADDING + this.thumbH + 20;
     this.titleText.setPosition(PADDING, titleY);

@@ -1,11 +1,20 @@
 import type { Entity } from '@vectojs/core';
 
+export interface CreationPreview {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+  focalPoint?: { x: number; y: number };
+}
+
 /** One showcased creation: a lazily-loaded root `Entity` plus its catalog metadata. */
 export interface Creation {
   id: string;
   title: string;
   description: string;
   tags: string[];
+  preview?: CreationPreview;
   /**
    * Backdrop colour the workspace Stage paints behind this creation. Part of
    * the creation theme contract (AGENTS.md): a creation authored for a light
@@ -53,6 +62,13 @@ export const CREATIONS: Creation[] = [
     description:
       "Fabric.js's interactive object model, rebuilt from first principles on VectoJS: drag, scale from 8 oriented handles, rotate, band-select and group-move, reorder z-depth, and serialize the whole scene to JSON and back — every shape a plain numeric record, every handle computed geometry.",
     tags: ['Editor', 'Interaction', 'Serialization'],
+    preview: {
+      src: '/previews/studio.svg',
+      alt: 'Canvas Studio editor with layered shapes and selection handles',
+      width: 960,
+      height: 600,
+      focalPoint: { x: 0.5, y: 0.48 },
+    },
     stage: '#f2efe8',
     // Nothing here animates except a toast that fades itself out, and every
     // mutation goes through a pointer/keyboard handler wrapped to call
@@ -67,6 +83,13 @@ export const CREATIONS: Creation[] = [
     description:
       'A VectoJS control panel floating in real 3D space — drag to orbit, and every click is raycast through the plane into a fully interactive 2D UI underneath.',
     tags: ['WebGL', 'Three.js', '3D'],
+    preview: {
+      src: '/previews/dimension.svg',
+      alt: 'Dimension control panel floating inside a blue 3D space',
+      width: 960,
+      height: 600,
+      focalPoint: { x: 0.52, y: 0.45 },
+    },
     load: () => import('./creations/dimension'),
   },
   {
@@ -75,6 +98,13 @@ export const CREATIONS: Creation[] = [
     description:
       'A falling-fruit catcher, osu!Catch-style: move the plate with your mouse or arrow keys to grab the fruit the goal asks for.',
     tags: ['Interaction', 'Game'],
+    preview: {
+      src: '/previews/catch.svg',
+      alt: 'Fruit Catch game plate beneath falling fruit',
+      width: 960,
+      height: 600,
+      focalPoint: { x: 0.5, y: 0.5 },
+    },
     load: () => import('./creations/catch'),
   },
   {
@@ -83,6 +113,13 @@ export const CREATIONS: Creation[] = [
     description:
       'Tens of thousands of particles simulated on a WebGPU compute pass — springing into the word "VectoJS" and flowing away from your cursor, with a transparent CPU fallback.',
     tags: ['WebGPU', 'Compute', 'particles'],
+    preview: {
+      src: '/previews/nexus.svg',
+      alt: 'Nexus particle field forming the VectoJS wordmark',
+      width: 960,
+      height: 600,
+      focalPoint: { x: 0.5, y: 0.5 },
+    },
     load: () => import('./creations/nexus'),
   },
   {
@@ -91,6 +128,13 @@ export const CREATIONS: Creation[] = [
     description:
       "Nine public demos from the pretext text-layout library, reimplemented on VectoJS's canvas-native layout engine — plus a measured head-to-head that runs pretext itself alongside VectoJS and reports where each one wins.",
     tags: ['Text Layout', 'Comparison', 'Typography'],
+    preview: {
+      src: '/previews/compare-pretext.svg',
+      alt: 'Pretext comparison layout with typography samples and metrics',
+      width: 960,
+      height: 600,
+      focalPoint: { x: 0.5, y: 0.42 },
+    },
     stage: '#f5f1ea',
     // Every interaction here (opening a demo, dragging a slider, toggling
     // an accordion row) already calls scene.markDirty() itself through the
@@ -105,6 +149,13 @@ export const CREATIONS: Creation[] = [
     description:
       'Drop a .md/.txt file and it reveals the source at an adjustable rate, the way an LLM response arrives: @vectojs/markdown lexes off the main thread and reconciles each chunk in place, with math, tables, and code.',
     tags: ['Streaming', 'Markdown'],
+    preview: {
+      src: '/previews/chat.svg',
+      alt: 'Stream Reader showing a streaming Markdown document',
+      width: 960,
+      height: 600,
+      focalPoint: { x: 0.5, y: 0.4 },
+    },
     stage: '#f7f2e8',
     // Reserve space above the control bar (56px desktop / 90px mobile, see
     // ControlPanel.panelHeight) plus a clear gap.
