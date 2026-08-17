@@ -10,3 +10,6 @@ tmp/
 .wrangler/
 .carryctx/config.local.toml
 .worktrees/
+benchmarks/*/page/
+benchmarks/*/results/
+benchmarks/*/traces/
