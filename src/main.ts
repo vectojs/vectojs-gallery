@@ -443,9 +443,21 @@ function initGallery(): void {
 function whenFontsReady(): Promise<void> {
   const fonts = document.fonts;
   if (!fonts) return Promise.resolve();
+  const fontDescriptors = [
+    '400 16px "Archivo Black"',
+    '300 16px Inter',
+    '400 16px Inter',
+    '500 16px Inter',
+    '600 16px Inter',
+    '700 16px Inter',
+  ];
   try {
-    void fonts.load('400 16px "Archivo Black"');
-    void fonts.load('400 16px Inter');
+    return Promise.race([
+      Promise.all(fontDescriptors.map((descriptor) => fonts.load(descriptor)))
+        .then(() => undefined)
+        .catch(() => undefined),
+      new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+    ]);
   } catch {
     // `load()` throws on malformed descriptors only; ignore and fall through.
   }
