@@ -5,7 +5,7 @@ import { APPS } from '../apps';
 import { DotGridBackground } from './DotGridBackground';
 import { CreationCard } from './CreationCard';
 import { AppCard } from './AppCard';
-import { SubmitCard } from './SubmitCard';
+import { ContributionBanner } from './ContributionBanner';
 import { Masthead } from './Masthead';
 import { SectionHeader } from './SectionHeader';
 import { COLOR, FONT } from './tokens';
@@ -40,8 +40,8 @@ export function layoutCardRows<T extends Entity>(
 }
 
 /**
- * The scrollable hub surface: hero masthead, the creations grid (with the
- * submit CTA as its last cell), and the "Built on VectoJS" forge-app cards —
+ * The scrollable hub surface: hero masthead, the creations grid, a full-width
+ * contribution banner, and the "Built on VectoJS" forge-app cards —
  * all inside one ScrollView over a fixed dot-grid backdrop. `setCreations`
  * rebuilds only in response to filtering; the apps section always shows.
  */
@@ -51,7 +51,7 @@ export class Bed extends Entity {
   private creations: Creation[] = [];
   private creationCards: CreationCard[] = [];
   private appCards: AppCard[] = [];
-  private submitCard: SubmitCard | null = null;
+  private contributionBanner: ContributionBanner | null = null;
   private masthead: Masthead | null = null;
   private creationsHeader: SectionHeader | null = null;
   private appsHeader: SectionHeader | null = null;
@@ -103,7 +103,7 @@ export class Bed extends Entity {
 
     this.creationCards = [];
     this.appCards = [];
-    this.submitCard = null;
+    this.contributionBanner = null;
     this.masthead = null;
     this.creationsHeader = null;
     this.appsHeader = null;
@@ -138,6 +138,14 @@ export class Bed extends Entity {
 
     y = this.layoutCreationGrid(this.creations, innerW, y);
 
+    if (!this.contributionBanner) {
+      this.contributionBanner = new ContributionBanner(this.invalidate);
+      this.scroll.add(this.contributionBanner);
+    }
+    this.contributionBanner.resizeTo(innerW);
+    this.contributionBanner.setPosition(PADDING, y);
+    y += this.contributionBanner.height;
+
     y += SECTION_GAP;
     if (!this.appsHeader) {
       this.appsHeader = new SectionHeader(
@@ -165,7 +173,7 @@ export class Bed extends Entity {
     this.scroll.updateContentSize();
   }
 
-  /** Lays out creation cards + the submit CTA; returns the next free Y. */
+  /** Lays out creation cards and returns the next free Y. */
   private layoutCreationGrid(creations: Creation[], innerW: number, startY: number): number {
     if (creations.length === 0) {
       const empty = new Text('No matches — try a different search or fewer tags.', {
@@ -191,16 +199,8 @@ export class Bed extends Entity {
       return card;
     });
     this.creationCards = cards;
-    const submitHeight = Math.max(...cards.map((card) => card.height));
-    if (!this.submitCard) {
-      this.submitCard = new SubmitCard(cardW, submitHeight, this.invalidate);
-      this.scroll.add(this.submitCard);
-    }
-    this.submitCard.resizeTo(cardW, submitHeight);
-    const cells: Entity[] = [...cards, this.submitCard];
-    return layoutCardRows(cells, columns, cardW, startY, (cell, rowHeight) => {
+    return layoutCardRows(cards, columns, cardW, startY, (cell, rowHeight) => {
       if (cell instanceof CreationCard) cell.setUniformHeight(rowHeight);
-      else if (cell instanceof SubmitCard) cell.resizeTo(cardW, rowHeight);
     });
   }
 

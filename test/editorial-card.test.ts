@@ -4,7 +4,8 @@ import { APPS } from '../src/apps';
 import { CREATIONS } from '../src/registry';
 import { AppCard } from '../src/ui/AppCard';
 import { CreationCard } from '../src/ui/CreationCard';
-import { layoutCardRows } from '../src/ui/Bed';
+import { Bed, layoutCardRows } from '../src/ui/Bed';
+import { ContributionBanner } from '../src/ui/ContributionBanner';
 
 const runtime = globalThis as typeof globalThis & {
   window?: Window & typeof globalThis;
@@ -128,5 +129,78 @@ describe('layoutCardRows', () => {
 
     expect(cells.map((cell) => cell.height)).toEqual([60, 60, 120, 120]);
     expect(cells.map((cell) => cell.y)).toEqual([10, 10, 86, 86]);
+  });
+});
+
+describe('ContributionBanner', () => {
+  test('occupies one full-width row and exposes a native repository link', () => {
+    const banner = new ContributionBanner();
+    banner.resizeTo(684);
+    banner.setPosition(32, 420);
+
+    expect(banner.width).toBe(684);
+    expect(banner.height).toBe(92);
+    expect(banner.getA11yAttributes()).toEqual({
+      tag: 'a',
+      role: 'link',
+      label: 'Submit your creation',
+      href: 'https://github.com/vectojs/vectojs-gallery',
+      target: '_blank',
+    });
+    expect(banner.isPointInside(32, 420)).toBe(true);
+    expect(banner.isPointInside(716, 512)).toBe(true);
+  });
+
+  test('does not duplicate navigation for a projected anchor click', () => {
+    let opened = 0;
+    const bannerRuntime = globalThis as typeof globalThis & {
+      window?: Window & typeof globalThis;
+    };
+    const bannerOriginalWindow = bannerRuntime.window;
+    bannerRuntime.window = {
+      open: () => {
+        opened++;
+        return null;
+      },
+    } as Window & typeof globalThis;
+
+    const banner = new ContributionBanner();
+    banner.emit('click', { nativeEvent: { currentTarget: { tagName: 'A' } } });
+    banner.emit('click', {});
+    expect(opened).toBe(1);
+
+    if (bannerOriginalWindow) bannerRuntime.window = bannerOriginalWindow;
+    else delete bannerRuntime.window;
+  });
+
+  test('stays outside the creation grid at narrow and wide column counts', () => {
+    const bed = new Bed(620, 900, () => {});
+    bed.resize(620, 900, CREATIONS.slice(0, 3));
+    const internals = bed as unknown as {
+      scroll: { content: { children: Entity[] } };
+    };
+    const narrowBanner = internals.scroll.content.children.find(
+      (child) => child.id === 'ContributionBanner',
+    );
+    const narrowCreations = internals.scroll.content.children.filter((child) =>
+      child.id.startsWith('CreationCard:'),
+    );
+
+    expect(narrowBanner).toBeDefined();
+    expect(narrowBanner?.x).toBe(32);
+    expect(narrowBanner?.width).toBe(556);
+    expect(narrowCreations.every((card) => card.y + card.height < (narrowBanner?.y ?? 0))).toBe(
+      true,
+    );
+    expect(internals.scroll.content.children.some((child) => child.id === 'SubmitCard')).toBe(
+      false,
+    );
+
+    bed.resize(1100, 900, CREATIONS.slice(0, 3));
+    const wideBanner = internals.scroll.content.children.find(
+      (child) => child.id === 'ContributionBanner',
+    );
+    expect(wideBanner?.x).toBe(32);
+    expect(wideBanner?.width).toBe(1036);
   });
 });
