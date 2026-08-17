@@ -10,6 +10,8 @@ import { BackChip } from './ui/BackChip';
 import { keepSceneLive } from './keep-live';
 import { GALLERY_SCENE_OPTIONS, SHELL_MAX_FPS } from './shell-config';
 import { FULL_RAIL_WIDTH, getShellLayout, type ShellLayout } from './ui/shell-layout';
+import { CreationLoadCoordinator } from './creation-loader';
+import { CreationStatus } from './ui/CreationStatus';
 
 const HASH_PREFIX = '#/creation/';
 
@@ -87,18 +89,15 @@ function initGallery(): void {
   let currentPlate: CaptionPlate | null = null;
   let currentStage: Stage | null = null;
   let currentBackChip: BackChip | null = null;
+  let currentStatus: CreationStatus | null = null;
   let currentCreation: Creation | null = null;
   let shellLayout: ShellLayout = getShellLayout(window.innerWidth, window.innerHeight);
   // Catalog + creation views both let the user collapse the rail to a thin
   // brand strip so the cards / creation get the width back.
   let railCollapsed = shellLayout.mode === 'medium';
-  let loadSeq = 0;
   let stopLivePump: (() => void) | null = null;
-  // `undefined` (not `null`) so the very first call to loadCreation(null) —
-  // the fresh-page-load, no-hash case — never short-circuits against this
-  // sentinel; `null` is a legitimate `id` value (the catalog view itself),
-  // so it can't double as "nothing has loaded yet".
-  let activeId: string | null | undefined = undefined;
+  let hasNavigated = false;
+  const creationLoader = new CreationLoadCoordinator<Awaited<ReturnType<Creation['load']>>>();
 
   const bed = new Bed(
     shellLayout.contentWidth,
@@ -148,6 +147,11 @@ function initGallery(): void {
     if (currentBackChip) {
       scene.remove(currentBackChip);
       currentBackChip = null;
+    }
+    if (currentStatus) {
+      currentStatus.destroy();
+      scene.remove(currentStatus);
+      currentStatus = null;
     }
     if (currentEntity) {
       currentEntity.destroy();
@@ -232,14 +236,14 @@ function initGallery(): void {
     scene.markDirty();
   };
 
-  const loadCreation = (creation: Creation | null): void => {
+  const loadCreation = (creation: Creation | null, retry = false): void => {
     const id = creation?.id ?? null;
-    if (id === activeId) return;
-    activeId = id;
-
-    const seq = ++loadSeq;
+    const state = creationLoader.state;
+    if (!retry && hasNavigated && id === (state.kind === 'catalog' ? null : state.id)) return;
+    hasNavigated = true;
 
     if (!creation) {
+      creationLoader.showCatalog();
       showCatalog();
       return;
     }
@@ -257,10 +261,26 @@ function initGallery(): void {
     currentStage.setPosition(workspaceX(), workspaceY());
     scene.add(currentStage);
 
-    creation
-      .load()
-      .then(({ default: EntityClass }) => {
-        if (seq !== loadSeq) return; // superseded by a later selection
+    currentStatus = new CreationStatus(workspaceW(), workspaceH(), creation, () => {
+      loadCreation(creation, true);
+    });
+    currentStatus.setPosition(workspaceX(), workspaceY());
+    scene.add(currentStatus);
+
+    currentBackChip = new BackChip(() => navigateTo(null));
+    currentBackChip.setPosition(workspaceX() + 16, workspaceY() + 16);
+    scene.add(currentBackChip);
+    scene.renderMode = 'onDemand';
+    scene.markDirty();
+
+    void creationLoader.load(creation.id, creation.load).then((outcome) => {
+      if (outcome.kind === 'loaded') {
+        const { default: EntityClass } = outcome.value;
+        if (currentStatus) {
+          currentStatus.destroy();
+          scene.remove(currentStatus);
+          currentStatus = null;
+        }
         currentEntity = new EntityClass();
         currentEntity.setPosition(workspaceX(), workspaceY());
         applySize(currentEntity, workspaceW(), workspaceH());
@@ -282,9 +302,12 @@ function initGallery(): void {
         currentPlate.setBottomAnchor(window.innerHeight - 16 - (creation.bottomInset ?? 0));
         scene.add(currentPlate);
 
-        currentBackChip = new BackChip(() => navigateTo(null));
-        currentBackChip.setPosition(workspaceX() + 16, workspaceY() + 16);
-        scene.add(currentBackChip);
+        // Keep Back above creation-owned content after it was usable throughout
+        // the pending import.
+        if (currentBackChip) {
+          scene.remove(currentBackChip);
+          scene.add(currentBackChip);
+        }
 
         // Lazily-created GPU canvases appear after the entity's first frame.
         clipStackedCanvases();
@@ -292,11 +315,13 @@ function initGallery(): void {
         setTimeout(clipStackedCanvases, 600);
 
         scene.markDirty();
-      })
-      .catch((err: unknown) => {
-        if (seq !== loadSeq) return;
-        console.error(`Failed to load creation "${creation.id}":`, err);
-      });
+        return;
+      }
+      if (outcome.kind === 'failed') {
+        console.error(`Failed to load creation "${creation.id}":`, outcome.error);
+        currentStatus?.setFailed();
+      }
+    });
   };
 
   // Reposition + resize the mounted creation, its Stage backdrop, and the
@@ -311,6 +336,10 @@ function initGallery(): void {
     if (currentEntity) {
       currentEntity.setPosition(workspaceX(), workspaceY());
       applySize(currentEntity, workspaceW(), workspaceH());
+    }
+    if (currentStatus) {
+      currentStatus.setPosition(workspaceX(), workspaceY());
+      currentStatus.resizeTo(workspaceW(), workspaceH());
     }
     if (currentPlate) currentPlate.x = workspaceX() + 16;
     if (currentBackChip) currentBackChip.setPosition(workspaceX() + 16, workspaceY() + 16);
@@ -351,6 +380,10 @@ function initGallery(): void {
     if (currentEntity) {
       currentEntity.setPosition(workspaceX(), workspaceY());
       applySize(currentEntity, workspaceW(), workspaceH());
+    }
+    if (currentStatus) {
+      currentStatus.setPosition(workspaceX(), workspaceY());
+      currentStatus.resizeTo(workspaceW(), workspaceH());
     }
     if (currentPlate) {
       currentPlate.setBottomAnchor(H - 16 - (currentCreation?.bottomInset ?? 0));

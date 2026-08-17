@@ -1,4 +1,4 @@
-import { Entity, type IRenderer } from '@vectojs/core';
+import { Entity, type A11yAttributes, type IRenderer } from '@vectojs/core';
 import { measureText } from '@vectojs/ui';
 import { COLOR, FONT } from './tokens';
 
@@ -15,6 +15,7 @@ const LABEL = '← Gallery';
  */
 export class BackChip extends Entity {
   private hovered = false;
+  private focused = false;
   private readonly labelWidth: number;
 
   constructor(private readonly onBack: () => void) {
@@ -33,6 +34,18 @@ export class BackChip extends Entity {
       this.scene?.markDirty();
     });
     this.on('click', () => this.onBack());
+    this.on('focus', () => {
+      this.focused = true;
+      this.scene?.markDirty();
+    });
+    this.on('blur', () => {
+      this.focused = false;
+      this.scene?.markDirty();
+    });
+  }
+
+  override getA11yAttributes(): A11yAttributes {
+    return { tag: 'button', role: 'button', label: 'Back to gallery' };
   }
 
   override isPointInside(globalX: number, globalY: number): boolean {
@@ -46,6 +59,11 @@ export class BackChip extends Entity {
     r.roundRect(0, 0, this.width, this.height, HEIGHT / 2);
     r.fill(this.hovered ? '#ffffff' : 'rgba(253, 252, 250, 0.92)');
     r.stroke(this.hovered ? COLOR.ink : COLOR.inkDim, 1);
+    if (this.focused) {
+      r.beginPath();
+      r.roundRect(-3, -3, this.width + 6, this.height + 6, HEIGHT / 2 + 3);
+      r.stroke(COLOR.ink, 2);
+    }
     r.fillText(LABEL, PAD_X, 22, FONT.body(13), COLOR.textPrimary);
   }
 }
