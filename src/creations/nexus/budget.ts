@@ -62,6 +62,25 @@ export function clampCountToPath(current: number, path: SimPath): number {
   return current;
 }
 
+/**
+ * The count to adopt when the simulation path *changes* to `path`.
+ *
+ * The WebGPU device resolves asynchronously: the first frames after mount
+ * report the CPU path and `clampCountToPath` drops the optimistic GPU initial
+ * (60k) to the JS maximum (6k), then the device lands and a downward-only
+ * clamp would leave the field permanently sparse. When the user has not
+ * touched the stepper, restore the optimistic GPU initial; otherwise keep
+ * their choice, clamped downward only.
+ */
+export function resolveCountOnPathChange(
+  current: number,
+  path: SimPath,
+  userAdjusted: boolean,
+): number {
+  if (!userAdjusted && path === 'webgpu') return BUDGET.webgpu.initial;
+  return clampCountToPath(current, path);
+}
+
 /** Human-readable name for the on-screen path readout. */
 export function simPathLabel(path: SimPath): string {
   if (path === 'webgpu') return 'WebGPU compute';
