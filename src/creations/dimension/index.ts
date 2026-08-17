@@ -1,9 +1,10 @@
-import { Entity } from '@vectojs/core';
+import { Entity, type IRenderer } from '@vectojs/core';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ThreeAdapter } from '@vectojs/three';
 import { Stack, Text, Toggle, Button } from '@vectojs/ui';
 import { buildParticlePositions } from './particle-field';
+import { SemanticControlProxy } from './semantic-control-proxy';
 
 interface SceneState {
   particleCount: number;
@@ -19,6 +20,30 @@ const PANEL_SCALE = 4.2;
 const COUNT_STEP = 200;
 const COUNT_MIN = 100;
 const COUNT_MAX = 2000;
+
+class DimensionToggle extends Toggle {
+  private focused = false;
+
+  constructor(opts: ConstructorParameters<typeof Toggle>[0]) {
+    super(opts);
+    this.on('focus', () => {
+      this.focused = true;
+      this.scene?.markDirty();
+    });
+    this.on('blur', () => {
+      this.focused = false;
+      this.scene?.markDirty();
+    });
+  }
+
+  override render(renderer: IRenderer): void {
+    super.render(renderer);
+    if (!this.focused) return;
+    renderer.beginPath();
+    renderer.roundRect(-4, -4, this.width + 8, this.height + 8, this.trackH / 2 + 4);
+    renderer.stroke('#f8fafc', 3);
+  }
+}
 
 /**
  * A `@vectojs/ui` control panel floating in a Three.js scene via
@@ -170,6 +195,8 @@ class Dimension extends Entity {
       ...STEPPER_BTN_OPTS,
       onClick: () => setCount(this.state.particleCount + COUNT_STEP),
     });
+    this.addSemanticControl('Decrease particle count', minusBtn, 48, 48, 0);
+    this.addSemanticControl('Increase particle count', plusBtn, 48, 48, 1);
     const stepperRow = new Stack({
       direction: 'horizontal',
       gap: 14,
@@ -185,7 +212,7 @@ class Dimension extends Entity {
     });
 
     const TOGGLE_OPTS = { width: 72, height: 40, font: '18px sans-serif' };
-    const orbitToggle = new Toggle({
+    const orbitToggle = new DimensionToggle({
       ...TOGGLE_OPTS,
       label: 'Auto-orbit',
       checked: this.state.autoOrbit,
@@ -193,7 +220,7 @@ class Dimension extends Entity {
         this.state.autoOrbit = v;
       },
     });
-    const gridToggle = new Toggle({
+    const gridToggle = new DimensionToggle({
       ...TOGGLE_OPTS,
       label: 'Floor grid',
       checked: this.state.grid,
@@ -201,7 +228,7 @@ class Dimension extends Entity {
         this.state.grid = v;
       },
     });
-    const spinToggle = new Toggle({
+    const spinToggle = new DimensionToggle({
       ...TOGGLE_OPTS,
       label: 'Panel spin',
       checked: this.state.spin,
@@ -209,6 +236,9 @@ class Dimension extends Entity {
         this.state.spin = v;
       },
     });
+    this.addSemanticControl('Auto-orbit', orbitToggle, 180, 40, 2);
+    this.addSemanticControl('Floor grid', gridToggle, 180, 40, 3);
+    this.addSemanticControl('Panel spin', spinToggle, 180, 40, 4);
 
     const panel = new Stack({ direction: 'vertical', gap: 32, align: 'start' });
     panel.add(heading);
@@ -218,6 +248,18 @@ class Dimension extends Entity {
     panel.add(spinToggle);
     panel.setPosition(40, 36);
     adapter.vectoScene.add(panel);
+  }
+
+  private addSemanticControl(
+    label: string,
+    control: Entity,
+    width: number,
+    height: number,
+    index: number,
+  ): void {
+    const proxy = new SemanticControlProxy(label, control, width, height);
+    proxy.setPosition(16, 16 + index * 48);
+    this.add(proxy);
   }
 
   private setNdc(e: MouseEvent | WheelEvent): void {
