@@ -14,7 +14,8 @@
  * `prepareWithSegments`/`layoutNextLine`. Three columns are painted directly
  * via `IRenderer` inside a `ScrollView`.
  */
-import { Entity, type IRenderer } from '@vectojs/core';
+import { Entity, type A11yAttributes, type IRenderer } from '@vectojs/core';
+import { Slider, Toggle } from '@vectojs/ui';
 import { WARM, FONT as UIFONT } from '../shared/theme';
 import { CONTENT_TOP, HEADER_TITLE_Y, drawDemoHeader } from '../shared/chrome';
 import { ScrollColumn } from '../shared/ScrollColumn';
@@ -561,6 +562,22 @@ const HEADER_H = 92;
 const SLIDER_MIN = 200;
 const SLIDER_MAX = 420;
 
+class SemanticSlider extends Slider {
+  override getA11yAttributes(): A11yAttributes {
+    return { ...super.getA11yAttributes(), pointerEvents: 'none' };
+  }
+
+  override render(): void {}
+}
+
+class SemanticToggle extends Toggle {
+  override getA11yAttributes(): A11yAttributes {
+    return { ...super.getA11yAttributes(), pointerEvents: 'none' };
+  }
+
+  override render(): void {}
+}
+
 class JustificationColumn extends Entity {
   frame: ColumnFrame | null = null;
   private title: string;
@@ -677,6 +694,27 @@ class JustificationDemo extends Entity {
   private sliderW = 220;
   private dragging = false;
   private toggleBox = { x: 0, y: 0, w: 150, h: 22 };
+  private readonly widthSlider = new SemanticSlider({
+    min: SLIDER_MIN,
+    max: SLIDER_MAX,
+    value: 300,
+    step: 1,
+    label: 'Column width',
+    width: 220,
+    height: 24,
+    onChange: (value: number) => {
+      this.colWidth = value;
+      this.rebuild();
+    },
+  });
+  private readonly riversToggle = new SemanticToggle({
+    label: 'Show rivers',
+    checked: true,
+    onChange: (checked) => {
+      this.showRivers = checked;
+      this.rebuild();
+    },
+  });
 
   private basePrepared: PreparedParagraph[];
   private hyphenPrepared: PreparedParagraph[];
@@ -736,6 +774,8 @@ class JustificationDemo extends Entity {
       this.columns.push(col);
       this.scrollCol.content.add(col);
     }
+    this.add(this.widthSlider);
+    this.add(this.riversToggle);
 
     this.interactive = true;
     this.on('pointerdown', (e: { localX?: number; localY?: number }) => {
@@ -760,8 +800,8 @@ class JustificationDemo extends Entity {
     });
   }
 
-  isPointInside(): boolean {
-    return true; // owns slider + toggle in the header band
+  override getA11yAttributes(): A11yAttributes {
+    return { pointerEvents: 'none' };
   }
 
   private inSlider(x?: number, y?: number): boolean {
@@ -778,6 +818,11 @@ class JustificationDemo extends Entity {
     const t = this.toggleBox;
     return x >= t.x && x <= t.x + t.w && y >= t.y && y <= t.y + t.h;
   }
+
+  override isPointInside(x: number, y: number): boolean {
+    const local = this.worldToLocal(x, y);
+    return !!local && (this.inSlider(local.x, local.y) || this.inToggle(local.x, local.y));
+  }
   private updateSlider(x?: number): void {
     if (x === undefined) return;
     const t = Math.max(0, Math.min(1, (x - this.sliderX) / this.sliderW));
@@ -786,6 +831,8 @@ class JustificationDemo extends Entity {
   }
 
   private rebuild(): void {
+    this.widthSlider.value = this.colWidth;
+    this.riversToggle.checked = this.showRivers;
     this.layoutColumns();
     this.scene?.markDirty();
   }
@@ -831,6 +878,9 @@ class JustificationDemo extends Entity {
       h: 22,
     };
     this.layoutColumns();
+    this.widthSlider.setPosition(this.sliderX, HEADER_TITLE_Y - 16);
+    this.widthSlider.width = this.sliderW;
+    this.riversToggle.setPosition(this.toggleBox.x, this.toggleBox.y);
   }
 
   render(r: IRenderer): void {
