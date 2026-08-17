@@ -2,7 +2,13 @@ import { Entity, ComputeParticleEntity, type IRenderer } from '@vectojs/core';
 import { Button, Stack, Text, Dropdown } from '@vectojs/ui';
 import { sampleTextPoints } from './text-shape';
 import { SHELL_MAX_FPS } from '../../shell-config';
-import { BUDGET, clampCountToPath, simPathFrom, simPathLabel, type SimPath } from './budget';
+import {
+  BUDGET,
+  resolveCountOnPathChange,
+  simPathFrom,
+  simPathLabel,
+  type SimPath,
+} from './budget';
 
 const SHAPE_TEXT = 'VectoJS';
 const FLOATS = 8; // per particle: pos.xy, vel.xy, origin.xy, size, life
@@ -33,6 +39,9 @@ class Nexus extends Entity {
   private countMax: number;
   private countStep: number;
   private particleCount: number;
+  /** True once the +/- stepper has been used, so a path change never overrides
+   *  a count the user picked (see `resolveCountOnPathChange`). */
+  private userAdjustedCount = false;
   private pendingParticleCount: number | null = null;
   private particleRebuildTimer: ReturnType<typeof setTimeout> | null = null;
   /** Cache key + payload for `sampleTextPoints`, whose result depends only on
@@ -72,11 +81,17 @@ class Nexus extends Entity {
     // a '−' glyph would announce as "−, button". Use words.
     const minusBtn = new Button('Fewer', {
       ...STEPPER_BTN_OPTS,
-      onClick: () => this.setParticleCount(this.particleCount - this.countStep),
+      onClick: () => {
+        this.userAdjustedCount = true;
+        this.setParticleCount(this.particleCount - this.countStep);
+      },
     });
     const plusBtn = new Button('More', {
       ...STEPPER_BTN_OPTS,
-      onClick: () => this.setParticleCount(this.particleCount + this.countStep),
+      onClick: () => {
+        this.userAdjustedCount = true;
+        this.setParticleCount(this.particleCount + this.countStep);
+      },
     });
     const countRow = new Stack({
       direction: 'horizontal',
@@ -241,8 +256,8 @@ class Nexus extends Entity {
     this.countMin = budget.min;
     this.countMax = budget.max;
     this.countStep = budget.step;
-    const clamped = clampCountToPath(this.particleCount, path);
-    if (clamped !== this.particleCount) this.setParticleCount(clamped);
+    const count = resolveCountOnPathChange(this.particleCount, path, this.userAdjustedCount);
+    if (count !== this.particleCount) this.setParticleCount(count);
   }
 
   resizeTo(width: number, height: number): void {

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   BUDGET,
   clampCountToPath,
+  resolveCountOnPathChange,
   simPathFrom,
   simPathLabel,
   type SimPath,
@@ -85,6 +86,33 @@ describe('clampCountToPath', () => {
       for (const n of [0, 1_000, 60_000, 500_000]) {
         const once = clampCountToPath(n, path);
         expect(clampCountToPath(once, path)).toBe(once);
+      }
+    }
+  });
+});
+
+describe('resolveCountOnPathChange', () => {
+  test('restores the GPU initial when the async device lands and the user never adjusted', () => {
+    // The first frames report the CPU path and clamp the optimistic 60k down
+    // to the JS maximum; once the device resolves, the field should come back.
+    expect(resolveCountOnPathChange(BUDGET.js.max, 'webgpu', false)).toBe(BUDGET.webgpu.initial);
+  });
+
+  test('keeps a user-adjusted count when the GPU path appears', () => {
+    const chosen = BUDGET.webgpu.min + BUDGET.webgpu.step;
+    expect(resolveCountOnPathChange(chosen, 'webgpu', true)).toBe(chosen);
+  });
+
+  test('still clamps downward on a CPU path even when unadjusted', () => {
+    expect(resolveCountOnPathChange(BUDGET.webgpu.initial, 'js', false)).toBe(BUDGET.js.max);
+    expect(resolveCountOnPathChange(BUDGET.webgpu.initial, 'wasm', false)).toBe(BUDGET.wasm.max);
+  });
+
+  test('delegates to clampCountToPath for every non-GPU path', () => {
+    for (const path of ['js', 'wasm'] as SimPath[]) {
+      for (const n of [0, 1_000, 60_000]) {
+        expect(resolveCountOnPathChange(n, path, false)).toBe(clampCountToPath(n, path));
+        expect(resolveCountOnPathChange(n, path, true)).toBe(clampCountToPath(n, path));
       }
     }
   });
