@@ -629,11 +629,9 @@ class StreamReader extends Entity {
     return false;
   }
 
-  // The gallery shell currently keeps this Creation in `always` mode so its FPS
-  // panel holds the display cadence even while idle. Still report streaming as
-  // pending animation: the entity remains correct when embedded in an
-  // `onDemand` Scene, where a sub-token accumulator tick must not park the loop
-  // before the next token becomes available.
+  // The independent RefreshRateProbe keeps measuring raw display cadence while
+  // the canvas sleeps. Streaming itself is pending animation so on-demand mode
+  // cannot park between sub-token accumulator ticks.
   override hasPendingAnimations(): boolean {
     return this.state.status === 'streaming';
   }

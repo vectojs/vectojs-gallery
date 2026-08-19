@@ -160,12 +160,10 @@ export const CREATIONS: Creation[] = [
     // Reserve space above the control bar (56px desktop / 90px mobile, see
     // ControlPanel.panelHeight) plus a clear gap.
     bottomInset: 106,
-    // This Creation is also a live frame-cadence monitor: keep the shared
-    // Scene in `always` mode and the shell's rAF pump active even while the
-    // document is idle. `maxFPS: 0` in shell-config.ts remains uncapped, so
-    // "continuous" follows the display's measured cadence rather than a
-    // hardcoded 60 Hz. The idle document repaint cost is intentional here.
-    continuousRedraw: true,
+    // The independent rAF probe measures display capability without repainting
+    // the canvas. While streaming, hasPendingAnimations() keeps on-demand mode
+    // active; idle, paused, and completed documents sleep at zero redraws.
+    continuousRedraw: false,
     load: () => import('./creations/chat'),
   },
 ];

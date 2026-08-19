@@ -9,6 +9,7 @@ import {
   COMPACT_NAV_HEIGHT,
   FULL_RAIL_WIDTH,
   getShellLayout,
+  railCollapsedForView,
   shellMode,
 } from '../src/ui/shell-layout';
 
@@ -224,6 +225,20 @@ describe('responsive shell layout', () => {
       if (layout.mode === 'medium') expect(layout.railWidth).toBe(COLLAPSED_RAIL_WIDTH);
       if (layout.mode === 'wide') expect(layout.railWidth).toBe(FULL_RAIL_WIDTH);
     }
+  });
+
+  test('reserves the full rail width when medium navigation is expanded', () => {
+    const layout = getShellLayout(1366, 768, 'medium', false);
+
+    expect(layout.railWidth).toBe(FULL_RAIL_WIDTH);
+    expect(layout.contentX).toBe(FULL_RAIL_WIDTH);
+    expect(layout.contentWidth).toBe(1366 - FULL_RAIL_WIDTH);
+  });
+
+  test('keeps medium navigation discoverable while a creation is open', () => {
+    expect(railCollapsedForView('medium', false)).toBe(true);
+    expect(railCollapsedForView('medium', true)).toBe(false);
+    expect(railCollapsedForView('wide', true)).toBe(false);
   });
 
   test('keeps the integrated catalog document inside all target content bands', () => {

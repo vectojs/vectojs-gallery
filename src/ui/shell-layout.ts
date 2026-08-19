@@ -22,10 +22,15 @@ export function shellMode(width: number): ShellMode {
   return 'wide';
 }
 
+export function railCollapsedForView(mode: ShellMode, creationOpen: boolean): boolean {
+  return mode === 'medium' && !creationOpen;
+}
+
 export function getShellLayout(
   width: number,
   height: number,
   mode = shellMode(width),
+  railCollapsed = mode === 'medium',
 ): ShellLayout {
   if (mode === 'compact') {
     return {
@@ -41,7 +46,7 @@ export function getShellLayout(
     };
   }
 
-  const railWidth = mode === 'wide' ? FULL_RAIL_WIDTH : COLLAPSED_RAIL_WIDTH;
+  const railWidth = railCollapsed ? COLLAPSED_RAIL_WIDTH : FULL_RAIL_WIDTH;
   return {
     mode,
     railX: 0,

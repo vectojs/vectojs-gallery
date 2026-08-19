@@ -133,6 +133,10 @@ export class Bed extends Entity {
     this.layoutDocument();
   }
 
+  handleWheel(event: WheelEvent): void {
+    this.scroll.emit('wheel', event);
+  }
+
   private layoutDocument(): void {
     const metrics = getCatalogMetrics(this.width);
     const innerW = Math.max(0, this.width - metrics.padding * 2);

@@ -42,6 +42,19 @@ describe('EditorialCard', () => {
     expect(opened).toBe(CREATIONS[0].id);
   });
 
+  test('keeps preview semantics without intercepting the card pointer target', () => {
+    const card = new CreationCard(300, CREATIONS[0], 1, () => {});
+    const preview = card.children[0]?.children[0];
+
+    expect(preview?.getA11yAttributes()).toEqual({
+      tag: 'img',
+      src: CREATIONS[0].preview?.src,
+      alt: CREATIONS[0].preview?.alt,
+      label: CREATIONS[0].preview?.alt,
+      pointerEvents: 'none',
+    });
+  });
+
   test('projects forge apps as links without duplicating native link navigation', () => {
     let opened = 0;
     runtime.window = {

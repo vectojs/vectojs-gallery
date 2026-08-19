@@ -9,7 +9,13 @@ import { Stage } from './ui/Stage';
 import { BackChip } from './ui/BackChip';
 import { keepSceneLive } from './keep-live';
 import { GALLERY_SCENE_OPTIONS, SHELL_MAX_FPS } from './shell-config';
-import { FULL_RAIL_WIDTH, getShellLayout, type ShellLayout } from './ui/shell-layout';
+import {
+  FULL_RAIL_WIDTH,
+  getShellLayout,
+  railCollapsedForView,
+  shellMode,
+  type ShellLayout,
+} from './ui/shell-layout';
 import { CreationLoadCoordinator } from './creation-loader';
 import { CreationStatus } from './ui/CreationStatus';
 
@@ -94,7 +100,7 @@ function initGallery(): void {
   let shellLayout: ShellLayout = getShellLayout(window.innerWidth, window.innerHeight);
   // Catalog + creation views both let the user collapse the rail to a thin
   // brand strip so the cards / creation get the width back.
-  let railCollapsed = shellLayout.mode === 'medium';
+  let railCollapsed = railCollapsedForView(shellLayout.mode, false);
   let stopLivePump: (() => void) | null = null;
   let hasNavigated = false;
   const creationLoader = new CreationLoadCoordinator<Awaited<ReturnType<Creation['load']>>>();
@@ -210,6 +216,13 @@ function initGallery(): void {
 
   const showCatalog = (): void => {
     teardownCurrent();
+    const mode = shellMode(window.innerWidth);
+    const catalogCollapsed = railCollapsedForView(mode, false);
+    if (railCollapsed !== catalogCollapsed) {
+      railCollapsed = catalogCollapsed;
+      rail.setCollapsed(railCollapsed);
+      shellLayout = getShellLayout(window.innerWidth, window.innerHeight, mode, railCollapsed);
+    }
     scene.renderMode = 'onDemand';
     if (!bedMounted) {
       scene.add(bed);
@@ -224,9 +237,12 @@ function initGallery(): void {
   const setRailCollapsed = (collapsed: boolean): void => {
     if (railCollapsed === collapsed) return;
     railCollapsed = collapsed;
-    shellLayout = collapsed
-      ? getShellLayout(window.innerWidth, window.innerHeight, 'medium')
-      : getShellLayout(window.innerWidth, window.innerHeight);
+    shellLayout = getShellLayout(
+      window.innerWidth,
+      window.innerHeight,
+      shellMode(window.innerWidth),
+      collapsed,
+    );
     if (bedMounted) {
       layoutBed();
     } else {
@@ -252,6 +268,13 @@ function initGallery(): void {
     if (bedMounted) {
       scene.remove(bed);
       bedMounted = false;
+    }
+    const mode = shellMode(window.innerWidth);
+    const creationCollapsed = railCollapsedForView(mode, true);
+    if (railCollapsed !== creationCollapsed) {
+      railCollapsed = creationCollapsed;
+      rail.setCollapsed(railCollapsed);
+      shellLayout = getShellLayout(window.innerWidth, window.innerHeight, mode, railCollapsed);
     }
 
     // Dark backdrop behind the creation (see Stage). Added before the creation
@@ -363,9 +386,10 @@ function initGallery(): void {
     const H = window.innerHeight;
     scene.resize(W, H);
 
-    shellLayout = getShellLayout(W, H);
+    const mode = shellMode(W);
+    railCollapsed = railCollapsedForView(mode, !bedMounted);
+    shellLayout = getShellLayout(W, H, mode, railCollapsed);
     if (shellLayout.mode !== 'compact') {
-      railCollapsed = shellLayout.mode === 'medium';
       rail.setCollapsed(railCollapsed);
     }
     rail.setCompact(shellLayout.mode === 'compact', W, H);
@@ -407,6 +431,27 @@ function initGallery(): void {
     const match = id ? (CREATIONS.find((c) => c.id === id) ?? null) : null;
     loadCreation(match);
   });
+
+  window.addEventListener(
+    'wheel',
+    (event) => {
+      if (!bedMounted || event.ctrlKey) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * scene.width;
+      const y = ((event.clientY - rect.top) / rect.height) * scene.height;
+      if (
+        x < shellLayout.contentX ||
+        x > shellLayout.contentX + shellLayout.contentWidth ||
+        y < shellLayout.contentY ||
+        y > shellLayout.contentY + shellLayout.contentHeight
+      ) {
+        return;
+      }
+      event.stopPropagation();
+      bed.handleWheel(event);
+    },
+    { capture: true, passive: false },
+  );
 
   resize();
   const initialId = creationIdFromHash();
