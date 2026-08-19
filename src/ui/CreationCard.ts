@@ -18,6 +18,12 @@ const TAG_PILL_PAD_X = 8;
  */
 const TAG_SEPARATOR = ' · ';
 
+class CardPreviewImage extends Image {
+  override getA11yAttributes(): A11yAttributes {
+    return { ...super.getA11yAttributes(), pointerEvents: 'none' };
+  }
+}
+
 /** Widest the tag text may be before its pill would escape a `width` card. */
 function tagsBudget(width: number): number {
   return width - PADDING * 2 - TAG_PILL_PAD_X * 2;
@@ -82,7 +88,7 @@ export class CreationCard extends EditorialCard {
     const thumb = new ThumbDoodle(mediaWidth, this.thumbH, seed, accent);
     this.thumb = thumb;
     this.previewImage = preview
-      ? new Image(preview.src, {
+      ? new CardPreviewImage(preview.src, {
           width: mediaWidth,
           height: this.thumbH,
           fit: 'cover',

@@ -31,13 +31,43 @@ async function absent(page: Page, label: string): Promise<boolean> {
 
 async function probeLifecycle(page: Page, origin: string): Promise<void> {
   await a11yElement(page, 'Open Canvas Studio — a Fabric.js-style editor');
+  const preview = await a11yElement(
+    page,
+    'Canvas Studio editor with layered shapes and selection handles',
+  );
+  const previewBox = await preview.boundingBox();
+  assert.ok(previewBox, 'Studio preview has no pointer geometry');
 
-  await pressA11y(page, 'Open Canvas Studio — a Fabric.js-style editor');
+  await page.mouse.click(previewBox.x + previewBox.width / 2, previewBox.y + previewBox.height / 2);
   await a11yElement(page, 'Add rectangle');
   assert.equal(new URL(page.url()).hash, '#/creation/studio');
+  const railEntry = await a11yElement(page, 'Canvas Studio — a Fabric.js-style editor');
+  const railBox = await railEntry.boundingBox();
+  const backBox = await (await a11yElement(page, 'Back to gallery')).boundingBox();
+  assert.ok(railBox && railBox.width > 0, 'medium creation view collapsed the navigation rail');
+  assert.ok(
+    backBox && backBox.x >= 280,
+    'creation workspace overlaps the expanded navigation rail',
+  );
   await pressA11y(page, 'Back to gallery');
   await a11yElement(page, 'Open Dimension');
   assert.ok(await absent(page, 'Add rectangle'), 'Studio controls leaked after unmount');
+
+  const returnedStudioCard = await a11yElement(
+    page,
+    'Open Canvas Studio — a Fabric.js-style editor',
+  );
+  const beforeScroll = await returnedStudioCard.boundingBox();
+  assert.ok(beforeScroll, 'Studio card missing before wheel scroll');
+  await page.mouse.move(68, 240);
+  await page.mouse.wheel({ deltaY: 500 });
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  const afterScroll = await returnedStudioCard.boundingBox();
+  assert.ok(afterScroll, 'Studio card missing after wheel scroll');
+  assert.ok(
+    afterScroll.y < beforeScroll.y - 100,
+    `catalog blank-area wheel did not scroll: ${beforeScroll.y} -> ${afterScroll.y}`,
+  );
 
   for (const [id, expectedLabel] of CREATIONS) {
     await page.evaluate((nextId) => {

@@ -14,9 +14,9 @@ describe('creation registry', () => {
     expect(titles).toEqual(sorted);
   });
 
-  test('Stream Reader stays on the continuous display-cadence pump', () => {
+  test('Stream Reader sleeps when its stream is not changing', () => {
     const chat = CREATIONS.find((creation) => creation.id === 'chat');
-    expect(chat?.continuousRedraw).toBe(true);
+    expect(chat?.continuousRedraw).toBe(false);
   });
 
   test('representative creations expose stable intrinsic previews', () => {
