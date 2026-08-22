@@ -6,7 +6,7 @@
       "name": "vectojs-gallery",
       "dependencies": {
         "@vectojs/core": "1.38.0",
-        "@vectojs/markdown": "0.21.1",
+        "@vectojs/markdown": "0.22.0",
         "@vectojs/three": "0.1.9",
         "@vectojs/ui": "2.19.0",
         "three": "^0.160.0",
@@ -521,7 +521,7 @@
 
     "@vectojs/layout": ["@vectojs/layout@0.9.3", "", { "dependencies": { "@vectojs/text": "^0.4.1" } }, "sha512-xbCV6HtL2BSgp7RmbSyjqX+ryc8+3a1yXd96yLzd05US82fWU/ySSSi8J+MFPyl+8riRo+2fu/cT4cs2uTwy1w=="],
 
-    "@vectojs/markdown": ["@vectojs/markdown@0.21.1", "", { "dependencies": { "@vectojs/tex": "^0.1.1", "marked": "^18.0.7" }, "peerDependencies": { "@vectojs/core": ">=1.34.0 <2.0.0", "@vectojs/ui": ">=2.6.0 <3.0.0" } }, "sha512-I6mxWwhCVLYxbCM24C52RCxzA61OWmOheWa920Wb6ZYqKsEe3Z2NAtet+eiFFDl9lqpMslQ8WKJ2NW5RUGFkKQ=="],
+    "@vectojs/markdown": ["@vectojs/markdown@0.22.0", "", { "dependencies": { "@vectojs/tex": "^0.1.1", "marked": "^18.0.7" }, "peerDependencies": { "@vectojs/core": ">=1.34.0 <2.0.0", "@vectojs/ui": ">=2.6.0 <3.0.0" } }, "sha512-AlKZug4G2gjeHvCoyzmTeem7K0HANVtW8IEvwCAkVqNtCHo2MyZUbSB8v1vukq5ubCXr+8WKiX5YTCWn3JIW3w=="],
 
     "@vectojs/math": ["@vectojs/math@0.1.1", "", {}, "sha512-zHj+oOVv1ydW5ZBzuakMptsb+qkOsFvY7PXLMm4ZNpB/dJFLyd7EiAzFu3HKJQgq0aq0rYFiExyjhlFVvLqSLw=="],
 
