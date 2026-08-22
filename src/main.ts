@@ -75,10 +75,8 @@ function initGallery(): void {
   // (Bugzilla 1980552). Nothing here renders through the scene point batch,
   // so keep it off.
   //
-  // `maxFPS: 0` = uncapped (native refresh rate) — Stream Reader's debug FPS
-  // panel is meant to reflect the user's actual screen refresh rate, which an
-  // explicit cap (the engine default is 60) would hide (forge/findings.md
-  // 2026-07-19).
+  // The gallery defaults to a stable 60 FPS. Creations may expose a higher cap
+  // for high-refresh displays, and teardown restores this shared default.
   //
   // `a11ySyncInterval: 0` = sync the content-projection DOM mirror every frame,
   // so native text selection stays glued to the scrolling canvas instead of

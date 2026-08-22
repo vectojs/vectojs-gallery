@@ -16,7 +16,7 @@ const SPRING_K = 0.5;
 const DAMPING = 0.85;
 
 const UNCAPPED_LABEL = 'Uncapped';
-const FPS_OPTIONS = ['30', '60', '120', UNCAPPED_LABEL];
+const FPS_OPTIONS = ['30', '60', '120', '144', '240', UNCAPPED_LABEL];
 
 /**
  * The particle field itself: a single `ComputeParticleEntity` seeded onto

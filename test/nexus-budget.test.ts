@@ -136,11 +136,10 @@ describe('simPathLabel', () => {
 });
 
 describe('SHELL_MAX_FPS', () => {
-  test('is uncapped', () => {
-    // The shell deliberately runs at the display's native refresh rate so
-    // Stream Reader's FPS panel reflects the real screen. A creation that
-    // restored a hardcoded 60 on unmount is what capped every later creation.
-    expect(SHELL_MAX_FPS).toBe(0);
+  test('defaults to a stable 60 FPS cap', () => {
+    // High-refresh users can raise the cap from a creation's controls, while
+    // the shell default keeps ordinary gallery work predictable.
+    expect(SHELL_MAX_FPS).toBe(60);
   });
 
   test('is a number the Scene accepts as a cap', () => {

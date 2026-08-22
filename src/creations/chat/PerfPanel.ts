@@ -11,8 +11,10 @@
  */
 
 import { Entity } from '@vectojs/core';
+import { Dropdown } from '@vectojs/ui';
 import type { PerfSample } from './perf';
 import type { RawRenderer } from './raw-renderer';
+import { SHELL_MAX_FPS } from '../../shell-config';
 
 /** Health thresholds for the rendered-vs-display rate ratio. */
 const RATIO_GOOD = 0.9;
@@ -22,6 +24,8 @@ const COLOR_GOOD = '#22c55e';
 const COLOR_WARN = '#f59e0b';
 const COLOR_BAD = '#ef4444';
 const COLOR_UNKNOWN = '#5c4a35';
+const UNCAPPED_LABEL = 'Uncapped';
+const FPS_OPTIONS = ['30', '60', '120', '144', '240', UNCAPPED_LABEL];
 
 export class PerfPanel extends Entity {
   /**
@@ -41,12 +45,25 @@ export class PerfPanel extends Entity {
     heapLimitMB: NaN,
     cpuProxy: NaN,
   };
+  private maxFPSDropdown: Dropdown;
 
   constructor() {
     super('PerfPanel');
     this.width = 180;
-    this.height = 92;
+    this.height = 128;
     this.interactive = false;
+    this.maxFPSDropdown = new Dropdown(FPS_OPTIONS, {
+      value: SHELL_MAX_FPS === 0 ? UNCAPPED_LABEL : String(SHELL_MAX_FPS),
+      label: 'Maximum FPS',
+      width: 104,
+      height: 26,
+      font: '11px sans-serif',
+      onChange: (value: string) => {
+        if (this.scene) this.scene.maxFPS = value === UNCAPPED_LABEL ? 0 : Number(value);
+      },
+    });
+    this.maxFPSDropdown.setPosition(64, 94);
+    this.add(this.maxFPSDropdown);
   }
 
   isPointInside(_globalX: number, _globalY: number): boolean {
@@ -93,6 +110,10 @@ export class PerfPanel extends Entity {
     row('DISPLAY', formatDisplayRate(s.displayHz, s.rafHz), 42, starvationColor(s));
     row('RENDER', formatMs(s.frameMs), 62);
     row('HEAP', formatHeap(s.heapUsedMB), 80);
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#9e8e78';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('MAX FPS', 12, 107);
   }
 }
 

@@ -59,7 +59,7 @@ const MD_THEME: MarkdownTheme = {
 };
 
 const PERF_W = 190;
-const PERF_H = 98;
+const PERF_H = 128;
 const PERF_PAD = 12;
 // Top margin for the top-right-anchored perf panel, matching the back chip's
 // top inset (y = 16) so the two top-anchored overlays sit on the same band.

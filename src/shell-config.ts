@@ -3,22 +3,16 @@
  * shell must be able to restore.
  *
  * A creation that mutates the shared `Scene` cannot restore the default by
- * writing a literal: `nexus` previously reset `maxFPS` to `60` on unmount with
- * a comment asserting that matched the shell, while the shell actually
- * constructs the Scene uncapped. The result was a permanent 60fps cap on every
- * creation opened after nexus for the rest of the page session. Keeping the
- * value in one place that both the constructor and the teardown path read
- * removes the chance for the two to disagree.
+ * writing a literal without risking drift from the shell. Keeping the value in
+ * one place that both the constructor and teardown path read removes that risk.
  */
 
 /**
- * `0` = uncapped, i.e. the display's native refresh rate.
- *
- * Stream Reader's debug FPS panel is meant to reflect the user's actual screen
- * refresh rate, which an explicit cap (the engine default is 60) would hide
- * (forge/findings.md 2026-07-19).
+ * Keep the gallery's idle and animated work predictable by default. Individual
+ * creations can expose a higher cap when the user wants to use a high-refresh
+ * display; the shared shell restores this value whenever a creation unmounts.
  */
-export const SHELL_MAX_FPS = 0;
+export const SHELL_MAX_FPS: number = 60;
 
 /**
  * Per-line carrier window. Finite on purpose, and finite is the whole point:

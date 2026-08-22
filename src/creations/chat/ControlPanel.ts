@@ -433,15 +433,15 @@ export class ControlPanel extends Entity {
     ctx.textAlign = 'left';
     ctx.fillText('tok/s', inputRight, sliderY);
 
-    // File name + progress
+    // File name + token progress
     if (this.state?.fileName) {
       const pct =
         this.state.tokens.length > 0
           ? Math.round((this.state.cursor / this.state.tokens.length) * 100)
           : 0;
-      const label = `${this.state.fileName}  ${pct}%  [${this.state.status.toUpperCase()}]${this.state.loop ? '  🔁' : ''}`;
+      const label = `${this.state.fileName}  TOKENS ${this.state.cursor.toLocaleString()}/${this.state.tokens.length.toLocaleString()}  ${pct}%  [${this.state.status.toUpperCase()}]${this.state.loop ? '  🔁' : ''}`;
       ctx.font = '11px monospace';
-      ctx.fillStyle = '#8c7a65';
+      ctx.fillStyle = '#5f4931';
       ctx.textAlign = 'right';
       ctx.fillText(label, w - PAD, isMob ? 45 / 2 : h / 2);
     }
