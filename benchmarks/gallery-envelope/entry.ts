@@ -4,8 +4,8 @@ import {
   calibrateRefreshRate,
   reportFailure,
   reportResult,
-} from '../../../../../vectojs/benchmarks/_shared/client';
-import { median } from '../../../../../vectojs/benchmarks/_shared/stats';
+} from '../../../vectojs/benchmarks/_shared/client';
+import { median } from '../../../vectojs/benchmarks/_shared/stats';
 import { APPS } from '../../src/apps';
 import { CREATIONS } from '../../src/registry';
 import { GALLERY_SCENE_OPTIONS } from '../../src/shell-config';

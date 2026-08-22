@@ -4,8 +4,8 @@ import {
   calibrateRefreshRate,
   reportFailure,
   reportResult,
-} from '../../../../../vectojs/benchmarks/_shared/client';
-import { percentile, summarize } from '../../../../../vectojs/benchmarks/_shared/stats';
+} from '../../../vectojs/benchmarks/_shared/client';
+import { percentile, summarize } from '../../../vectojs/benchmarks/_shared/stats';
 import StreamReader from '../../src/creations/chat';
 import { GALLERY_SCENE_OPTIONS } from '../../src/shell-config';
 import { FULL_RAIL_WIDTH } from '../../src/ui/shell-layout';

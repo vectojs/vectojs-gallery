@@ -13,3 +13,5 @@ tmp/
 benchmarks/*/page/
 benchmarks/*/results/
 benchmarks/*/traces/
+# playwright-cli session state and page snapshots, written wherever it is invoked
+.playwright-cli/
