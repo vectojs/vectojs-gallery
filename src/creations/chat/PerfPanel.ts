@@ -24,6 +24,11 @@ const COLOR_GOOD = '#22c55e';
 const COLOR_WARN = '#f59e0b';
 const COLOR_BAD = '#ef4444';
 const COLOR_UNKNOWN = '#5c4a35';
+/** Panel chrome, shared by the readout rows and the Max FPS control. */
+const PANEL_INK = '#3d2e1a';
+const PANEL_MUTED = '#9e8e78';
+const PANEL_HAIRLINE = 'rgba(0,0,0,0.12)';
+const PANEL_ACCENT = '#a0784a';
 const UNCAPPED_LABEL = 'Uncapped';
 const FPS_OPTIONS = ['30', '60', '120', '144', '240', UNCAPPED_LABEL];
 
@@ -57,7 +62,21 @@ export class PerfPanel extends Entity {
       label: 'Maximum FPS',
       width: 104,
       height: 26,
-      font: '11px sans-serif',
+      font: '11px monospace',
+      // Every colour is set on purpose. `Dropdown` defaults to a dark slate
+      // trigger AND a dark menu, which on this warm translucent panel read as a
+      // rendering fault rather than a control — the panel is white at 85% with
+      // muted warm text, so the stock navy was the highest-contrast thing on it.
+      // The menu colours in particular are not optional: leaving them unset opens
+      // a dark popup out of a light trigger.
+      bg: 'rgba(255,255,255,0.92)',
+      color: PANEL_INK,
+      border: PANEL_HAIRLINE,
+      menuBg: 'rgba(255,255,255,0.97)',
+      menuColor: PANEL_INK,
+      menuSelectedBg: 'rgba(160,120,70,0.16)',
+      menuHighlightBg: 'rgba(160,120,70,0.30)',
+      focusColor: PANEL_ACCENT,
       onChange: (value: string) => {
         if (this.scene) this.scene.maxFPS = value === UNCAPPED_LABEL ? 0 : Number(value);
       },
@@ -89,7 +108,7 @@ export class PerfPanel extends Entity {
 
     const row = (label: string, value: string, y: number, color = COLOR_UNKNOWN) => {
       ctx.font = '10px monospace';
-      ctx.fillStyle = '#9e8e78';
+      ctx.fillStyle = PANEL_MUTED;
       ctx.textBaseline = 'middle';
       ctx.fillText(label, 12, y);
       ctx.font = 'bold 12px monospace';
@@ -111,7 +130,7 @@ export class PerfPanel extends Entity {
     row('RENDER', formatMs(s.frameMs), 62);
     row('HEAP', formatHeap(s.heapUsedMB), 80);
     ctx.font = '10px monospace';
-    ctx.fillStyle = '#9e8e78';
+    ctx.fillStyle = PANEL_MUTED;
     ctx.textBaseline = 'middle';
     ctx.fillText('MAX FPS', 12, 107);
   }

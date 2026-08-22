@@ -58,6 +58,21 @@ export interface ControlCallbacks {
 const BTN_H = 32;
 const GAP = 8;
 const PAD = 16;
+/**
+ * Token-rate row metrics, in one place because four call sites derive positions
+ * from them — the input anchor, the layout pass, the `tok/s` label, and the status
+ * clamp — and they drifted into repeated literals (`+ 40 + 80 + 8`).
+ *
+ * `RATE_INPUT_GAP` also has to clear the slider's own `10k` max label, which is
+ * centred just past the track end: at 40px the label sat mid-gap about 26px from
+ * the input, so `10k`, the value and `tok/s` crowded into one narrow band and read
+ * as a single run of text.
+ */
+const RATE_INPUT_W = 80;
+const RATE_INPUT_H = 28;
+const RATE_INPUT_GAP = 64;
+/** Centre offset of the slider's `0` / `10k` end labels, past each track end. */
+const RATE_TICK_OFFSET = 16;
 
 interface Btn {
   id: string;
@@ -135,8 +150,8 @@ export class ControlPanel extends Entity {
     this.rateSlider.opacity = 0;
     this.add(this.rateSlider);
     this.rateInput = new RateInput({
-      width: 80,
-      height: 28,
+      width: RATE_INPUT_W,
+      height: RATE_INPUT_H,
       value: '100',
       font: '13px monospace',
       color: '#3d2e1a',
@@ -198,9 +213,9 @@ export class ControlPanel extends Entity {
     const { sliderX, sliderW } = this.computeSliderGeom();
     const isMob = this.isMobile;
     const y = isMob
-      ? 45 + (45 - 28) / 2 // Rate row center
-      : (this.panelHeight - 28) / 2; // Single row center
-    return { x: sliderX + sliderW + 40, y };
+      ? 45 + (45 - RATE_INPUT_H) / 2 // Rate row center
+      : (this.panelHeight - RATE_INPUT_H) / 2; // Single row center
+    return { x: sliderX + sliderW + RATE_INPUT_GAP, y };
   }
 
   private layoutSemanticControls(): void {
@@ -220,7 +235,10 @@ export class ControlPanel extends Entity {
     this.rateSlider.width = sliderW;
     this.rateSlider.height = 24;
     this.rateSlider.value = this.state?.tokenRate ?? this.rateSlider.value;
-    this.rateInput.setPosition(sliderX + sliderW + 40, this.getRateInputAnchor().y);
+    // Both coordinates come from the one anchor helper. This site previously
+    // recomputed x itself, so the gap existed twice and could drift.
+    const rateAnchor = this.getRateInputAnchor();
+    this.rateInput.setPosition(rateAnchor.x, rateAnchor.y);
   }
 
   /** Sync input value from state */
@@ -440,13 +458,13 @@ export class ControlPanel extends Entity {
     ctx.fillStyle = '#9e8e78';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
-    ctx.fillText('0', sliderLeft - 14, sliderY);
-    ctx.fillText('10k', sliderLeft + sliderW + 14, sliderY);
+    ctx.fillText('0', sliderLeft - RATE_TICK_OFFSET, sliderY);
+    ctx.fillText('10k', sliderLeft + sliderW + RATE_TICK_OFFSET, sliderY);
 
     ctx.restore();
 
     // tok/s label (right of input: input width is 80px, spaced by 40px + 80px + 8px)
-    const inputRight = sliderLeft + sliderW + 40 + 80 + 8;
+    const inputRight = sliderLeft + sliderW + RATE_INPUT_GAP + RATE_INPUT_W + GAP;
     ctx.font = '11px monospace';
     ctx.fillStyle = '#9e8e78';
     ctx.textBaseline = 'middle';
@@ -467,7 +485,7 @@ export class ControlPanel extends Entity {
       const statusX = isMob ? PAD : w - PAD;
       const statusWidth = isMob
         ? w - PAD * 2
-        : Math.max(0, w - 16 - (sliderLeft + sliderW + 40 + 80 + 8));
+        : Math.max(0, w - 16 - (sliderLeft + sliderW + RATE_INPUT_GAP + RATE_INPUT_W + GAP));
       const status = `${this.state.cursor.toLocaleString()}/${this.state.tokens.length.toLocaleString()} tok  ${pct}%  ${this.state.status.toUpperCase()}`;
       const label = this.fitLabel(
         `${this.state.fileName}  ${status}${this.state.loop ? '  LOOP' : ''}`,
