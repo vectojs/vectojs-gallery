@@ -14,9 +14,12 @@ describe('creation registry', () => {
     expect(titles).toEqual(sorted);
   });
 
-  test('Stream Reader sleeps when its stream is not changing', () => {
+  test('Stream Reader renders at a fixed cadence even when idle', () => {
     const chat = CREATIONS.find((creation) => creation.id === 'chat');
-    expect(chat?.continuousRedraw).toBe(false);
+    // An on-demand scene collapses to dirty-driven wakeups (~4 Hz) once the
+    // stream settles, which users read as breakage. Chat opts into the shell's
+    // `always` mode + live pump so the FPS readout stays at the user's cap.
+    expect(chat?.continuousRedraw).not.toBe(false);
   });
 
   test('representative creations expose stable intrinsic previews', () => {

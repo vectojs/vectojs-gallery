@@ -73,6 +73,10 @@ const RATE_INPUT_H = 28;
 const RATE_INPUT_GAP = 64;
 /** Centre offset of the slider's `0` / `10k` end labels, past each track end. */
 const RATE_TICK_OFFSET = 16;
+/** The unit label drawn right of the rate input; measured, never hardcoded. */
+const TOK_S_LABEL = 'tok/s';
+/** Clear gap between that label's end and where the desktop status may start. */
+const STATUS_LABEL_GAP = 12;
 
 interface Btn {
   id: string;
@@ -469,7 +473,7 @@ export class ControlPanel extends Entity {
     ctx.fillStyle = '#9e8e78';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
-    ctx.fillText('tok/s', inputRight, sliderY);
+    ctx.fillText(TOK_S_LABEL, inputRight, sliderY);
 
     // File name + token progress. Compact layouts use the second row for the
     // status so it never competes with the token-rate input on the first row.
@@ -483,9 +487,14 @@ export class ControlPanel extends Entity {
       ctx.textAlign = isMob ? 'left' : 'right';
       const statusY = isMob ? h - 16 : h / 2;
       const statusX = isMob ? PAD : w - PAD;
+      // Desktop status is right-aligned and must clear the `tok/s` label,
+      // which is drawn left-aligned at inputRight: reserving only up to
+      // inputRight + GAP let the status overlap the label's glyphs (seen live
+      // as "tdofomula.md"). Reserve the measured label width plus a 12px gap.
+      const tokLabelWidth = ctx.measureText(TOK_S_LABEL).width;
       const statusWidth = isMob
         ? w - PAD * 2
-        : Math.max(0, w - 16 - (sliderLeft + sliderW + RATE_INPUT_GAP + RATE_INPUT_W + GAP));
+        : Math.max(0, w - PAD - (inputRight + tokLabelWidth + STATUS_LABEL_GAP));
       const status = `${this.state.cursor.toLocaleString()}/${this.state.tokens.length.toLocaleString()} tok  ${pct}%  ${this.state.status.toUpperCase()}`;
       const label = this.fitLabel(
         `${this.state.fileName}  ${status}${this.state.loop ? '  LOOP' : ''}`,

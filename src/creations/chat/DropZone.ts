@@ -55,29 +55,29 @@ export class DropZone extends Entity {
   }
 
   /**
-   * Full-viewport canvas click target while visible. The semantic layer is
-   * pointer-transparent in both states so the bottom control panel's projected
-   * buttons remain clickable while the canvas still receives the DropZone hit.
+   * Full-workspace click target while visible. Entity clicks only arrive
+   * through the projected mirror — the Scene wires no canvas-level click
+   * dispatch — so the visible zone MUST be hit-testable or the canvas-drawn
+   * "Click to open file" affordance is dead. Making it `auto` in both states
+   * was also wrong: after a file loads the same box (measured 1286x792 px at
+   * `zIndex: 14`) sat above the document's text carriers (`zIndex: 0`) and
+   * blocked selection.
    *
-   * `isPointInside()` already refuses canvas hits when hidden, but the a11y
-   * projection is a separate DOM layer: an `interactive` entity's shadow element
-   * spans its whole box with `pointer-events: auto`, and this entity's box is the
-   * viewport. Left at the default it kept intercepting every pointer after a file
-   * loaded — measured 1286x792 px at `zIndex: 14`, above the document's text
-   * carriers at `zIndex: 0`, so text could not be selected.
-   *
-   * `role`/`label` stay available to assistive technology while the zone is
-   * visible, but its full viewport box must never become a DOM pointer shield:
-   * `pointer-events: none` keeps the card announced while leaving the control
-   * panel's projected buttons — including its own `Open file` — hit-testable.
-   * Hidden, it is not a control at all, so it reports nothing.
+   * So the two states differ:
+   * - Visible (empty state): `pointerEvents: 'auto'`, announced as a button.
+   *   Every sibling control outranks it — control-panel buttons project at
+   *   z18+, PerfPanel at z23, BackChip at z25 vs this z14 (verified with
+   *   elementFromPoint on the live page) — so they stay reachable everywhere
+   *   their boxes overlap this one.
+   * - Hidden (document loaded): `pointerEvents: 'none'` and no role: it is
+   *   not a control at all and must not shield the transcript.
    */
   override getA11yAttributes(): A11yAttributes {
     if (!this._visible) return { pointerEvents: 'none' };
     return {
       role: 'button',
       label: 'Open a Markdown or text file',
-      pointerEvents: 'none',
+      pointerEvents: 'auto',
     };
   }
 

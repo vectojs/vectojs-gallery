@@ -121,17 +121,20 @@ describe('Stream Reader semantic controls', () => {
       .requestAnimationFrame;
   });
 
-  test('DropZone stays announced without shielding the controls beneath it', () => {
+  test('DropZone stays clickable while visible, transparent once hidden', () => {
     const zone = new DropZone(() => {});
 
-    // This entity's box is the whole creation. Projected with
-    // `pointer-events: auto` it sat above the control panel and swallowed every
-    // click meant for Open file / Play / Pause, so the empty state had no
-    // reachable way to load a document at all.
+    // Entity clicks only arrive through the projected mirror — the Scene wires
+    // no canvas-level click dispatch — so a visible DropZone must be
+    // hit-testable or the "Click to open file" affordance is dead. Every
+    // sibling control projects above it (buttons z18+, PerfPanel z23, BackChip
+    // z25 vs this entity's z14), so they remain reachable wherever their boxes
+    // overlap. Hidden (document loaded), the same box would block text
+    // selection over the transcript, so it reports nothing at all.
     expect(zone.getA11yAttributes()).toEqual({
       role: 'button',
       label: 'Open a Markdown or text file',
-      pointerEvents: 'none',
+      pointerEvents: 'auto',
     });
 
     zone.visible = false;

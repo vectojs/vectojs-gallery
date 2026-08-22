@@ -160,10 +160,12 @@ export const CREATIONS: Creation[] = [
     // Reserve space above the control bar (56px desktop / 124px compact, see
     // ControlPanel.panelHeight) plus a clear gap.
     bottomInset: 140,
-    // The independent rAF probe measures display capability without repainting
-    // the canvas. While streaming, hasPendingAnimations() keeps on-demand mode
-    // active; idle, paused, and completed documents sleep at zero redraws.
-    continuousRedraw: false,
+    // Deliberately NOT `continuousRedraw: false`. An on-demand scene sleeps
+    // once the stream settles, and its FPS readout collapses to dirty-driven
+    // wakeups (~4 Hz from the caret blink) — users read that as breakage and
+    // asked for a fixed cadence instead. The shell therefore keeps this
+    // creation in `always` mode with the live pump, paced by the user's
+    // Max FPS selection.
     load: () => import('./creations/chat'),
   },
 ];

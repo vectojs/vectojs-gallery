@@ -5,10 +5,10 @@
     "": {
       "name": "vectojs-gallery",
       "dependencies": {
-        "@vectojs/core": "1.38.0",
+        "@vectojs/core": "1.38.1",
         "@vectojs/markdown": "0.22.0",
         "@vectojs/three": "0.1.9",
-        "@vectojs/ui": "2.19.1",
+        "@vectojs/ui": "2.19.2",
         "three": "^0.160.0",
       },
       "devDependencies": {
@@ -517,7 +517,7 @@
 
     "@vectojs/animation": ["@vectojs/animation@0.1.2", "", { "dependencies": { "@vectojs/math": "^0.1.1" } }, "sha512-joNI4TEKumS72yIPokf5cHgtf2dnJKh0YHt1StPYl7bfXUxdcjrimR2l0QPaVKZXWSlLM0Z2Dhv1/Gw41A9rsQ=="],
 
-    "@vectojs/core": ["@vectojs/core@1.38.0", "", { "dependencies": { "@vectojs/animation": "^0.1.2", "@vectojs/layout": "^0.9.3", "@vectojs/math": "^0.1.1", "@vectojs/text": "^0.4.1" } }, "sha512-+9xNTaSr1z5ZrsW93M1/hT2+opIco4phdJuKy/rR17/lNKqjxF0uyXl6gcQqKxgLTaqkOXpMqmnkAfja2Omkug=="],
+    "@vectojs/core": ["@vectojs/core@1.38.1", "", { "dependencies": { "@vectojs/animation": "^0.1.2", "@vectojs/layout": "^0.9.3", "@vectojs/math": "^0.1.1", "@vectojs/text": "^0.4.1" } }, "sha512-uf08himXW2p+zmAyTftf0rmGuGEQ/C5oKGmPg58P5TMO0cS5e+SF6KtXf12VAFPD8zZFJPheRnX+R/FM6912Rg=="],
 
     "@vectojs/layout": ["@vectojs/layout@0.9.3", "", { "dependencies": { "@vectojs/text": "^0.4.1" } }, "sha512-xbCV6HtL2BSgp7RmbSyjqX+ryc8+3a1yXd96yLzd05US82fWU/ySSSi8J+MFPyl+8riRo+2fu/cT4cs2uTwy1w=="],
 
@@ -531,7 +531,7 @@
 
     "@vectojs/three": ["@vectojs/three@0.1.9", "", { "peerDependencies": { "@vectojs/core": ">=1.0.0 <2.0.0", "three": "^0.160.0" } }, "sha512-IZNWyrJP/r/BweHXU7Y6SoPM8B8O2ulHWE0WB+Z8xYnG0/qKhpQG84Q5+SgSDlHq+xjGzhliajWnWO1ahH6IaQ=="],
 
-    "@vectojs/ui": ["@vectojs/ui@2.19.1", "", { "peerDependencies": { "@vectojs/core": ">=1.25.0 <2.0.0" } }, "sha512-bOhnKRQaSQ8fK1hDzSDna6OA7yNGrjm5prd+FVXyFp3G5xfpKPQ1mlDAP/jQajlA3oj93ey0Y1rgKRFgQ1+uVg=="],
+    "@vectojs/ui": ["@vectojs/ui@2.19.2", "", { "peerDependencies": { "@vectojs/core": ">=1.25.0 <2.0.0" } }, "sha512-pgScR1frro5N3QVQ4dBRig+AxgQMnbR5k/VnjaQ4QRXkmyvD32Dd0SvI9HI7TkwPwJLKQKNJm+YDmR75R//zxg=="],
 
     "ajv": ["ajv@8.20.0", "", { "dependencies": { "fast-deep-equal": "^3.1.3", "fast-uri": "^3.0.1", "json-schema-traverse": "^1.0.0", "require-from-string": "^2.0.2" } }, "sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA=="],
 
