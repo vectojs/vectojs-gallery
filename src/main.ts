@@ -11,6 +11,7 @@ import { keepSceneLive } from './keep-live';
 import { GALLERY_SCENE_OPTIONS, SHELL_MAX_FPS } from './shell-config';
 import {
   FULL_RAIL_WIDTH,
+  backChipPosition,
   getShellLayout,
   railCollapsedForView,
   shellMode,
@@ -137,6 +138,8 @@ function initGallery(): void {
   // Workspace origin/width depend on whether the rail is collapsed to its thin
   // brand strip.
   const workspaceX = (): number => shellLayout.contentX;
+  /** Current back-chip placement; see `backChipPosition` in `ui/shell-layout`. */
+  const chipPosition = (): [number, number] => backChipPosition(shellLayout);
   const workspaceY = (): number => shellLayout.contentY;
   const workspaceW = (): number => shellLayout.contentWidth;
   const workspaceH = (): number => shellLayout.contentHeight;
@@ -289,13 +292,7 @@ function initGallery(): void {
     scene.add(currentStatus);
 
     currentBackChip = new BackChip(() => navigateTo(null));
-    // Compact navigation owns the top 64px band. Keep the creation's exit
-    // control in that band instead of anchoring it to the content origin at
-    // y=64, where it would be pushed below the mobile viewport.
-    currentBackChip.setPosition(
-      workspaceX() + 16,
-      shellLayout.mode === 'compact' ? 16 : workspaceY() + 16,
-    );
+    currentBackChip.setPosition(...chipPosition());
     scene.add(currentBackChip);
     scene.renderMode = 'onDemand';
     scene.markDirty();
@@ -369,7 +366,7 @@ function initGallery(): void {
       currentStatus.resizeTo(workspaceW(), workspaceH());
     }
     if (currentPlate) currentPlate.x = workspaceX() + 16;
-    if (currentBackChip) currentBackChip.setPosition(workspaceX() + 16, workspaceY() + 16);
+    if (currentBackChip) currentBackChip.setPosition(...chipPosition());
   }
 
   const setHash = (id: string | null): void => {
@@ -416,6 +413,11 @@ function initGallery(): void {
     if (currentPlate) {
       currentPlate.setBottomAnchor(H - 16 - (currentCreation?.bottomInset ?? 0));
     }
+    // The back chip was missing here entirely, so it kept whatever position it
+    // was mounted with: a window dragged from wide to compact stranded it at the
+    // wide `contentX` (measured 296px at a 390px viewport) while every other
+    // element reflowed around it.
+    if (currentBackChip) currentBackChip.setPosition(...chipPosition());
     clipStackedCanvases();
 
     scene.markDirty();

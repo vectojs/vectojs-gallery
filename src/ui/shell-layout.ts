@@ -26,6 +26,24 @@ export function railCollapsedForView(mode: ShellMode, creationOpen: boolean): bo
   return mode === 'medium' && !creationOpen;
 }
 
+/**
+ * Where an open creation's `← Gallery` chip belongs, as `[x, y]`.
+ *
+ * Compact navigation owns the top {@link COMPACT_NAV_HEIGHT} band, and in that
+ * mode `contentY` is *below* it — so anchoring the chip to the content origin
+ * pushes it off a short viewport. Wide and medium keep it inside the content
+ * band, where the rail already occupies the left edge.
+ *
+ * A function rather than an inline expression because it had three callers that
+ * silently disagreed: the mount path, the rail-collapse reflow, and the window
+ * `resize` path, which omitted the chip altogether. A window dragged from wide to
+ * compact therefore stranded it at the wide `contentX` — measured 296px at a
+ * 390px viewport — while everything else reflowed around it.
+ */
+export function backChipPosition(layout: ShellLayout, inset = 16): [number, number] {
+  return [layout.contentX + inset, layout.mode === 'compact' ? inset : layout.contentY + inset];
+}
+
 export function getShellLayout(
   width: number,
   height: number,

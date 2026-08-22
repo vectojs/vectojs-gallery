@@ -5,6 +5,7 @@ import { CREATIONS } from '../src/registry';
 import { Bed, getCatalogMetrics } from '../src/ui/Bed';
 import { compactSubtitle } from '../src/ui/SectionHeader';
 import {
+  backChipPosition,
   COLLAPSED_RAIL_WIDTH,
   COMPACT_NAV_HEIGHT,
   FULL_RAIL_WIDTH,
@@ -295,5 +296,41 @@ describe('responsive shell layout', () => {
     expect(scroll.content.children.find((child) => child.id === 'CreationCard:studio')).toBe(card);
     expect(scroll.content.children.length).toBe(childCount);
     expect(scroll.content.y).toBe(-200);
+  });
+});
+
+describe('backChipPosition', () => {
+  test('keeps the chip inside the compact navigation band', () => {
+    const [x, y] = backChipPosition(getShellLayout(390, 844));
+
+    // Compact `contentY` sits below the nav band, so anchoring the chip there
+    // pushes it down a short viewport instead of into the band users navigate by.
+    expect([x, y]).toEqual([16, 16]);
+    expect(y).toBeLessThan(COMPACT_NAV_HEIGHT);
+  });
+
+  test('anchors beside the rail when not compact', () => {
+    expect(backChipPosition(getShellLayout(1920, 1080, 'wide', false))).toEqual([
+      FULL_RAIL_WIDTH + 16,
+      16,
+    ]);
+    expect(backChipPosition(getShellLayout(1280, 720, 'medium', true))).toEqual([
+      COLLAPSED_RAIL_WIDTH + 16,
+      16,
+    ]);
+  });
+
+  test('follows a wide-to-compact reflow instead of keeping the wide x', () => {
+    // The shipped defect this guards: the window `resize` path never repositioned
+    // the chip, so dragging a window from wide to compact left it at the wide
+    // `contentX` — measured 296px at a 390px viewport on the deployed site — while
+    // every other element reflowed around it. Loading compact directly was fine,
+    // which is why local verification missed it.
+    const wide = backChipPosition(getShellLayout(1920, 1080, 'wide', false));
+    const compact = backChipPosition(getShellLayout(390, 844));
+
+    expect(wide[0]).toBe(FULL_RAIL_WIDTH + 16);
+    expect(compact[0]).toBe(16);
+    expect(compact).not.toEqual(wide);
   });
 });
