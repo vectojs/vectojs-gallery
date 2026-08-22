@@ -11,6 +11,8 @@ import { GALLERY_SCENE_OPTIONS } from '../../src/shell-config';
 import { FULL_RAIL_WIDTH } from '../../src/ui/shell-layout';
 
 const params = new URLSearchParams(location.search);
+/** `--param phases=1` adds per-phase attribution; off by default. */
+const PHASES = params.get('phases') === '1';
 const TARGET_KIB = Number(params.get('documentKiB') ?? 350);
 const TOKEN_RATE = Number(params.get('tokenRate') ?? 10_000);
 
@@ -86,6 +88,12 @@ async function main(): Promise<void> {
   await probe.openFile(new File([source], 'large-markdown.md', { type: 'text/markdown' }));
   probe.state.tokenRate = TOKEN_RATE;
 
+  // Opt-in, because the probes call `performance.now()` on the frame path and the
+  // whole-frame figures above are the ones quoted for pacing. Enabled after the
+  // document is loaded so the one-off parse/materialize spike is excluded and the
+  // shares describe steady-state streaming.
+  if (PHASES) scene.setPhaseTiming(true);
+
   const costs: number[] = [];
   const intervals: number[] = [];
   let previousTimestamp = await nextFrame();
@@ -142,7 +150,26 @@ async function main(): Promise<void> {
       finalBlocks: probe.markdownView.content.children.length,
       finalHeight: +probe.markdownView.height.toFixed(1),
     },
-    rows: [],
+    // Phases go in `rows` so the runner aggregates them across iterations the way
+    // it does any other per-row metric. `render` reports a null share by design —
+    // it encloses transform/drawWalk/flush — so it is emitted as -1 to keep the
+    // column numeric.
+    // Sorted by phase NAME, not by cost. `renderPhases` returns most-expensive
+    // first, which reorders between iterations and makes the runner's cross-run
+    // aggregation warn that "arms may be misaligned" and compare row 3 of one run
+    // against a different phase in the next.
+    rows: PHASES
+      ? [...scene.renderPhases]
+          .sort((a, b) => a.phase.localeCompare(b.phase))
+          .map((entry) => ({
+            phase: entry.phase,
+            totalMs: +entry.totalMs.toFixed(3),
+            avgMs: +entry.avgMs.toFixed(4),
+            maxMs: +entry.maxMs.toFixed(3),
+            calls: entry.calls,
+            sharePct: entry.share === null ? -1 : +entry.share.toFixed(2),
+          }))
+      : [],
     durationMs: +(performance.now() - started).toFixed(1),
   });
 
