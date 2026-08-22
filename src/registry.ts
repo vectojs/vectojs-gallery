@@ -157,9 +157,9 @@ export const CREATIONS: Creation[] = [
       focalPoint: { x: 0.5, y: 0.4 },
     },
     stage: '#f7f2e8',
-    // Reserve space above the control bar (56px desktop / 90px mobile, see
+    // Reserve space above the control bar (56px desktop / 124px compact, see
     // ControlPanel.panelHeight) plus a clear gap.
-    bottomInset: 106,
+    bottomInset: 140,
     // The independent rAF probe measures display capability without repainting
     // the canvas. While streaming, hasPendingAnimations() keeps on-demand mode
     // active; idle, paused, and completed documents sleep at zero redraws.

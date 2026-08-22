@@ -357,6 +357,10 @@ class StreamReader extends Entity {
     const w = this.width;
     const h = this.height;
     if (w === 0 || h === 0) return;
+    // panelHeight depends on the available width. Set the panel width before
+    // reading it so the first resize on a narrow viewport selects the two-row
+    // mobile layout instead of retaining the constructor's desktop height.
+    this.controlPanel.width = w;
     const ctrlH = this.controlPanel.panelHeight;
 
     this.dropZone.x = 0;
@@ -410,7 +414,6 @@ class StreamReader extends Entity {
 
     this.controlPanel.x = 0;
     this.controlPanel.y = 0;
-    this.controlPanel.width = w;
     this.controlPanel.height = ctrlH;
     this.controlPanel.state = this.state;
 

@@ -22,13 +22,13 @@ import type { RawRenderer } from './raw-renderer';
 
 class SemanticButton extends Button {
   override getA11yAttributes() {
-    return { ...super.getA11yAttributes(), pointerEvents: 'none' as const };
+    return super.getA11yAttributes();
   }
 }
 
 class SemanticSlider extends Slider {
   override getA11yAttributes() {
-    return { ...super.getA11yAttributes(), pointerEvents: 'none' as const };
+    return super.getA11yAttributes();
   }
 }
 
@@ -80,7 +80,10 @@ export class ControlPanel extends Entity {
   private rateInput: RateInput;
 
   get isMobile(): boolean {
-    return (this.width || 800) < 760;
+    // The creation loses the gallery rail width before this panel sees its
+    // available width. A 1280px viewport leaves roughly 1000px here, which is
+    // already too narrow for the desktop row once a filename is present.
+    return (this.width || 800) < 1120;
   }
 
   get btnW(): number {
@@ -88,11 +91,19 @@ export class ControlPanel extends Entity {
   }
 
   get panelHeight(): number {
-    return this.isMobile ? 90 : 56;
+    return this.isMobile ? 124 : 56;
   }
 
   get semanticControls(): readonly (Button | Input | Slider)[] {
     return [this.rateInput, this.rateSlider, ...this.semanticButtons];
+  }
+
+  // The panel owns canvas hit-testing for its custom-painted buttons and slider,
+  // while the child controls own the projected DOM semantics. Without this,
+  // the panel's full-width a11y box sits above every child and intercepts clicks
+  // before the projected Open/Play/Pause controls can receive them.
+  override getA11yAttributes() {
+    return { pointerEvents: 'none' as const };
   }
 
   // Computed deterministically from this.width — no need to wait for render.
@@ -187,7 +198,7 @@ export class ControlPanel extends Entity {
     const { sliderX, sliderW } = this.computeSliderGeom();
     const isMob = this.isMobile;
     const y = isMob
-      ? 45 + (45 - 28) / 2 // Row 2 center
+      ? 45 + (45 - 28) / 2 // Rate row center
       : (this.panelHeight - 28) / 2; // Single row center
     return { x: sliderX + sliderW + 40, y };
   }
@@ -216,6 +227,15 @@ export class ControlPanel extends Entity {
   syncRate(rate: number) {
     if (!this.rateInput.focused) this.rateInput.value = String(rate);
     this.rateSlider.value = rate;
+  }
+
+  /** Keep a long local filename from painting over the controls beside it. */
+  private fitLabel(text: string, maxWidth: number, measure: (value: string) => number): string {
+    if (maxWidth <= 0) return '';
+    if (measure(text) <= maxWidth) return text;
+    let end = text.length;
+    while (end > 1 && measure(`${text.slice(0, end)}...`) > maxWidth) end--;
+    return end > 1 ? `${text.slice(0, end)}...` : '...';
   }
 
   private buildButtons() {
@@ -433,17 +453,28 @@ export class ControlPanel extends Entity {
     ctx.textAlign = 'left';
     ctx.fillText('tok/s', inputRight, sliderY);
 
-    // File name + token progress
+    // File name + token progress. Compact layouts use the second row for the
+    // status so it never competes with the token-rate input on the first row.
     if (this.state?.fileName) {
       const pct =
         this.state.tokens.length > 0
           ? Math.round((this.state.cursor / this.state.tokens.length) * 100)
           : 0;
-      const label = `${this.state.fileName}  TOKENS ${this.state.cursor.toLocaleString()}/${this.state.tokens.length.toLocaleString()}  ${pct}%  [${this.state.status.toUpperCase()}]${this.state.loop ? '  🔁' : ''}`;
       ctx.font = '11px monospace';
       ctx.fillStyle = '#5f4931';
-      ctx.textAlign = 'right';
-      ctx.fillText(label, w - PAD, isMob ? 45 / 2 : h / 2);
+      ctx.textAlign = isMob ? 'left' : 'right';
+      const statusY = isMob ? h - 16 : h / 2;
+      const statusX = isMob ? PAD : w - PAD;
+      const statusWidth = isMob
+        ? w - PAD * 2
+        : Math.max(0, w - 16 - (sliderLeft + sliderW + 40 + 80 + 8));
+      const status = `${this.state.cursor.toLocaleString()}/${this.state.tokens.length.toLocaleString()} tok  ${pct}%  ${this.state.status.toUpperCase()}`;
+      const label = this.fitLabel(
+        `${this.state.fileName}  ${status}${this.state.loop ? '  LOOP' : ''}`,
+        statusWidth,
+        (value) => ctx.measureText(value).width,
+      );
+      ctx.fillText(label, statusX, statusY);
     }
   }
 

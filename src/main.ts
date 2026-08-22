@@ -289,7 +289,13 @@ function initGallery(): void {
     scene.add(currentStatus);
 
     currentBackChip = new BackChip(() => navigateTo(null));
-    currentBackChip.setPosition(workspaceX() + 16, workspaceY() + 16);
+    // Compact navigation owns the top 64px band. Keep the creation's exit
+    // control in that band instead of anchoring it to the content origin at
+    // y=64, where it would be pushed below the mobile viewport.
+    currentBackChip.setPosition(
+      workspaceX() + 16,
+      shellLayout.mode === 'compact' ? 16 : workspaceY() + 16,
+    );
     scene.add(currentBackChip);
     scene.renderMode = 'onDemand';
     scene.markDirty();

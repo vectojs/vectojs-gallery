@@ -55,7 +55,9 @@ export class DropZone extends Entity {
   }
 
   /**
-   * Full-viewport click target while visible, pointer-transparent once hidden.
+   * Full-viewport canvas click target while visible. The semantic layer is
+   * pointer-transparent in both states so the bottom control panel's projected
+   * buttons remain clickable while the canvas still receives the DropZone hit.
    *
    * `isPointInside()` already refuses canvas hits when hidden, but the a11y
    * projection is a separate DOM layer: an `interactive` entity's shadow element
@@ -64,12 +66,19 @@ export class DropZone extends Entity {
    * loaded — measured 1286x792 px at `zIndex: 14`, above the document's text
    * carriers at `zIndex: 0`, so text could not be selected.
    *
-   * `role`/`label` are only meaningful while the zone is actually offering to take
-   * a file; when hidden it is not a control at all, so it reports nothing.
+   * `role`/`label` stay available to assistive technology while the zone is
+   * visible, but its full viewport box must never become a DOM pointer shield:
+   * `pointer-events: none` keeps the card announced while leaving the control
+   * panel's projected buttons — including its own `Open file` — hit-testable.
+   * Hidden, it is not a control at all, so it reports nothing.
    */
   override getA11yAttributes(): A11yAttributes {
     if (!this._visible) return { pointerEvents: 'none' };
-    return { role: 'button', label: 'Open a Markdown or text file', pointerEvents: 'auto' };
+    return {
+      role: 'button',
+      label: 'Open a Markdown or text file',
+      pointerEvents: 'none',
+    };
   }
 
   update(dt: number): void {

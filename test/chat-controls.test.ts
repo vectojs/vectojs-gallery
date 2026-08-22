@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { ControlPanel } from '../src/creations/chat/ControlPanel';
+import { DropZone } from '../src/creations/chat/DropZone';
 import { SearchBar } from '../src/creations/chat/SearchBar';
 
 function installDocumentStub(): void {
@@ -54,6 +55,10 @@ describe('Stream Reader semantic controls', () => {
     });
 
     const attrs = panel.semanticControls.map((control) => control.getA11yAttributes());
+    expect(panel.getA11yAttributes().pointerEvents).toBe('none');
+    expect(panel.panelHeight).toBe(124);
+    panel.width = 1000;
+    expect(panel.panelHeight).toBe(124);
     expect(attrs.map((value) => value.label)).toEqual([
       'Token rate value',
       'Token rate slider',
@@ -64,7 +69,7 @@ describe('Stream Reader semantic controls', () => {
       'Toggle loop',
     ]);
     expect(attrs[0]?.pointerEvents).toBeUndefined();
-    expect(attrs.slice(1).every((value) => value.pointerEvents === 'none')).toBe(true);
+    expect(attrs.slice(1).every((value) => value.pointerEvents !== 'none')).toBe(true);
 
     panel.semanticControls[3]?.emit('click');
     panel.semanticControls[1]?.emit('change', { value: 240 });
@@ -114,5 +119,24 @@ describe('Stream Reader semantic controls', () => {
     search.destroy();
     delete (globalThis as { requestAnimationFrame?: typeof requestAnimationFrame })
       .requestAnimationFrame;
+  });
+
+  test('DropZone stays announced without shielding the controls beneath it', () => {
+    const zone = new DropZone(() => {});
+
+    // This entity's box is the whole creation. Projected with
+    // `pointer-events: auto` it sat above the control panel and swallowed every
+    // click meant for Open file / Play / Pause, so the empty state had no
+    // reachable way to load a document at all.
+    expect(zone.getA11yAttributes()).toEqual({
+      role: 'button',
+      label: 'Open a Markdown or text file',
+      pointerEvents: 'none',
+    });
+
+    zone.visible = false;
+    expect(zone.getA11yAttributes()).toEqual({ pointerEvents: 'none' });
+    expect(zone.interactive).toBe(false);
+    zone.destroy();
   });
 });
